@@ -10,7 +10,7 @@ candidate identity; the final tag is expected to be chosen only after Gate A suc
 - [x] Candidate version is stored in `VERSION`.
 - [x] Known limitations and release notes are present.
 - [x] MIT License is selected and stored as `LICENSE`; its security boundary is explained separately.
-- [ ] Official repository URL and final tag are recorded.
+- [x] Official repository URL and candidate tag `v0.1.0-rc.1` are recorded.
 
 ## Gate A — before publication
 
@@ -27,8 +27,8 @@ candidate identity; the final tag is expected to be chosen only after Gate A suc
 ## Gate B — publication
 
 - [ ] Publish only the audited clean staging directory.
-- [ ] Enable GitHub secret scanning／push protection where available.
-- [ ] Enable private vulnerability reporting or an equivalent private channel.
+- [x] Enable GitHub secret scanning／push protection where available.
+- [x] Enable private vulnerability reporting or an equivalent private channel.
 - [ ] Add final tag, release notes, ZIP, and `SHA256SUMS.txt`.
 - [ ] Record repository URL, tag, artifact URL, and publication time.
 

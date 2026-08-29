@@ -40,7 +40,7 @@ Status: applies to release candidate `0.1.0-rc.1`.
 
 - Source and documentation use the MIT License. This permits reuse but does not certify security or
   guarantee fitness for a particular use; see `LICENSE_AND_SECURITY.md`.
-- The official repository URL, final tag, and release checksum publication point are not fixed until
-  Gates A and B in `RELEASE_SECURITY_AUDIT_PLAN.md` complete.
+- The official repository is <https://github.com/MIN0/min0-core-forth>. Candidate tag
+  `v0.1.0-rc.1` precedes the final `v0.1.0` decision and post-publication Gate C audit.
 - Forks and modified builds are welcome but should use a distinct build name or version suffix so users
   can distinguish them from the official release.

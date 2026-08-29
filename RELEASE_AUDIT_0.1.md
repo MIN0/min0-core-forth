@@ -1,6 +1,6 @@
 # MIN0 CORE FORTH 0.1 release audit
 
-Status: Gate A PASS; Gate B publication has not started.
+Status: Gate A PASS; Gate B repository and security preparation PASS; candidate asset publication pending.
 
 Audit date: 2026-08-30 (Asia/Tokyo)  
 Candidate: `0.1.0-rc.1`  
@@ -12,7 +12,8 @@ Scope: MIN0 CORE FORTH only; MSX0-FORTH was not modified.
 | --- | --- | --- |
 | Gate A, source-tree preparation | PASS | allowlist, MIT License, notices, fixture warnings, launchers, and tests are present |
 | Gate A, clean-staging validation | PASS | all suites passed from the allowlisted staging tree; deterministic packaging was reproduced |
-| Gate B, GitHub publication | NOT STARTED | official repository URL and private reporting channel are not yet available |
+| Gate B, repository preparation | PASS | public repository, private reporting, secret scanning, push protection, and Dependabot updates are enabled |
+| Gate B, candidate assets | IN PROGRESS | audited ZIP, checksum, notes, and `v0.1.0-rc.1` remain to be published |
 | Gate C, public clone／artifact audit | NOT STARTED | runs only after Gate B |
 
 Gate A authorizes the local `0.1.0-rc.1` candidate for Gate B preparation. It is not a completed public
@@ -107,7 +108,8 @@ Gate B must publish that file unchanged with the archive.
 
 ## Remaining actions
 
-1. Create and record the official repository URL.
-2. Enable private vulnerability reporting before public release.
-3. Publish only the audited archive, checksum, release notes, and final tag.
-4. Clone and download from the public location, then complete every Gate C check.
+1. Publish only the audited archive, checksum, release notes, and candidate tag `v0.1.0-rc.1`.
+2. Download from the public location, then complete every Gate C check.
+3. Decide and publish final `v0.1.0` only after Gate C passes.
+
+Official repository: <https://github.com/MIN0/min0-core-forth>

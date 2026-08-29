@@ -85,6 +85,9 @@ Forkや改造版が動作することは、問題ではなく本プロジェク�
 
 内容を変更したForkは、その変更を隠さず、独自のbuild名またはversion suffixを付けることを推奨します。
 
+公式repositoryは <https://github.com/MIN0/min0-core-forth> です。最初の公開候補は
+`v0.1.0-rc.1`としてpre-releaseし、公開物を再取得するGate C監査後に最終`v0.1.0`を判断します。
+
 ## 安全機構を試す方へ
 
 認証必須profileでは、改変後に元の署名を付けたimage、署名なしimage、未知の鍵で署名したimage、古い
@@ -103,8 +106,7 @@ security demoへ進める構成を目指します。
 
 ## 1stリリース前に未決定の事項
 
-- 公開repositoryの正式URL
-- 公式release署名またはchecksumの配布方法
+- Gate C後の最終`v0.1.0`確定
 - Forth標準word setとの対応表
 
 これらが決まるまでは、`0.1 release candidate`として扱います。

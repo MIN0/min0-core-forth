@@ -12,9 +12,9 @@ known limitations, threat model, and official-release identification rules.
 ## Reporting a vulnerability
 
 Do not include an unpatched vulnerability, exploit details, private key, access token, or personal data
-in a public issue. When the official GitHub repository is created, its private vulnerability-reporting
-channel must be enabled before the first public release. Until that channel exists, Gate B of
-`RELEASE_SECURITY_AUDIT_PLAN.md` is incomplete and no final release may be declared.
+in a public issue. Use the official repository's private vulnerability-reporting channel:
+<https://github.com/MIN0/min0-core-forth/security/advisories/new>. It was enabled before the first
+candidate release, together with secret scanning and push protection.
 
 Ordinary usage questions, documentation errors, and already-public design discussions may use public
 issues after the repository is available.

@@ -16,6 +16,9 @@
 Current candidate: `0.1.0-rc.1`. For the shortest path from Viewer to actual execution, see
 **[QUICKSTART.md](QUICKSTART.md)**.
 
+Official repository: **<https://github.com/MIN0/min0-core-forth>**  
+Candidate tag: **`v0.1.0-rc.1`**
+
 Release status and public-safety preparation are recorded in
 **[RELEASE_AUDIT_0.1.md](RELEASE_AUDIT_0.1.md)**. Source and documentation are licensed under the
 **[MIT License](LICENSE)**. The license permits reuse but is not a security certification; the exact

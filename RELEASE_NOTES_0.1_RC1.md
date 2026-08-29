@@ -46,6 +46,5 @@ real device or release. This release is not a product-security guarantee. Read `
 
 ## Remaining release blockers
 
-- Create the official GitHub repository and record its URL.
-- Enable a private vulnerability-reporting path.
-- Publish Gate B, then clone and complete Gate C.
+- Publish this audited candidate and checksum as `v0.1.0-rc.1`.
+- Download the public artifact and complete Gate C before final `v0.1.0`.
