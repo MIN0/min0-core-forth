@@ -33,6 +33,7 @@ REQUIRED_PATHS = (
     "FIRST_READ.md",
     "SECURITY.md",
     "KNOWN_LIMITATIONS_0.1.md",
+    "RELEASE_NOTES_0.1.md",
     "RELEASE_NOTES_0.1_RC1.md",
     "RELEASE_CHECKLIST_0.1.md",
     "RELEASE_AUDIT_0.1.md",

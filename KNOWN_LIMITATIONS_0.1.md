@@ -1,6 +1,6 @@
 # MIN0 CORE FORTH 0.1 known limitations
 
-Status: applies to release candidate `0.1.0-rc.1`.
+Status: applies to release `0.1.0`.
 
 ## Language and compatibility
 
@@ -12,7 +12,7 @@ Status: applies to release candidate `0.1.0-rc.1`.
   a frozen target profile.
 - `.`, `EMIT`, `CR`, and `TYPE` remain interpret-state host words. Compiled `."` is available through the
   verified `terminal-type-v0.1` service boundary.
-- APIs, image formats, and machine identifiers remain release-candidate interfaces until final 0.1.
+- APIs, image formats, and machine identifiers are experimental `0.1` interfaces and may evolve in later releases.
 
 ## Host and target boundary
 
@@ -40,7 +40,7 @@ Status: applies to release candidate `0.1.0-rc.1`.
 
 - Source and documentation use the MIT License. This permits reuse but does not certify security or
   guarantee fitness for a particular use; see `LICENSE_AND_SECURITY.md`.
-- The official repository is <https://github.com/MIN0/min0-core-forth>. Candidate tag
-  `v0.1.0-rc.1` precedes the final `v0.1.0` decision and post-publication Gate C audit.
+- The official repository is <https://github.com/MIN0/min0-core-forth>. Release tag `v0.1.0` identifies
+  the first release authorized by the completed `v0.1.0-rc.1` post-publication Gate C audit.
 - Forks and modified builds are welcome but should use a distinct build name or version suffix so users
   can distinguish them from the official release.

@@ -1,9 +1,10 @@
 # MIN0 CORE FORTH 0.1 release audit
 
-Status: Gate A PASS; Gate B repository and security preparation PASS; candidate asset publication pending.
+Status: Gate A PASS; Gate B PASS; Gate C PASS; final `v0.1.0` publication authorized.
 
 Audit date: 2026-08-30 (Asia/Tokyo)  
-Candidate: `0.1.0-rc.1`  
+Audited candidate: `0.1.0-rc.1`
+Final release: `0.1.0`
 Scope: MIN0 CORE FORTH only; MSX0-FORTH was not modified.
 
 ## Current result
@@ -13,12 +14,12 @@ Scope: MIN0 CORE FORTH only; MSX0-FORTH was not modified.
 | Gate A, source-tree preparation | PASS | allowlist, MIT License, notices, fixture warnings, launchers, and tests are present |
 | Gate A, clean-staging validation | PASS | all suites passed from the allowlisted staging tree; deterministic packaging was reproduced |
 | Gate B, repository preparation | PASS | public repository, private reporting, secret scanning, push protection, and Dependabot updates are enabled |
-| Gate B, candidate assets | IN PROGRESS | audited ZIP, checksum, notes, and `v0.1.0-rc.1` remain to be published |
-| Gate C, public clone／artifact audit | NOT STARTED | runs only after Gate B |
+| Gate B, candidate assets | PASS | audited ZIP, checksum, notes, and `v0.1.0-rc.1` were published as a pre-release |
+| Gate C, public source／artifact audit | PASS | downloaded artifact and GitHub source passed independent hashes, audits, tests, Viewer checks, and alert review |
 
-Gate A authorizes the local `0.1.0-rc.1` candidate for Gate B preparation. It is not a completed public
-release until the official repository, private vulnerability-reporting path, tag, uploaded checksum,
-and post-publication Gate C audit exist.
+The public `0.1.0-rc.1` candidate completed all three gates. That result authorizes the same source,
+with release identity and records updated to `0.1.0`, for final publication. MIT permission remains
+separate from security assurance; the final release is still educational and experimental.
 
 ## Test evidence from the development tree
 
@@ -103,13 +104,35 @@ including a Windows clone, does not silently change the approved license bytes o
 
 The release tool builds with sorted paths, fixed ZIP timestamps, fixed permissions, and identical
 compression settings. Two independent real-candidate builds produced identical manifests and archive
-SHA-256 values. The authoritative local value is written beside the candidate in `SHA256SUMS.txt`;
-Gate B must publish that file unchanged with the archive.
+SHA-256 values. Gate B published the candidate ZIP unchanged with its checksum file.
 
-## Remaining actions
+## Gate B publication evidence
 
-1. Publish only the audited archive, checksum, release notes, and candidate tag `v0.1.0-rc.1`.
-2. Download from the public location, then complete every Gate C check.
-3. Decide and publish final `v0.1.0` only after Gate C passes.
+- Candidate release: <https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.0-rc.1>
+- Published: 2026-08-30 08:26:35 (Asia/Tokyo).
+- Target commit: `7fddb74c703cb2bf1a217a5d08ed3c93212a4e80`.
+- Candidate ZIP SHA-256: `1b9bc5ddc5cc2626fff12d163a897d1d376f68ff40cf50754e1ae651b851b3d9`.
+- GitHub reported the same SHA-256 digest for the uploaded ZIP.
+
+## Gate C post-publication evidence
+
+- The candidate ZIP and `SHA256SUMS.txt` were downloaded from the public release into a new directory.
+- The downloaded ZIP matched the published checksum exactly.
+- Its release audit selected 356 files and reported no issues.
+- Python 290 tests, 46 Ruby test files, and 49 cross-language check files all passed from the downloaded ZIP.
+- GitHub's tag-generated source archive was downloaded independently. All 356 manifest paths and hashes
+  matched the release ZIP, with zero missing or different files.
+- The same 290／46／49 suites passed again from the GitHub source archive.
+- All 15 Viewer tests passed, including offline-only operation and text-node treatment of trace data.
+- GitHub secret scanning and push protection were enabled. Dependabot security updates were enabled.
+- Secret-scanning alerts: 0. Dependabot alerts: 0 at the review time.
+- A normal `git clone` was not used because this Windows host's `git-remote-https.exe` crashed before
+  transport. The GitHub-generated tagged source archive and Git database API were used instead; the
+  archive-to-release 356-file hash comparison provides the content-equivalence check.
+
+## Final publication action
+
+Build, retest, and publish the authorized `0.1.0` source as tag `v0.1.0`, then record its public URL and
+publication time on the default branch. This action does not modify or publish MSX0-FORTH.
 
 Official repository: <https://github.com/MIN0/min0-core-forth>

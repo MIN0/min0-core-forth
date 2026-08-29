@@ -11,13 +11,13 @@
 >
 > **▶ [ここを見てください：MIT Licenseと安全性は別の約束です](LICENSE_AND_SECURITY.md)**
 
-**MIN0 CORE FORTH 0.1 — Educational & Experimental Reference Release candidate**
+**MIN0 CORE FORTH 0.1 — Educational & Experimental Reference Release**
 
-Current candidate: `0.1.0-rc.1`. For the shortest path from Viewer to actual execution, see
+Current release: `0.1.0`. For the shortest path from Viewer to actual execution, see
 **[QUICKSTART.md](QUICKSTART.md)**.
 
 Official repository: **<https://github.com/MIN0/min0-core-forth>**  
-Candidate tag: **`v0.1.0-rc.1`**
+Release tag: **`v0.1.0`**
 
 Release status and public-safety preparation are recorded in
 **[RELEASE_AUDIT_0.1.md](RELEASE_AUDIT_0.1.md)**. Source and documentation are licensed under the

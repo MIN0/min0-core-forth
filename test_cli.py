@@ -36,7 +36,7 @@ class HostCliTests(unittest.TestCase):
         self.assertEqual(result.stdout, "Hello")
         self.assertEqual(result.stderr, "")
 
-    def test_normal_mode_identifies_candidate_and_stack(self) -> None:
+    def test_normal_mode_identifies_release_and_stack(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             source = self._source(directory, "2 3 +")
             result = subprocess.run(
@@ -44,7 +44,8 @@ class HostCliTests(unittest.TestCase):
                 text=True, capture_output=True, check=False, encoding="utf-8",
             )
         self.assertEqual(result.returncode, 0)
-        self.assertIn("MIN0 CORE FORTH 0.1.0-rc.1", result.stdout)
+        version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+        self.assertIn(f"MIN0 CORE FORTH {version}", result.stdout)
         self.assertIn("DATA stack: [5]", result.stdout)
 
     def test_quiet_failure_is_nonzero_and_has_no_normal_output(self) -> None:

@@ -1,4 +1,4 @@
-"""User-facing host launcher for the MIN0 CORE FORTH release candidate."""
+"""User-facing host launcher for MIN0 CORE FORTH."""
 
 from __future__ import annotations
 

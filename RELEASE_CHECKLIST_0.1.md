@@ -1,16 +1,16 @@
 # MIN0 CORE FORTH 0.1 release checklist
 
-The final release is not complete until every required box is checked. `0.1.0-rc.1` is the current
-candidate identity; the final tag is expected to be chosen only after Gate A succeeds.
+The public `0.1.0-rc.1` candidate completed Gate A, Gate B, and Gate C. Those results authorize the
+final `0.1.0` release; the final publication record is completed after its assets are uploaded.
 
 ## Freeze and identity
 
 - [x] Feature work for the 1st release is frozen.
 - [x] Canonical name is `MIN0 CORE FORTH`; `MIN0` ends with numeric zero.
-- [x] Candidate version is stored in `VERSION`.
+- [x] Final version `0.1.0` is stored in `VERSION`.
 - [x] Known limitations and release notes are present.
 - [x] MIT License is selected and stored as `LICENSE`; its security boundary is explained separately.
-- [x] Official repository URL and candidate tag `v0.1.0-rc.1` are recorded.
+- [x] Official repository URL, candidate tag `v0.1.0-rc.1`, and final tag `v0.1.0` are defined.
 
 ## Gate A — before publication
 
@@ -26,20 +26,26 @@ candidate identity; the final tag is expected to be chosen only after Gate A suc
 
 ## Gate B — publication
 
-- [ ] Publish only the audited clean staging directory.
+- [x] Publish only the audited clean staging directory.
 - [x] Enable GitHub secret scanning／push protection where available.
 - [x] Enable private vulnerability reporting or an equivalent private channel.
-- [ ] Add final tag, release notes, ZIP, and `SHA256SUMS.txt`.
-- [ ] Record repository URL, tag, artifact URL, and publication time.
+- [x] Add candidate tag, release notes, ZIP, and `SHA256SUMS.txt`.
+- [x] Record candidate repository URL, tag, artifact URL, and publication time.
 
 ## Gate C — after publication
 
-- [ ] Clone the public repository into a new clean directory.
-- [ ] Repeat tests without referring to the development workspace.
-- [ ] Download and rescan the public archive.
-- [ ] Match downloaded artifact hashes against the published checksum file.
-- [ ] Confirm Viewer remains offline and trace strings remain observed data.
-- [ ] Review GitHub security and dependency alerts.
-- [ ] Save Gate C results and declare the release complete.
+- [x] Obtain GitHub's tagged source archive in a new clean directory and compare all release paths and hashes.
+- [x] Repeat tests without referring to the development workspace.
+- [x] Download and rescan the public archive.
+- [x] Match downloaded artifact hashes against the published checksum file.
+- [x] Confirm Viewer remains offline and trace strings remain observed data.
+- [x] Review GitHub security and dependency alerts.
+- [x] Save Gate C results and authorize final `v0.1.0`.
+
+## Final `v0.1.0` publication
+
+- [x] Update release identity and final release notes only after Gate C passes.
+- [ ] Publish final tag, ZIP, `SHA256SUMS.txt`, and release notes.
+- [ ] Record the final public URL and publication time on the default branch.
 
 This checklist applies only to MIN0 CORE FORTH. It must not modify or publish MSX0-FORTH.
