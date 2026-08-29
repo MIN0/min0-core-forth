@@ -45,7 +45,7 @@ final `0.1.0` release; the final publication record is completed after its asset
 ## Final `v0.1.0` publication
 
 - [x] Update release identity and final release notes only after Gate C passes.
-- [ ] Publish final tag, ZIP, `SHA256SUMS.txt`, and release notes.
-- [ ] Record the final public URL and publication time on the default branch.
+- [x] Publish final tag, ZIP, `SHA256SUMS.txt`, and release notes.
+- [x] Record the final public URL and publication time on the default branch.
 
 This checklist applies only to MIN0 CORE FORTH. It must not modify or publish MSX0-FORTH.

@@ -1,6 +1,6 @@
 # MIN0 CORE FORTH 0.1 release audit
 
-Status: Gate A PASS; Gate B PASS; Gate C PASS; final `v0.1.0` publication authorized.
+Status: Gate A PASS; Gate B PASS; Gate C PASS; final `v0.1.0` published and independently verified.
 
 Audit date: 2026-08-30 (Asia/Tokyo)  
 Audited candidate: `0.1.0-rc.1`
@@ -130,9 +130,17 @@ SHA-256 values. Gate B published the candidate ZIP unchanged with its checksum f
   transport. The GitHub-generated tagged source archive and Git database API were used instead; the
   archive-to-release 356-file hash comparison provides the content-equivalence check.
 
-## Final publication action
+## Final publication evidence
 
-Build, retest, and publish the authorized `0.1.0` source as tag `v0.1.0`, then record its public URL and
-publication time on the default branch. This action does not modify or publish MSX0-FORTH.
+- Final release: <https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.0>
+- Published: 2026-08-30 08:37:12 (Asia/Tokyo).
+- Target commit: `abf47f7e0bbe5361784696efe7645cab75861b42`.
+- Final ZIP SHA-256: `de98af5c074729d6b3e93758c6c2bbe5c5d0fa2279356e5a8ac04dfadced474d`.
+- Two independent local builds produced that same ZIP digest and the same 357-file manifest.
+- The final ZIP and checksum were downloaded again from GitHub; their SHA-256 values matched exactly.
+- All 357 release-manifest paths matched GitHub's final tagged source archive, with zero differences.
+- The downloaded final ZIP passed its audit, Python 290 tests, 46 Ruby test files, and 49 cross-language checks.
+- `v0.1.0` is a normal release, not a pre-release. The earlier `v0.1.0-rc.1` remains as audit history.
+- MSX0-FORTH was neither modified nor published by this release process.
 
 Official repository: <https://github.com/MIN0/min0-core-forth>
