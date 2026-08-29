@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+*.docx
+document_work/
+release/
+release-staging/
+.coverage
+.pytest_cache/
+.DS_Store
+Thumbs.db

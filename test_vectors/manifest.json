@@ -1,0 +1,24 @@
+{
+  "format": "MIN0 CORE FORTH raw bytecode v0.1",
+  "vectors": {
+    "square_double": {
+      "file": "square_double.fcb",
+      "expected_stack": [
+        25,
+        14
+      ]
+    },
+    "zero_branch": {
+      "file": "zero_branch.fcb",
+      "expected_stack": [
+        42
+      ]
+    },
+    "memory": {
+      "file": "memory.fcb",
+      "expected_stack": [
+        305419896
+      ]
+    }
+  }
+}

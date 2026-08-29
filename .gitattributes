@@ -1,0 +1,4 @@
+* text=auto eol=lf
+*.fcb binary
+*.zip binary
+*.docx binary
