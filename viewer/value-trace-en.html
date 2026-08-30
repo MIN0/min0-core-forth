@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MIN0 CORE FORTH Guided Viewer — the birth of VALUE:</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --paper: #f3efe5;
+      --panel: rgba(255, 253, 247, .88);
+      --ink: #1e2925;
+      --muted: #65716c;
+      --line: #c8cec8;
+      --green: #0b6f5c;
+      --green-soft: #d9ece5;
+      --amber: #b96b18;
+      --code: #4a6fa5;
+      --dictionary: #7b5ca7;
+      --data: #c56b31;
+      --attention: #f1b43c;
+      --attention-ink: #2c2108;
+      --danger: #b9483f;
+      --danger-soft: #f7dfdc;
+      --shadow: 0 12px 34px rgba(28, 43, 36, .09);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --paper: #101714;
+        --panel: rgba(25, 35, 31, .92);
+        --ink: #edf3ef;
+        --muted: #a5b2ac;
+        --line: #3c4c45;
+        --green: #62d2b0;
+        --green-soft: #173f35;
+        --amber: #f4ae5f;
+        --code: #83aee9;
+        --dictionary: #bd9be8;
+        --data: #eea06d;
+        --attention: #f4bd51;
+        --attention-ink: #241b07;
+        --danger: #ff8b80;
+        --danger-soft: #462421;
+        --shadow: 0 12px 34px rgba(0, 0, 0, .25);
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--green) 12%, transparent), transparent 32rem),
+        var(--paper);
+      color: var(--ink);
+      font-family: "Yu Gothic UI", "Hiragino Sans", system-ui, sans-serif;
+    }
+    button, input, textarea { font: inherit; }
+    .shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 34px 0 52px; }
+    header { display: flex; gap: 24px; justify-content: space-between; align-items: end; margin-bottom: 22px; }
+    .eyebrow { color: var(--green); font-weight: 800; letter-spacing: .12em; font-size: .75rem; }
+    h1 { margin: 5px 0 0; font-family: Georgia, "Yu Mincho", serif; font-size: clamp(1.7rem, 4vw, 3rem); font-weight: 600; }
+    .status { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
+    .guide {
+      position: relative;
+      padding: 24px 26px 25px;
+      border: 2px solid var(--green);
+      border-left-width: 8px;
+      background: linear-gradient(120deg, color-mix(in srgb, var(--green-soft) 72%, var(--panel)), var(--panel) 68%);
+      box-shadow: 0 16px 42px color-mix(in srgb, var(--green) 18%, transparent);
+    }
+    .guide-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--attention-ink);
+      background: var(--attention);
+      border: 2px solid color-mix(in srgb, var(--attention) 65%, var(--ink));
+      border-radius: 999px;
+      padding: 7px 13px;
+      font-weight: 900;
+      font-size: clamp(1rem, 2vw, 1.22rem);
+      letter-spacing: .02em;
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--attention) 35%, transparent);
+    }
+    .guide-label::before { content: "▶"; font-size: .82em; }
+    .guide.changed { animation: guide-attention .46s ease-out; }
+    @keyframes guide-attention {
+      0% { transform: translateY(-2px); box-shadow: 0 0 0 7px color-mix(in srgb, var(--attention) 32%, transparent), var(--shadow); }
+      100% { transform: translateY(0); box-shadow: 0 16px 42px color-mix(in srgb, var(--green) 18%, transparent); }
+    }
+    #breadcrumb { margin-top: 7px; color: var(--muted); font: 700 .84rem/1.4 ui-monospace, monospace; }
+    #explanation { margin: 11px 0 0; font-size: clamp(1.2rem, 2.6vw, 1.62rem); line-height: 1.58; font-weight: 650; }
+    .guide.error { border-color: var(--danger); background: linear-gradient(120deg, var(--danger-soft), var(--panel) 70%); }
+    .rollback-proof { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+    .rollback-proof[hidden] { display: none; }
+    .proof-item { border: 1px solid var(--danger); border-radius: 8px; padding: 8px 10px; background: var(--panel); }
+    .proof-label { color: var(--muted); font-size: .72rem; }
+    .proof-value { margin-top: 3px; color: var(--danger); font: 800 .8rem/1.4 ui-monospace, monospace; }
+    .scenario-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+    #scenarioButtons { display: contents; }
+    .scenario-label { color: var(--muted); font-size: .8rem; margin-right: 3px; }
+    .scenario-button[aria-pressed="true"] { color: var(--green); border-color: var(--green); background: var(--green-soft); font-weight: 800; }
+    .scenario-button[data-scenario-id="rollback"][aria-pressed="true"] { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
+    .scenario-button[data-scenario-id="record"][aria-pressed="true"] { color: var(--data); border-color: var(--data); background: color-mix(in srgb, var(--data) 16%, var(--panel)); }
+    .modebar { display: flex; align-items: center; gap: 8px; margin: 14px 0 0; }
+    .modebar-label { color: var(--muted); font-size: .8rem; margin-right: 3px; }
+    .mode-button[aria-pressed="true"] { color: var(--green); border-color: var(--green); background: var(--green-soft); font-weight: 800; }
+    .controls { display: grid; grid-template-columns: auto auto auto 1fr; gap: 10px; align-items: center; margin: 14px 0 22px; }
+    button { border: 1px solid var(--line); border-radius: 9px; padding: 9px 14px; background: var(--panel); color: var(--ink); cursor: pointer; }
+    button:hover, button:focus-visible { border-color: var(--green); outline: 2px solid color-mix(in srgb, var(--green) 30%, transparent); }
+    button:disabled { opacity: .4; cursor: default; }
+    #play { color: var(--green); font-weight: 800; }
+    #scrubber { width: 100%; accent-color: var(--green); }
+    .grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 18px; }
+    .section { padding: 20px; }
+    h2 { margin: 0 0 13px; font-size: 1rem; letter-spacing: .04em; }
+    pre { margin: 0; white-space: pre-wrap; word-break: break-word; font: 500 .95rem/1.7 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .source-line { display: block; border-left: 3px solid transparent; padding: 3px 9px; color: var(--muted); }
+    .source-line.active { border-left-color: var(--green); }
+    .source-token { display: inline-block; padding: 0 3px; border-radius: 4px; }
+    .source-token.active { color: var(--ink); background: var(--green-soft); box-shadow: inset 0 -2px var(--green); font-weight: 800; }
+    .terminal { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+    .terminal-label { color: var(--muted); font-size: .75rem; }
+    #terminalOutput { margin-top: 5px; min-height: 1.7em; color: var(--green); font-weight: 900; }
+    .memory { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .region { min-height: 128px; border: 1px solid var(--line); border-top: 4px solid; border-radius: 11px; padding: 13px; opacity: .55; transition: opacity .2s, transform .2s; }
+    .region.active { opacity: 1; transform: translateY(-2px); }
+    .region[data-region="CODE"] { border-top-color: var(--code); }
+    .region[data-region="DICTIONARY"] { border-top-color: var(--dictionary); }
+    .region[data-region="DATA"] { border-top-color: var(--data); }
+    .region-name { font-weight: 900; font-size: .78rem; letter-spacing: .08em; }
+    .region-range, .region-note { color: var(--muted); font-size: .78rem; margin-top: 7px; }
+    .region-value { margin-top: 12px; font: 700 .92rem/1.45 ui-monospace, monospace; }
+    .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+    .fact { border: 1px solid var(--line); border-radius: 10px; padding: 11px; min-width: 0; }
+    .fact dt { color: var(--muted); font-size: .72rem; margin-bottom: 5px; }
+    .fact dd { margin: 0; font: 700 .88rem/1.4 ui-monospace, monospace; overflow-wrap: anywhere; }
+    .stacks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .stack-change { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; margin-bottom: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--green-soft) 46%, transparent); }
+    .stack-change-side { min-width: 0; }
+    .stack-change-label { color: var(--muted); font-size: .72rem; margin-bottom: 4px; }
+    .stack-change-value { font: 800 .9rem/1.4 ui-monospace, monospace; overflow-wrap: anywhere; }
+    .stack-change-arrow { color: var(--green); font-size: 1.3rem; font-weight: 900; }
+    .stack { border: 1px solid var(--line); border-radius: 10px; padding: 12px; min-height: 96px; }
+    .stack-name { color: var(--muted); font-size: .75rem; }
+    .stack-items { display: flex; flex-direction: column-reverse; gap: 4px; margin-top: 8px; }
+    .cell { background: var(--green-soft); border-radius: 6px; padding: 5px 7px; text-align: center; font-family: ui-monospace, monospace; }
+    .empty { color: var(--muted); font-size: .82rem; margin-top: 10px; }
+    details { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 13px; }
+    summary { cursor: pointer; color: var(--muted); }
+    #details { margin-top: 10px; font-size: .82rem; color: var(--muted); max-height: 220px; overflow: auto; }
+    .source-export { margin-top: 18px; padding: 20px; }
+    .source-export-note { margin: -3px 0 13px; color: var(--muted); font-size: .86rem; line-height: 1.65; }
+    #exampleSource { width: 100%; min-height: 120px; resize: vertical; border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: color-mix(in srgb, var(--panel) 82%, var(--paper)); color: var(--ink); font: 500 .95rem/1.65 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    #exampleSource:focus { border-color: var(--green); outline: 3px solid color-mix(in srgb, var(--green) 22%, transparent); }
+    .source-actions { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; margin-top: 11px; }
+    #copyStatus { color: var(--green); font-size: .82rem; min-height: 1.4em; }
+    .trust { margin-top: 18px; color: var(--muted); font-size: .78rem; }
+    .trust strong { color: var(--amber); }
+    @media (max-width: 760px) {
+      header { align-items: start; flex-direction: column; }
+      .status { text-align: left; }
+      .grid { grid-template-columns: 1fr; }
+      .controls { grid-template-columns: repeat(3, auto); }
+      #scrubber { grid-column: 1 / -1; }
+      .memory, .facts, .stacks { grid-template-columns: 1fr; }
+      .region { min-height: auto; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .guide.changed { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <div class="eyebrow">MIN0 CORE FORTH / GUIDED VIEWER 0.1</div>
+        <h1 id="viewerTitle">From VALUE: to the birth of ANSWER</h1>
+      </div>
+      <div class="status"><span id="stepLabel"></span><br><span id="eventName"></span></div>
+    </header>
+
+    <section class="card guide" aria-live="polite">
+      <div class="guide-label">Look here now</div>
+      <div id="breadcrumb"></div>
+      <p id="explanation"></p>
+      <div class="rollback-proof" id="rollbackProof" hidden></div>
+    </section>
+
+    <div class="scenario-bar" role="group" aria-label="Scenario">
+      <span class="scenario-label">Scenario</span>
+      <span id="scenarioButtons"></span>
+    </div>
+
+    <div class="modebar" role="group" aria-label="View level">
+      <span class="modebar-label">View level</span>
+      <button id="wordMode" class="mode-button" type="button" aria-pressed="true">One word at a time</button>
+      <button id="highlightsMode" class="mode-button" type="button" aria-pressed="false">Construction highlights</button>
+      <button id="internalMode" class="mode-button" type="button" aria-pressed="false">Internal events</button>
+    </div>
+
+    <nav class="controls" aria-label="Trace controls">
+      <button id="previous" type="button">← Previous</button>
+      <button id="play" type="button">▶ Auto play</button>
+      <button id="next" type="button">Next →</button>
+      <input id="scrubber" type="range" min="0" value="0" aria-label="Displayed step">
+    </nav>
+
+    <div class="grid">
+      <section class="card section">
+        <h2>FORTH source</h2>
+        <pre id="source"></pre>
+        <div class="terminal">
+          <div class="terminal-label">Terminal output</div>
+          <pre id="terminalOutput">(none yet)</pre>
+        </div>
+      </section>
+      <section class="card section">
+        <h2>Current position and dictionary allocator</h2>
+        <dl class="facts" id="facts"></dl>
+      </section>
+      <section class="card section">
+        <h2>Three memory regions</h2>
+        <div class="memory">
+          <div class="region" data-region="CODE"><div class="region-name">CODE</div><div class="region-range">0000–3FFF</div><div class="region-value"></div><div class="region-note">VM instructions and behavior</div></div>
+          <div class="region" data-region="DICTIONARY"><div class="region-name">DICTIONARY</div><div class="region-range">4000–7FFF</div><div class="region-value"></div><div class="region-note">headers, plans, and descriptors</div></div>
+          <div class="region" data-region="DATA"><div class="region-name">DATA</div><div class="region-range">8000–FFFF</div><div class="region-value"></div><div class="region-note">body of the generated word</div></div>
+        </div>
+      </section>
+      <section class="card section">
+        <h2>Three stacks</h2>
+        <div class="stack-change" id="stackChange"></div>
+        <div class="stacks" id="stacks"></div>
+        <details>
+          <summary>Raw observed event data</summary>
+          <pre id="details"></pre>
+        </details>
+      </section>
+    </div>
+
+    <section class="card source-export">
+      <h2>Example FORTH source (copy and edit)</h2>
+      <p class="source-export-note">Edits do not change this measured Viewer trace. Copy or save the source as .fth and test it on a target or with Python/Ruby.</p>
+      <textarea id="exampleSource" spellcheck="false" aria-label="FORTH source to copy or save"></textarea>
+      <div class="source-actions">
+        <button id="copySource" type="button">Copy source</button>
+        <button id="saveSource" type="button">Save as example.fth</button>
+        <span id="copyStatus" role="status" aria-live="polite"></span>
+      </div>
+    </section>
+
+    <p class="trust"><strong>Safety boundary:</strong> This HTML runs offline and only displays traces as observed data. It never executes displayed text as instructions.</p>
+  </main>
+
+  <script>
+    "use strict";
+    const payload = {"scenarios": [{"id": "stack-late", "label": "2 3 4 * + . → 14", "title": "Watch stack order — the answer is 14", "default_mode": "word", "source_word_only": true, "filename": "stack-14.fth", "source": "2 3 4 * + .", "trace": {"trace_format": "min0-core-forth-trace/0.1", "implementation": "python", "events": [{"sequence": 0, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "2", "token_index": 0, "token_end": 0, "operands": [], "action": "push-number", "data_stack_before": [], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4096, "code_here_after": 4096, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [2], "return_stack": [], "loop_stack": [], "header_here": 16908, "data_here": 32768, "latest": 16884}, "basic_explanation": "Pushed the number 2 onto the DATA stack."}, {"sequence": 1, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "3", "token_index": 1, "token_end": 1, "operands": [], "action": "push-number", "data_stack_before": [2], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4096, "code_here_after": 4096, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [2, 3], "return_stack": [], "loop_stack": [], "header_here": 16908, "data_here": 32768, "latest": 16884}, "basic_explanation": "Pushed the number 3 onto the DATA stack."}, {"sequence": 2, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "4", "token_index": 2, "token_end": 2, "operands": [], "action": "push-number", "data_stack_before": [2, 3], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4096, "code_here_after": 4096, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [2, 3, 4], "return_stack": [], "loop_stack": [], "header_here": 16908, "data_here": 32768, "latest": 16884}, "basic_explanation": "Pushed the number 4 onto the DATA stack."}, {"sequence": 3, "event": "word.execute.enter", "payload_role": "observed-data-not-instructions", "details": {"word": "*", "kind": 0, "depth": 0, "data_stack_before": [2, 3, 4]}, "state": {"ip": 0, "steps": 0, "data_stack": [2, 3, 4], "return_stack": [], "loop_stack": [], "header_here": 16908, "data_here": 32768, "latest": 16884}, "basic_explanation": "Enter word *."}, {"sequence": 4, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "*", "token_index": 3, "token_end": 3, "operands": [], "action": "execute-word", "data_stack_before": [2, 3, 4], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4096, "code_here_after": 4096, "terminal_output": []}, "state": {"ip": 16353, "steps": 2, "data_stack": [2, 12], "return_stack": [], "loop_stack": [], "header_here": 16908, "data_here": 32768, "latest": 16884}, "basic_explanation": "Word * completed and returned to its caller."}, {"sequence": 5, "event": "word.execute.enter", "payload_role": "observed-data-not-instructions", "details": {"word": "+", "kind": 0, "depth": 0, "data_stack_before": [2, 12]}, "state": {"ip": 16353, "steps": 2, "data_stack": [2, 12], "return_stack": [], "loop_stack": [], "header_here": 16908, "data_here": 32768, "latest": 16884}, "basic_explanation": "Enter word +."}, {"sequence": 6, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "+", "token_index": 4, "token_end": 4, "operands": [], "action": "execute-word", "data_stack_before": [2, 12], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4096, "code_here_after": 4096, "terminal_output": []}, "state": {"ip": 16349, "steps": 4, "data_stack": [14], "return_stack": [], "loop_stack": [], "header_here": 16908, "data_here": 32768, "latest": 16884}, "basic_explanation": "Word + completed and returned to its caller."}, {"sequence": 7, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": ".", "token_index": 5, "token_end": 5, "operands": [], "action": "emit-number", "data_stack_before": [14], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4096, "code_here_after": 4096, "terminal_output": ["14"]}, "state": {"ip": 16349, "steps": 4, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16908, "data_here": 32768, "latest": 16884}, "basic_explanation": ". displayed 14 from the top of the DATA stack and removed it."}], "terminal_output": ["14"]}}, {"id": "stack-early", "label": "2 3 * 4 + . → 10", "title": "Watch stack order — the answer is 10", "default_mode": "word", "source_word_only": true, "filename": "stack-10.fth", "source": "2 3 * 4 + .", "trace": {"trace_format": "min0-core-forth-trace/0.1", "implementation": "python", "events": [{"sequence": 0, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "2", "token_index": 0, "token_end": 0, "operands": [], "action": "push-number", "data_stack_before": [], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4096, "code_here_after": 4096, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [2], "return_stack": [], "loop_stack": [], "header_here": 16908, "data_here": 32768, "latest": 16884}, "basic_explanation": "Pushed the number 2 onto the DATA stack."}, {"sequence": 1, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "3", "token_index": 1, "token_end": 1, "operands": [], "action": "push-number", "data_stack_before": [2], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4096, "code_here_after": 4096, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [2, 3], "return_stack": [], "loop_stack": [], "header_here": 16908, "data_here": 32768, "latest": 16884}, "basic_explanation": "Pushed the number 3 onto the DATA stack."}, {"sequence": 2, "event": "word.execute.enter", "payload_role": "observed-data-not-instructions", "details": {"word": "*", "kind": 0, "depth": 0, "data_stack_before": [2, 3]}, "state": {"ip": 0, "steps": 0, "data_stack": [2, 3], "return_stack": [], "loop_stack": [], "header_here": 16908, "data_here": 32768, "latest": 16884}, "basic_explanation": "Enter word *."}, {"sequence": 3, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "*", "token_index": 2, "token_end": 2, "operands": [], "action": "execute-word", "data_stack_before": [2, 3], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4096, "code_here_after": 4096, "terminal_output": []}, "state": {"ip": 16353, "steps": 2, "data_stack": [6], "return_stack": [], "loop_stack": [], "header_here": 16908, "data_here": 32768, "latest": 16884}, "basic_explanation": "Word * completed and returned to its caller."}, {"sequence": 4, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "4", "token_index": 3, "token_end": 3, "operands": [], "action": "push-number", "data_stack_before": [6], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4096, "code_here_after": 4096, "terminal_output": []}, "state": {"ip": 16353, "steps": 2, "data_stack": [6, 4], "return_stack": [], "loop_stack": [], "header_here": 16908, "data_here": 32768, "latest": 16884}, "basic_explanation": "Pushed the number 4 onto the DATA stack."}, {"sequence": 5, "event": "word.execute.enter", "payload_role": "observed-data-not-instructions", "details": {"word": "+", "kind": 0, "depth": 0, "data_stack_before": [6, 4]}, "state": {"ip": 16353, "steps": 2, "data_stack": [6, 4], "return_stack": [], "loop_stack": [], "header_here": 16908, "data_here": 32768, "latest": 16884}, "basic_explanation": "Enter word +."}, {"sequence": 6, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "+", "token_index": 4, "token_end": 4, "operands": [], "action": "execute-word", "data_stack_before": [6, 4], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4096, "code_here_after": 4096, "terminal_output": []}, "state": {"ip": 16349, "steps": 4, "data_stack": [10], "return_stack": [], "loop_stack": [], "header_here": 16908, "data_here": 32768, "latest": 16884}, "basic_explanation": "Word + completed and returned to its caller."}, {"sequence": 7, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": ".", "token_index": 5, "token_end": 5, "operands": [], "action": "emit-number", "data_stack_before": [10], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4096, "code_here_after": 4096, "terminal_output": ["10"]}, "state": {"ip": 16349, "steps": 4, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16908, "data_here": 32768, "latest": 16884}, "basic_explanation": ". displayed 10 from the top of the DATA stack and removed it."}], "terminal_output": ["10"]}}, {"id": "success", "label": "Success: create and execute ANSWER", "title": "From VALUE: to the birth of ANSWER", "default_mode": "word", "filename": "value-answer.fth", "source": ": VALUE: CREATE , DOES> @ ;\n123 VALUE: ANSWER\nANSWER", "trace": {"trace_format": "min0-core-forth-trace/0.1", "implementation": "python", "events": [{"sequence": 0, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": ":", "token_index": 0, "token_end": 1, "operands": ["VALUE:"], "action": "begin-definition", "data_stack_before": [], "interpreter_state_before": "interpret", "interpreter_state_after": "compile", "code_here_before": 4096, "code_here_after": 4096, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16932, "data_here": 32768, "latest": 16908}, "basic_explanation": ": began the definition of the new word VALUE:."}, {"sequence": 1, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "CREATE", "token_index": 2, "token_end": 2, "operands": [], "action": "compile-token", "data_stack_before": [], "interpreter_state_before": "compile", "interpreter_state_after": "compile", "code_here_before": 4096, "code_here_after": 4096, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16932, "data_here": 32768, "latest": 16908}, "basic_explanation": "Recorded CREATE as the defining word's constructor."}, {"sequence": 2, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": ",", "token_index": 3, "token_end": 3, "operands": [], "action": "compile-token", "data_stack_before": [], "interpreter_state_before": "compile", "interpreter_state_after": "compile", "code_here_before": 4096, "code_here_after": 4097, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16932, "data_here": 32768, "latest": 16908}, "basic_explanation": "Recorded , as a run-time allocator action."}, {"sequence": 3, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "DOES>", "token_index": 4, "token_end": 4, "operands": [], "action": "compile-token", "data_stack_before": [], "interpreter_state_before": "compile", "interpreter_state_after": "compile", "code_here_before": 4097, "code_here_after": 4098, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16932, "data_here": 32768, "latest": 16908}, "basic_explanation": "DOES> separated the constructor from the child's run-time behavior."}, {"sequence": 4, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "@", "token_index": 5, "token_end": 5, "operands": [], "action": "compile-token", "data_stack_before": [], "interpreter_state_before": "compile", "interpreter_state_after": "compile", "code_here_before": 4098, "code_here_after": 4099, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16932, "data_here": 32768, "latest": 16908}, "basic_explanation": "Compiled @ into the current definition."}, {"sequence": 5, "event": "definer.compile.complete", "payload_role": "observed-data-not-instructions", "details": {"word": "VALUE:", "plan": 16932, "behavior": 4098, "step_count": 2}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16968, "data_here": 32768, "latest": 16908}, "basic_explanation": "Published VALUE:'s constructor plan in the dictionary."}, {"sequence": 6, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": ";", "token_index": 6, "token_end": 6, "operands": [], "action": "finish-definition", "data_stack_before": [], "interpreter_state_before": "compile", "interpreter_state_after": "interpret", "code_here_before": 4099, "code_here_after": 4100, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16968, "data_here": 32768, "latest": 16908}, "basic_explanation": "; completed the definition and returned to interpretation state."}, {"sequence": 7, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "123", "token_index": 7, "token_end": 7, "operands": [], "action": "push-number", "data_stack_before": [], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4100, "code_here_after": 4100, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [123], "return_stack": [], "loop_stack": [], "header_here": 16968, "data_here": 32768, "latest": 16908}, "basic_explanation": "Pushed the number 123 onto the DATA stack."}, {"sequence": 8, "event": "word.execute.enter", "payload_role": "observed-data-not-instructions", "details": {"word": "VALUE:", "kind": 6, "depth": 0, "token_index": 8, "token_end": 9, "data_stack_before": [123]}, "state": {"ip": 0, "steps": 0, "data_stack": [123], "return_stack": [], "loop_stack": [], "header_here": 16968, "data_here": 32768, "latest": 16908}, "basic_explanation": "Enter word VALUE:."}, {"sequence": 9, "event": "definer.execute.begin", "payload_role": "observed-data-not-instructions", "details": {"word": "VALUE:", "child": "ANSWER"}, "state": {"ip": 0, "steps": 0, "data_stack": [123], "return_stack": [], "loop_stack": [], "header_here": 16968, "data_here": 32768, "latest": 16908}, "basic_explanation": "Defining word VALUE: began creating child ANSWER."}, {"sequence": 10, "event": "child.create.hidden", "payload_role": "observed-data-not-instructions", "details": {"word": "VALUE:", "child": "ANSWER", "body": 32768, "header": 16968}, "state": {"ip": 0, "steps": 0, "data_stack": [123], "return_stack": [], "loop_stack": [], "header_here": 16992, "data_here": 32768, "latest": 16968}, "basic_explanation": "Created ANSWER in the hidden state."}, {"sequence": 11, "event": "constructor.segment.begin", "payload_role": "observed-data-not-instructions", "details": {"word": "VALUE:", "child": "ANSWER", "code_address": 4096, "action": 1}, "state": {"ip": 0, "steps": 0, "data_stack": [123], "return_stack": [], "loop_stack": [], "header_here": 16992, "data_here": 32768, "latest": 16968}, "basic_explanation": "Execute constructor CODE fragment 0x00001000."}, {"sequence": 12, "event": "constructor.segment.end", "payload_role": "observed-data-not-instructions", "details": {"word": "VALUE:", "child": "ANSWER", "code_address": 4096, "action": 1}, "state": {"ip": 16384, "steps": 2, "data_stack": [123], "return_stack": [], "loop_stack": [], "header_here": 16992, "data_here": 32768, "latest": 16968}, "basic_explanation": "Constructor CODE fragment 0x00001000 completed."}, {"sequence": 13, "event": "constructor.comma", "payload_role": "observed-data-not-instructions", "details": {"word": "VALUE:", "child": "ANSWER", "address": 32768, "value": 123, "data_here_after": 32772}, "state": {"ip": 16384, "steps": 2, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16992, "data_here": 32772, "latest": 16968}, "basic_explanation": "Stored 123 at DATA address 0x00008000 and advanced data HERE to 0x00008004."}, {"sequence": 14, "event": "constructor.segment.begin", "payload_role": "observed-data-not-instructions", "details": {"word": "VALUE:", "child": "ANSWER", "code_address": 4097, "action": 0}, "state": {"ip": 16384, "steps": 2, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16992, "data_here": 32772, "latest": 16968}, "basic_explanation": "Execute constructor CODE fragment 0x00001001."}, {"sequence": 15, "event": "constructor.segment.end", "payload_role": "observed-data-not-instructions", "details": {"word": "VALUE:", "child": "ANSWER", "code_address": 4097, "action": 0}, "state": {"ip": 16384, "steps": 4, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16992, "data_here": 32772, "latest": 16968}, "basic_explanation": "Constructor CODE fragment 0x00001001 completed."}, {"sequence": 16, "event": "child.does.attach", "payload_role": "observed-data-not-instructions", "details": {"word": "VALUE:", "child": "ANSWER", "body": 32768, "behavior": 4098, "descriptor": 16992}, "state": {"ip": 16384, "steps": 4, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 17000, "data_here": 32772, "latest": 16968}, "basic_explanation": "Connected ANSWER body 0x00008000 to behavior 0x00001002."}, {"sequence": 17, "event": "child.publish", "payload_role": "observed-data-not-instructions", "details": {"word": "VALUE:", "child": "ANSWER", "header": 16968, "kind": 5}, "state": {"ip": 16384, "steps": 4, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 17000, "data_here": 32772, "latest": 16968}, "basic_explanation": "Unhid and published the completed ANSWER."}, {"sequence": 18, "event": "definer.execute.end", "payload_role": "observed-data-not-instructions", "details": {"word": "VALUE:", "child": "ANSWER"}, "state": {"ip": 16384, "steps": 4, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 17000, "data_here": 32772, "latest": 16968}, "basic_explanation": "ANSWER was created successfully."}, {"sequence": 19, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "VALUE:", "token_index": 8, "token_end": 9, "operands": ["ANSWER"], "action": "execute-definer", "data_stack_before": [123], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4100, "code_here_after": 4100, "terminal_output": []}, "state": {"ip": 16384, "steps": 4, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 17000, "data_here": 32772, "latest": 16968}, "basic_explanation": "Defining word VALUE: read the child name and created ANSWER."}, {"sequence": 20, "event": "word.execute.enter", "payload_role": "observed-data-not-instructions", "details": {"word": "ANSWER", "kind": 5, "depth": 0, "data_stack_before": []}, "state": {"ip": 16384, "steps": 4, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 17000, "data_here": 32772, "latest": 16968}, "basic_explanation": "Enter word ANSWER."}, {"sequence": 21, "event": "does.execute.begin", "payload_role": "observed-data-not-instructions", "details": {"word": "ANSWER", "body": 32768, "behavior": 4098}, "state": {"ip": 16384, "steps": 4, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 17000, "data_here": 32772, "latest": 16968}, "basic_explanation": "ANSWER pushes body 0x00008000 and starts behavior 0x00001002."}, {"sequence": 22, "event": "does.body.push", "payload_role": "observed-data-not-instructions", "details": {"word": "ANSWER", "body": 32768, "behavior": 4098, "depth": 1, "data_stack_before": []}, "state": {"ip": 16384, "steps": 4, "data_stack": [32768], "return_stack": [], "loop_stack": [], "header_here": 17000, "data_here": 32772, "latest": 16968}, "basic_explanation": "ANSWER pushed body 0x00008000 onto the DATA stack."}, {"sequence": 23, "event": "word.execute.nested.complete", "payload_role": "observed-data-not-instructions", "details": {"word": "@", "parent": "ANSWER", "code_address": 4098, "depth": 1, "data_stack_before": [32768]}, "state": {"ip": 4099, "steps": 5, "data_stack": [123], "return_stack": [16383], "loop_stack": [], "header_here": 17000, "data_here": 32772, "latest": 16968}, "basic_explanation": "ANSWER executed word @."}, {"sequence": 24, "event": "does.execute.end", "payload_role": "observed-data-not-instructions", "details": {"word": "ANSWER", "body": 32768, "behavior": 4098}, "state": {"ip": 16384, "steps": 7, "data_stack": [123], "return_stack": [], "loop_stack": [], "header_here": 17000, "data_here": 32772, "latest": 16968}, "basic_explanation": "ANSWER's DOES behavior completed."}, {"sequence": 25, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "ANSWER", "token_index": 10, "token_end": 10, "operands": [], "action": "execute-word", "data_stack_before": [], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4100, "code_here_after": 4100, "terminal_output": []}, "state": {"ip": 16384, "steps": 7, "data_stack": [123], "return_stack": [], "loop_stack": [], "header_here": 17000, "data_here": 32772, "latest": 16968}, "basic_explanation": "Word ANSWER completed and returned to its caller."}]}}, {"id": "rollback", "label": "Failure: restore while creating EMPTY", "title": "VALUE: EMPTY — failure and restoration", "default_mode": "word", "filename": "value-rollback.fth", "source": ": VALUE: CREATE , DOES> @ ;\nVALUE: EMPTY", "trace": {"trace_format": "min0-core-forth-trace/0.1", "implementation": "python", "events": [{"sequence": 0, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": ":", "token_index": 0, "token_end": 1, "operands": ["VALUE:"], "action": "begin-definition", "data_stack_before": [], "interpreter_state_before": "interpret", "interpreter_state_after": "compile", "code_here_before": 4096, "code_here_after": 4096, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16932, "data_here": 32768, "latest": 16908}, "basic_explanation": ": began the definition of the new word VALUE:."}, {"sequence": 1, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "CREATE", "token_index": 2, "token_end": 2, "operands": [], "action": "compile-token", "data_stack_before": [], "interpreter_state_before": "compile", "interpreter_state_after": "compile", "code_here_before": 4096, "code_here_after": 4096, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16932, "data_here": 32768, "latest": 16908}, "basic_explanation": "Recorded CREATE as the defining word's constructor."}, {"sequence": 2, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": ",", "token_index": 3, "token_end": 3, "operands": [], "action": "compile-token", "data_stack_before": [], "interpreter_state_before": "compile", "interpreter_state_after": "compile", "code_here_before": 4096, "code_here_after": 4097, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16932, "data_here": 32768, "latest": 16908}, "basic_explanation": "Recorded , as a run-time allocator action."}, {"sequence": 3, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "DOES>", "token_index": 4, "token_end": 4, "operands": [], "action": "compile-token", "data_stack_before": [], "interpreter_state_before": "compile", "interpreter_state_after": "compile", "code_here_before": 4097, "code_here_after": 4098, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16932, "data_here": 32768, "latest": 16908}, "basic_explanation": "DOES> separated the constructor from the child's run-time behavior."}, {"sequence": 4, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "@", "token_index": 5, "token_end": 5, "operands": [], "action": "compile-token", "data_stack_before": [], "interpreter_state_before": "compile", "interpreter_state_after": "compile", "code_here_before": 4098, "code_here_after": 4099, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16932, "data_here": 32768, "latest": 16908}, "basic_explanation": "Compiled @ into the current definition."}, {"sequence": 5, "event": "definer.compile.complete", "payload_role": "observed-data-not-instructions", "details": {"word": "VALUE:", "plan": 16932, "behavior": 4098, "step_count": 2}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16968, "data_here": 32768, "latest": 16908}, "basic_explanation": "Published VALUE:'s constructor plan in the dictionary."}, {"sequence": 6, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": ";", "token_index": 6, "token_end": 6, "operands": [], "action": "finish-definition", "data_stack_before": [], "interpreter_state_before": "compile", "interpreter_state_after": "interpret", "code_here_before": 4099, "code_here_after": 4100, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16968, "data_here": 32768, "latest": 16908}, "basic_explanation": "; completed the definition and returned to interpretation state."}, {"sequence": 7, "event": "word.execute.enter", "payload_role": "observed-data-not-instructions", "details": {"word": "VALUE:", "kind": 6, "depth": 0, "token_index": 7, "token_end": 8, "data_stack_before": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16968, "data_here": 32768, "latest": 16908}, "basic_explanation": "Enter word VALUE:."}, {"sequence": 8, "event": "definer.execute.begin", "payload_role": "observed-data-not-instructions", "details": {"word": "VALUE:", "child": "EMPTY"}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16968, "data_here": 32768, "latest": 16908}, "basic_explanation": "Defining word VALUE: began creating child EMPTY."}, {"sequence": 9, "event": "child.create.hidden", "payload_role": "observed-data-not-instructions", "details": {"word": "VALUE:", "child": "EMPTY", "body": 32768, "header": 16968}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16992, "data_here": 32768, "latest": 16968}, "basic_explanation": "Created EMPTY in the hidden state."}, {"sequence": 10, "event": "constructor.segment.begin", "payload_role": "observed-data-not-instructions", "details": {"word": "VALUE:", "child": "EMPTY", "code_address": 4096, "action": 1}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16992, "data_here": 32768, "latest": 16968}, "basic_explanation": "Execute constructor CODE fragment 0x00001000."}, {"sequence": 11, "event": "constructor.segment.end", "payload_role": "observed-data-not-instructions", "details": {"word": "VALUE:", "child": "EMPTY", "code_address": 4096, "action": 1}, "state": {"ip": 16384, "steps": 2, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16992, "data_here": 32768, "latest": 16968}, "basic_explanation": "Constructor CODE fragment 0x00001000 completed."}, {"sequence": 12, "event": "definer.execute.rollback", "payload_role": "observed-data-not-instructions", "details": {"word": "VALUE:", "child": "EMPTY", "error": "StackUnderflow", "saved_header_here": 16968, "saved_data_here": 32768, "saved_latest": 16908}, "state": {"ip": 16384, "steps": 2, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16968, "data_here": 32768, "latest": 16908}, "basic_explanation": "StackUnderflow occurred while creating EMPTY, so the dictionary and stacks were restored."}, {"sequence": 13, "event": "source.word.error", "payload_role": "observed-data-not-instructions", "details": {"token": "VALUE:", "token_index": 7, "token_end": 8, "operands": ["EMPTY"], "action": "execute-definer", "error": "StackUnderflow", "data_stack_before": [], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4100, "code_here_after": 4100}, "state": {"ip": 16384, "steps": 2, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16968, "data_here": 32768, "latest": 16908}, "basic_explanation": "VALUE: EMPTY failed with StackUnderflow; incomplete changes were discarded and the initial state restored."}], "outcome": {"status": "rolled-back", "error": "StackUnderflow"}}}, {"id": "record", "label": "Compound construction: ITEM's four bytes", "title": "RECORD: — follow C, ALLOT, and ALIGN", "default_mode": "highlights", "filename": "record-item.fth", "word_step_events": ["definer.execute.begin", "child.create.hidden", "constructor.c_comma", "constructor.allot", "constructor.align", "child.publish", "definer.execute.end"], "source": ": RECORD: CREATE C, ALLOT ALIGN ;\n2 0x1AB RECORD: ITEM\nITEM", "trace": {"trace_format": "min0-core-forth-trace/0.1", "implementation": "python", "events": [{"sequence": 0, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": ":", "token_index": 0, "token_end": 1, "operands": ["RECORD:"], "action": "begin-definition", "data_stack_before": [], "interpreter_state_before": "interpret", "interpreter_state_after": "compile", "code_here_before": 4096, "code_here_after": 4096, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16932, "data_here": 32768, "latest": 16908}, "basic_explanation": ": began the definition of the new word RECORD:."}, {"sequence": 1, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "CREATE", "token_index": 2, "token_end": 2, "operands": [], "action": "compile-token", "data_stack_before": [], "interpreter_state_before": "compile", "interpreter_state_after": "compile", "code_here_before": 4096, "code_here_after": 4096, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16932, "data_here": 32768, "latest": 16908}, "basic_explanation": "Recorded CREATE as the defining word's constructor."}, {"sequence": 2, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "C,", "token_index": 3, "token_end": 3, "operands": [], "action": "compile-token", "data_stack_before": [], "interpreter_state_before": "compile", "interpreter_state_after": "compile", "code_here_before": 4096, "code_here_after": 4097, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16932, "data_here": 32768, "latest": 16908}, "basic_explanation": "Recorded C, as an allocator action that stores one byte."}, {"sequence": 3, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "ALLOT", "token_index": 4, "token_end": 4, "operands": [], "action": "compile-token", "data_stack_before": [], "interpreter_state_before": "compile", "interpreter_state_after": "compile", "code_here_before": 4097, "code_here_after": 4098, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16932, "data_here": 32768, "latest": 16908}, "basic_explanation": "Recorded ALLOT as an allocator action that reserves the requested byte count."}, {"sequence": 4, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "ALIGN", "token_index": 5, "token_end": 5, "operands": [], "action": "compile-token", "data_stack_before": [], "interpreter_state_before": "compile", "interpreter_state_after": "compile", "code_here_before": 4098, "code_here_after": 4099, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16932, "data_here": 32768, "latest": 16908}, "basic_explanation": "Recorded ALIGN as an allocator action that aligns data HERE to a cell boundary."}, {"sequence": 5, "event": "definer.compile.complete", "payload_role": "observed-data-not-instructions", "details": {"word": "RECORD:", "plan": 16932, "behavior": 0, "step_count": 4}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16984, "data_here": 32768, "latest": 16908}, "basic_explanation": "Published RECORD:'s constructor plan in the dictionary."}, {"sequence": 6, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": ";", "token_index": 6, "token_end": 6, "operands": [], "action": "finish-definition", "data_stack_before": [], "interpreter_state_before": "compile", "interpreter_state_after": "interpret", "code_here_before": 4099, "code_here_after": 4100, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16984, "data_here": 32768, "latest": 16908}, "basic_explanation": "; completed the definition and returned to interpretation state."}, {"sequence": 7, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "2", "token_index": 7, "token_end": 7, "operands": [], "action": "push-number", "data_stack_before": [], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4100, "code_here_after": 4100, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [2], "return_stack": [], "loop_stack": [], "header_here": 16984, "data_here": 32768, "latest": 16908}, "basic_explanation": "Pushed the number 2 onto the DATA stack."}, {"sequence": 8, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "0X1AB", "token_index": 8, "token_end": 8, "operands": [], "action": "push-number", "data_stack_before": [2], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4100, "code_here_after": 4100, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [2, 427], "return_stack": [], "loop_stack": [], "header_here": 16984, "data_here": 32768, "latest": 16908}, "basic_explanation": "Pushed the number 0X1AB onto the DATA stack."}, {"sequence": 9, "event": "word.execute.enter", "payload_role": "observed-data-not-instructions", "details": {"word": "RECORD:", "kind": 6, "depth": 0, "token_index": 9, "token_end": 10, "data_stack_before": [2, 427]}, "state": {"ip": 0, "steps": 0, "data_stack": [2, 427], "return_stack": [], "loop_stack": [], "header_here": 16984, "data_here": 32768, "latest": 16908}, "basic_explanation": "Enter word RECORD:."}, {"sequence": 10, "event": "definer.execute.begin", "payload_role": "observed-data-not-instructions", "details": {"word": "RECORD:", "child": "ITEM"}, "state": {"ip": 0, "steps": 0, "data_stack": [2, 427], "return_stack": [], "loop_stack": [], "header_here": 16984, "data_here": 32768, "latest": 16908}, "basic_explanation": "Defining word RECORD: began creating child ITEM."}, {"sequence": 11, "event": "child.create.hidden", "payload_role": "observed-data-not-instructions", "details": {"word": "RECORD:", "child": "ITEM", "body": 32768, "header": 16984}, "state": {"ip": 0, "steps": 0, "data_stack": [2, 427], "return_stack": [], "loop_stack": [], "header_here": 17004, "data_here": 32768, "latest": 16984}, "basic_explanation": "Created ITEM in the hidden state."}, {"sequence": 12, "event": "constructor.segment.begin", "payload_role": "observed-data-not-instructions", "details": {"word": "RECORD:", "child": "ITEM", "code_address": 4096, "action": 2}, "state": {"ip": 0, "steps": 0, "data_stack": [2, 427], "return_stack": [], "loop_stack": [], "header_here": 17004, "data_here": 32768, "latest": 16984}, "basic_explanation": "Execute constructor CODE fragment 0x00001000."}, {"sequence": 13, "event": "constructor.segment.end", "payload_role": "observed-data-not-instructions", "details": {"word": "RECORD:", "child": "ITEM", "code_address": 4096, "action": 2}, "state": {"ip": 16384, "steps": 2, "data_stack": [2, 427], "return_stack": [], "loop_stack": [], "header_here": 17004, "data_here": 32768, "latest": 16984}, "basic_explanation": "Constructor CODE fragment 0x00001000 completed."}, {"sequence": 14, "event": "constructor.c_comma", "payload_role": "observed-data-not-instructions", "details": {"word": "RECORD:", "child": "ITEM", "address": 32768, "value": 171, "data_here_after": 32769}, "state": {"ip": 16384, "steps": 2, "data_stack": [2], "return_stack": [], "loop_stack": [], "header_here": 17004, "data_here": 32769, "latest": 16984}, "basic_explanation": "Stored one-byte value 171 at DATA address 0x00008000 and advanced data HERE to 0x00008001."}, {"sequence": 15, "event": "constructor.segment.begin", "payload_role": "observed-data-not-instructions", "details": {"word": "RECORD:", "child": "ITEM", "code_address": 4097, "action": 3}, "state": {"ip": 16384, "steps": 2, "data_stack": [2], "return_stack": [], "loop_stack": [], "header_here": 17004, "data_here": 32769, "latest": 16984}, "basic_explanation": "Execute constructor CODE fragment 0x00001001."}, {"sequence": 16, "event": "constructor.segment.end", "payload_role": "observed-data-not-instructions", "details": {"word": "RECORD:", "child": "ITEM", "code_address": 4097, "action": 3}, "state": {"ip": 16384, "steps": 4, "data_stack": [2], "return_stack": [], "loop_stack": [], "header_here": 17004, "data_here": 32769, "latest": 16984}, "basic_explanation": "Constructor CODE fragment 0x00001001 completed."}, {"sequence": 17, "event": "constructor.allot", "payload_role": "observed-data-not-instructions", "details": {"word": "RECORD:", "child": "ITEM", "address": 32769, "count": 2, "data_here_after": 32771}, "state": {"ip": 16384, "steps": 4, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 17004, "data_here": 32771, "latest": 16984}, "basic_explanation": "Reserved two bytes from DATA address 0x00008001 and advanced data HERE to 0x00008003."}, {"sequence": 18, "event": "constructor.segment.begin", "payload_role": "observed-data-not-instructions", "details": {"word": "RECORD:", "child": "ITEM", "code_address": 4098, "action": 4}, "state": {"ip": 16384, "steps": 4, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 17004, "data_here": 32771, "latest": 16984}, "basic_explanation": "Execute constructor CODE fragment 0x00001002."}, {"sequence": 19, "event": "constructor.segment.end", "payload_role": "observed-data-not-instructions", "details": {"word": "RECORD:", "child": "ITEM", "code_address": 4098, "action": 4}, "state": {"ip": 16384, "steps": 6, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 17004, "data_here": 32771, "latest": 16984}, "basic_explanation": "Constructor CODE fragment 0x00001002 completed."}, {"sequence": 20, "event": "constructor.align", "payload_role": "observed-data-not-instructions", "details": {"word": "RECORD:", "child": "ITEM", "address_before": 32771, "padding": 1, "data_here_after": 32772}, "state": {"ip": 16384, "steps": 6, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 17004, "data_here": 32772, "latest": 16984}, "basic_explanation": "Inserted one padding byte at data HERE 0x00008003 and aligned it to 0x00008004."}, {"sequence": 21, "event": "constructor.segment.begin", "payload_role": "observed-data-not-instructions", "details": {"word": "RECORD:", "child": "ITEM", "code_address": 4099, "action": 0}, "state": {"ip": 16384, "steps": 6, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 17004, "data_here": 32772, "latest": 16984}, "basic_explanation": "Execute constructor CODE fragment 0x00001003."}, {"sequence": 22, "event": "constructor.segment.end", "payload_role": "observed-data-not-instructions", "details": {"word": "RECORD:", "child": "ITEM", "code_address": 4099, "action": 0}, "state": {"ip": 16384, "steps": 8, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 17004, "data_here": 32772, "latest": 16984}, "basic_explanation": "Constructor CODE fragment 0x00001003 completed."}, {"sequence": 23, "event": "child.publish", "payload_role": "observed-data-not-instructions", "details": {"word": "RECORD:", "child": "ITEM", "header": 16984, "kind": 4}, "state": {"ip": 16384, "steps": 8, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 17004, "data_here": 32772, "latest": 16984}, "basic_explanation": "Unhid and published the completed ITEM."}, {"sequence": 24, "event": "definer.execute.end", "payload_role": "observed-data-not-instructions", "details": {"word": "RECORD:", "child": "ITEM"}, "state": {"ip": 16384, "steps": 8, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 17004, "data_here": 32772, "latest": 16984}, "basic_explanation": "ITEM was created successfully."}, {"sequence": 25, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "RECORD:", "token_index": 9, "token_end": 10, "operands": ["ITEM"], "action": "execute-definer", "data_stack_before": [2, 427], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4100, "code_here_after": 4100, "terminal_output": []}, "state": {"ip": 16384, "steps": 8, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 17004, "data_here": 32772, "latest": 16984}, "basic_explanation": "Defining word RECORD: read the child name and created ITEM."}, {"sequence": 26, "event": "word.execute.enter", "payload_role": "observed-data-not-instructions", "details": {"word": "ITEM", "kind": 4, "depth": 0, "data_stack_before": []}, "state": {"ip": 16384, "steps": 8, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 17004, "data_here": 32772, "latest": 16984}, "basic_explanation": "Enter word ITEM."}, {"sequence": 27, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "ITEM", "token_index": 11, "token_end": 11, "operands": [], "action": "execute-word", "data_stack_before": [], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4100, "code_here_after": 4100, "terminal_output": []}, "state": {"ip": 16384, "steps": 8, "data_stack": [32768], "return_stack": [], "loop_stack": [], "header_here": 17004, "data_here": 32772, "latest": 16984}, "basic_explanation": "Word ITEM completed and returned to its caller."}]}}, {"id": "compiled-output", "label": "Text output: compiled .\"", "title": ".\" — from a DATA string to SERVICE 1", "default_mode": "word", "filename": "compiled-output.fth", "source": ": GREET .\" Hello from compiled Forth\" ;\nGREET", "trace": {"trace_format": "min0-core-forth-trace/0.1", "implementation": "python", "events": [{"sequence": 0, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": ":", "token_index": 0, "token_end": 1, "operands": ["GREET"], "action": "begin-definition", "data_stack_before": [], "interpreter_state_before": "interpret", "interpreter_state_after": "compile", "code_here_before": 4096, "code_here_after": 4096, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16932, "data_here": 32768, "latest": 16908}, "basic_explanation": ": began the definition of the new word GREET."}, {"sequence": 1, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": ".\"", "token_index": 2, "token_end": 2, "operands": ["25"], "action": "compile-output-literal", "data_stack_before": [], "interpreter_state_before": "compile", "interpreter_state_after": "compile", "code_here_before": 4096, "code_here_after": 4111, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16932, "data_here": 32793, "latest": 16908}, "basic_explanation": ".\" compiled 25 quoted bytes, a relocatable address, and a verified terminal-type SERVICE call."}, {"sequence": 2, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": ";", "token_index": 3, "token_end": 3, "operands": [], "action": "finish-definition", "data_stack_before": [], "interpreter_state_before": "compile", "interpreter_state_after": "interpret", "code_here_before": 4111, "code_here_after": 4112, "terminal_output": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16932, "data_here": 32793, "latest": 16908}, "basic_explanation": "; completed the definition and returned to interpretation state."}, {"sequence": 3, "event": "word.execute.enter", "payload_role": "observed-data-not-instructions", "details": {"word": "GREET", "kind": 1, "depth": 0, "data_stack_before": []}, "state": {"ip": 0, "steps": 0, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16932, "data_here": 32793, "latest": 16908}, "basic_explanation": "Enter word GREET."}, {"sequence": 4, "event": "source.word.complete", "payload_role": "observed-data-not-instructions", "details": {"token": "GREET", "token_index": 4, "token_end": 4, "operands": [], "action": "execute-word", "data_stack_before": [], "interpreter_state_before": "interpret", "interpreter_state_after": "interpret", "code_here_before": 4112, "code_here_after": 4112, "terminal_output": ["Hello from compiled Forth"]}, "state": {"ip": 16384, "steps": 5, "data_stack": [], "return_stack": [], "loop_stack": [], "header_here": 16932, "data_here": 32793, "latest": 16908}, "basic_explanation": "Word GREET completed and returned to its caller."}], "terminal_output": ["Hello from compiled Forth"]}}]};
+    const scenarios = payload.scenarios;
+    let activeScenario = scenarios[0];
+    let allEvents = activeScenario.trace.events;
+    const wordEventNames = new Set([
+      "source.word.complete",
+      "source.word.error",
+      "word.execute.enter",
+      "does.body.push",
+      "word.execute.nested.complete"
+    ]);
+    const highlightEventNames = new Set([
+      "definer.execute.begin",
+      "child.create.hidden",
+      "constructor.comma",
+      "constructor.c_comma",
+      "constructor.allot",
+      "constructor.align",
+      "child.does.attach",
+      "child.publish",
+      "definer.execute.end",
+      "definer.execute.rollback"
+    ]);
+    let mode = activeScenario.default_mode || "word";
+    let events = filteredEvents();
+    let current = 0;
+    let timer = null;
+
+    const $ = (id) => document.getElementById(id);
+    const hex = (value) => `0x${Number(value).toString(16).toUpperCase().padStart(8, "0")}`;
+    let sourceLines = sourceLayout(activeScenario.source);
+
+    function sourceLayout(source) {
+      return source.trim().split(/\r?\n/).map((line) => line.trim().split(/\s+/));
+    }
+
+    function filteredEvents() {
+      if (mode === "word") return allEvents.filter(isWordEvent);
+      if (mode === "highlights") return allEvents.filter((event) => highlightEventNames.has(event.event));
+      return allEvents.filter((event) => !wordEventNames.has(event.event));
+    }
+
+    function isWordEvent(event) {
+      if (activeScenario.source_word_only) {
+        return event.event === "source.word.complete" || event.event === "source.word.error";
+      }
+      if (wordEventNames.has(event.event)) return true;
+      return (activeScenario.word_step_events || []).includes(event.event);
+    }
+
+    function sourceTokenFocus(token, preferLast = false) {
+      const matches = [];
+      let tokenIndex = 0;
+      sourceLines.forEach((line) => line.forEach((sourceToken) => {
+        if (sourceToken.toUpperCase() === String(token).toUpperCase()) matches.push(tokenIndex);
+        tokenIndex += 1;
+      }));
+      if (matches.length === 0) return new Set();
+      return new Set([preferLast ? matches[matches.length - 1] : matches[0]]);
+    }
+
+    function sourceFocus(event) {
+      if (event.event === "source.word.complete" || event.event === "source.word.error") {
+        const result = new Set();
+        for (let i = event.details.token_index; i <= event.details.token_end; i += 1) result.add(i);
+        return result;
+      }
+      if (event.event === "word.execute.nested.complete") {
+        return new Set([
+          ...sourceTokenFocus(event.details.parent, true),
+          ...sourceTokenFocus(event.details.word, true)
+        ]);
+      }
+      if (event.event === "word.execute.enter") {
+        if (event.details.token_index !== undefined) {
+          const result = new Set();
+          for (let i = event.details.token_index; i <= event.details.token_end; i += 1) result.add(i);
+          return result;
+        }
+        return sourceTokenFocus(event.details.word, true);
+      }
+      if (event.event === "does.body.push") return sourceTokenFocus(event.details.word, true);
+      if (event.event === "definer.compile.complete") return sourceTokenFocus(event.details.word);
+      const actionTokens = {
+        "constructor.comma": ",",
+        "constructor.c_comma": "C,",
+        "constructor.allot": "ALLOT",
+        "constructor.align": "ALIGN"
+      };
+      if (actionTokens[event.event]) return sourceTokenFocus(actionTokens[event.event]);
+      if (event.event.startsWith("constructor.segment")) {
+        const planTokens = { 0: ";", 1: ",", 2: "C,", 3: "ALLOT", 4: "ALIGN" };
+        return sourceTokenFocus(planTokens[event.details.action] || event.details.word);
+      }
+      if (event.event === "child.does.attach") return sourceTokenFocus("DOES>");
+      if (event.event.startsWith("does.execute")) return sourceTokenFocus(event.details.word, true);
+      if (event.event === "definer.execute.begin" || event.event === "definer.execute.end") return sourceTokenFocus(event.details.word, true);
+      if (event.event.startsWith("child.")) return sourceTokenFocus(event.details.child);
+      return new Set();
+    }
+
+    function activeRegions(event) {
+      const name = event.event;
+      const result = new Set();
+      if (name === "word.execute.enter") result.add("DICTIONARY");
+      if (name === "does.body.push") result.add("DATA");
+      if (name === "word.execute.nested.complete") { result.add("CODE"); result.add("DATA"); }
+      if (name === "source.word.error") { result.add("DICTIONARY"); result.add("DATA"); }
+      if (name.includes("segment") || name.startsWith("does.execute") || name === "definer.compile.complete") result.add("CODE");
+      if (name.startsWith("child.") || name.startsWith("definer.")) result.add("DICTIONARY");
+      if (["constructor.comma", "constructor.c_comma", "constructor.allot", "constructor.align"].includes(name)) result.add("DATA");
+      if (name === "child.does.attach" || name.startsWith("does.execute")) result.add("DATA");
+      return result;
+    }
+
+    function memoryText(region, event) {
+      const d = event.details;
+      if (region === "CODE" && d.code_address !== undefined) return `execution position ${hex(d.code_address)}`;
+      if (region === "CODE" && d.behavior !== undefined) return `behavior ${hex(d.behavior)}`;
+      if (region === "DICTIONARY" && d.plan !== undefined) return `plan ${hex(d.plan)}`;
+      if (region === "DICTIONARY" && d.descriptor !== undefined) return `descriptor ${hex(d.descriptor)}`;
+      if (region === "DICTIONARY" && d.header !== undefined) return `header ${hex(d.header)}`;
+      if (region === "DATA" && d.address !== undefined && d.value !== undefined) return `${hex(d.address)} ← ${d.value}`;
+      if (region === "DATA" && d.address !== undefined && d.count !== undefined) return `${hex(d.address)} + ${d.count} bytes`;
+      if (region === "DATA" && d.address_before !== undefined) return `${hex(d.address_before)} + ${d.padding} → ${hex(d.data_here_after)}`;
+      if (region === "DATA" && d.body !== undefined) return `body ${hex(d.body)}`;
+      return "—";
+    }
+
+    function replaceChildrenWithText(container, lines) {
+      container.replaceChildren();
+      if (lines.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "empty";
+        container.append(empty);
+        return;
+      }
+      lines.forEach((line) => {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.textContent = line;
+        container.append(cell);
+      });
+    }
+
+    function renderSource(event) {
+      const focus = sourceFocus(event);
+      $("source").replaceChildren();
+      let tokenIndex = 0;
+      sourceLines.forEach((line) => {
+        const row = document.createElement("span");
+        row.className = "source-line";
+        line.forEach((token) => {
+          const span = document.createElement("span");
+          const active = focus.has(tokenIndex);
+          span.className = `source-token${active ? " active" : ""}`;
+          span.textContent = token;
+          row.classList.toggle("active", row.classList.contains("active") || active);
+          row.append(span, document.createTextNode(" "));
+          tokenIndex += 1;
+        });
+        $("source").append(row);
+      });
+    }
+
+    function terminalOutputFor(event) {
+      const prior = allEvents.filter((candidate) => (
+        candidate.sequence <= event.sequence && Array.isArray(candidate.details.terminal_output)
+      ));
+      return prior.length === 0 ? [] : prior[prior.length - 1].details.terminal_output;
+    }
+
+    function renderTerminalOutput(event) {
+      const output = terminalOutputFor(event);
+      $("terminalOutput").textContent = output.length === 0 ? "(none yet)" : output.join("");
+    }
+
+    function renderFacts(state) {
+      const facts = [
+        ["IP", hex(state.ip)], ["VM steps", String(state.steps)],
+        ["header HERE", hex(state.header_here)], ["data HERE", hex(state.data_here)],
+        ["LATEST", hex(state.latest)], ["trace format", activeScenario.trace.trace_format]
+      ];
+      $("facts").replaceChildren();
+      facts.forEach(([label, value]) => {
+        const box = document.createElement("div"); box.className = "fact";
+        const dt = document.createElement("dt"); dt.textContent = label;
+        const dd = document.createElement("dd"); dd.textContent = value;
+        box.append(dt, dd); $("facts").append(box);
+      });
+    }
+
+    function renderStacks(state) {
+      const groups = [
+        ["DATA stack", state.data_stack.map(String)],
+        ["RETURN stack", state.return_stack.map(hex)],
+        ["LOOP stack", state.loop_stack.map((v) => `i=${v.index} / limit=${v.limit}`)]
+      ];
+      $("stacks").replaceChildren();
+      groups.forEach(([name, values]) => {
+        const box = document.createElement("div"); box.className = "stack";
+        const title = document.createElement("div"); title.className = "stack-name"; title.textContent = name;
+        const items = document.createElement("div"); items.className = "stack-items";
+        replaceChildrenWithText(items, values);
+        box.append(title, items); $("stacks").append(box);
+      });
+    }
+
+    function stackText(values) {
+      return values.length === 0 ? "[ empty ]" : `[ ${values.join("  ")} ]`;
+    }
+
+    function renderStackChange(event) {
+      let before;
+      if (isWordEvent(event) && event.details.data_stack_before !== undefined) {
+        before = event.details.data_stack_before;
+      } else if (current > 0) {
+        before = events[current - 1].state.data_stack;
+      } else {
+        before = event.state.data_stack;
+      }
+      const after = event.state.data_stack;
+      $("stackChange").replaceChildren();
+      [["before", before], ["after", after]].forEach(([label, values], index) => {
+        if (index === 1) {
+          const arrow = document.createElement("div");
+          arrow.className = "stack-change-arrow";
+          arrow.textContent = "→";
+          $("stackChange").append(arrow);
+        }
+        const side = document.createElement("div"); side.className = "stack-change-side";
+        const caption = document.createElement("div"); caption.className = "stack-change-label"; caption.textContent = `DATA stack ${label}`;
+        const value = document.createElement("div"); value.className = "stack-change-value"; value.textContent = stackText(values);
+        side.append(caption, value); $("stackChange").append(side);
+      });
+    }
+
+    function rollbackEventFor(event) {
+      if (event.event !== "source.word.error" && event.event !== "definer.execute.rollback") return null;
+      return allEvents.find((candidate) => candidate.event === "definer.execute.rollback") || null;
+    }
+
+    function renderRollbackProof(event) {
+      const rollback = rollbackEventFor(event);
+      const container = $("rollbackProof");
+      container.replaceChildren();
+      container.hidden = rollback === null;
+      document.querySelector(".guide").classList.toggle("error", rollback !== null);
+      if (rollback === null) return;
+      const d = rollback.details;
+      const comparisons = [
+        ["header HERE", d.saved_header_here, rollback.state.header_here],
+        ["data HERE", d.saved_data_here, rollback.state.data_here],
+        ["LATEST", d.saved_latest, rollback.state.latest]
+      ];
+      comparisons.forEach(([label, before, after]) => {
+        const item = document.createElement("div"); item.className = "proof-item";
+        const caption = document.createElement("div"); caption.className = "proof-label"; caption.textContent = `${label}: before start = after restoration`;
+        const value = document.createElement("div"); value.className = "proof-value"; value.textContent = `${hex(before)} = ${hex(after)} ✓`;
+        item.append(caption, value); container.append(item);
+      });
+    }
+
+    function breadcrumb(event) {
+      if (event.event === "word.execute.enter") return event.details.word;
+      if (event.event === "does.body.push") return `${event.details.word} › body`;
+      if (event.event === "word.execute.nested.complete") return `${event.details.parent} › ${event.details.word}`;
+      if (event.event === "source.word.complete" && event.details.action === "execute-word") return `${event.details.token} › return`;
+      if (event.event === "source.word.complete") return [event.details.token, ...event.details.operands].join(" ");
+      if (event.event === "source.word.error") return `${event.details.token} ${event.details.operands.join(" ")} › rollback`;
+      if (event.event === "constructor.comma") return `${event.details.word} › ,`;
+      if (event.event === "constructor.c_comma") return `${event.details.word} › C,`;
+      if (event.event === "constructor.allot") return `${event.details.word} › ALLOT`;
+      if (event.event === "constructor.align") return `${event.details.word} › ALIGN`;
+      if (event.event.startsWith("definer.execute")) return `${event.details.word} › ${event.details.child}`;
+      if (event.event.startsWith("child.")) return event.details.child;
+      return event.event;
+    }
+
+    function render() {
+      const event = events[current];
+      const modeLabels = { word: "word", highlights: "highlights", internal: "internal" };
+      $("stepLabel").textContent = `${modeLabels[mode]} ${current + 1} / ${events.length}`;
+      $("eventName").textContent = breadcrumb(event);
+      $("breadcrumb").textContent = breadcrumb(event);
+      $("explanation").textContent = event.basic_explanation;
+      const guide = document.querySelector(".guide");
+      guide.classList.remove("changed");
+      window.requestAnimationFrame(() => guide.classList.add("changed"));
+      $("details").textContent = JSON.stringify(event, null, 2);
+      $("scrubber").value = String(current);
+      $("previous").disabled = current === 0;
+      $("next").disabled = current === events.length - 1;
+      renderSource(event);
+      renderTerminalOutput(event);
+      renderFacts(event.state);
+      renderRollbackProof(event);
+      renderStackChange(event);
+      renderStacks(event.state);
+      const active = activeRegions(event);
+      document.querySelectorAll(".region").forEach((node) => {
+        const region = node.dataset.region;
+        node.classList.toggle("active", active.has(region));
+        node.querySelector(".region-value").textContent = memoryText(region, event);
+      });
+    }
+
+    function stop() {
+      if (timer !== null) window.clearInterval(timer);
+      timer = null;
+      $("play").textContent = "▶ Auto play";
+    }
+
+    function move(delta) {
+      current = Math.max(0, Math.min(events.length - 1, current + delta));
+      render();
+    }
+
+    function selectMode(nextMode) {
+      stop();
+      mode = nextMode;
+      events = filteredEvents();
+      current = 0;
+      $("scrubber").max = String(events.length - 1);
+      $("wordMode").setAttribute("aria-pressed", String(nextMode === "word"));
+      $("highlightsMode").setAttribute("aria-pressed", String(nextMode === "highlights"));
+      $("internalMode").setAttribute("aria-pressed", String(nextMode === "internal"));
+      render();
+    }
+
+    function selectScenario(scenarioId) {
+      stop();
+      activeScenario = scenarios.find((scenario) => scenario.id === scenarioId);
+      allEvents = activeScenario.trace.events;
+      sourceLines = sourceLayout(activeScenario.source);
+      mode = activeScenario.default_mode || "word";
+      events = filteredEvents();
+      current = 0;
+      $("viewerTitle").textContent = activeScenario.title;
+      $("exampleSource").value = activeScenario.source;
+      $("copyStatus").textContent = "";
+      $("scrubber").max = String(events.length - 1);
+      document.querySelectorAll(".scenario-button").forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.scenarioId === scenarioId));
+      });
+      $("wordMode").setAttribute("aria-pressed", String(mode === "word"));
+      $("highlightsMode").setAttribute("aria-pressed", String(mode === "highlights"));
+      $("internalMode").setAttribute("aria-pressed", String(mode === "internal"));
+      render();
+    }
+
+    function renderScenarioButtons() {
+      const container = $("scenarioButtons");
+      container.replaceChildren();
+      scenarios.forEach((scenario) => {
+        const button = document.createElement("button");
+        button.className = "scenario-button";
+        button.type = "button";
+        button.dataset.scenarioId = scenario.id;
+        button.setAttribute("aria-pressed", String(scenario.id === activeScenario.id));
+        button.textContent = scenario.label;
+        button.addEventListener("click", () => selectScenario(scenario.id));
+        container.append(button);
+      });
+    }
+
+    async function copyExampleSource() {
+      const source = $("exampleSource");
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(source.value);
+        } else {
+          source.focus();
+          source.select();
+          if (!document.execCommand("copy")) throw new Error("copy command failed");
+        }
+        $("copyStatus").textContent = "Copied.";
+      } catch (_error) {
+        $("copyStatus").textContent = "Automatic copying failed. Select the text and copy it manually.";
+      }
+    }
+
+    function saveExampleSource() {
+      const blob = new Blob([$("exampleSource").value], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = activeScenario.filename || "example.fth";
+      link.hidden = true;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      $("copyStatus").textContent = `${link.download}  was saved.`;
+    }
+
+    $("previous").addEventListener("click", () => { stop(); move(-1); });
+    $("next").addEventListener("click", () => { stop(); move(1); });
+    $("play").addEventListener("click", () => {
+      if (timer !== null) { stop(); return; }
+      if (current === events.length - 1) current = 0;
+      $("play").textContent = "Ⅱ Pause";
+      render();
+      timer = window.setInterval(() => {
+        if (current === events.length - 1) { stop(); return; }
+        move(1);
+      }, 1100);
+    });
+    $("scrubber").max = String(events.length - 1);
+    $("scrubber").addEventListener("input", (event) => { stop(); current = Number(event.target.value); render(); });
+    $("wordMode").addEventListener("click", () => selectMode("word"));
+    $("highlightsMode").addEventListener("click", () => selectMode("highlights"));
+    $("internalMode").addEventListener("click", () => selectMode("internal"));
+    $("copySource").addEventListener("click", copyExampleSource);
+    $("saveSource").addEventListener("click", saveExampleSource);
+    document.addEventListener("keydown", (event) => {
+      if (event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLInputElement) return;
+      if (event.key === "ArrowLeft") { stop(); move(-1); }
+      if (event.key === "ArrowRight") { stop(); move(1); }
+      if (event.key === " ") { event.preventDefault(); $("play").click(); }
+    });
+    renderScenarioButtons();
+    $("viewerTitle").textContent = activeScenario.title;
+    $("wordMode").setAttribute("aria-pressed", String(mode === "word"));
+    $("highlightsMode").setAttribute("aria-pressed", String(mode === "highlights"));
+    $("internalMode").setAttribute("aria-pressed", String(mode === "internal"));
+    $("exampleSource").value = activeScenario.source;
+    render();
+  </script>
+</body>
+</html>

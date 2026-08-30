@@ -29,28 +29,39 @@ INTERNAL_DOCUMENT_PATTERNS = (
     re.compile(r"^[0-9]{8}_[0-9]{4}_"),
 )
 EXPLICIT_TOP_LEVEL = frozenset({
-    ".gitattributes", ".gitignore", ".nojekyll", "FIRST_READ.md", "LICENSE",
-    "README.md", "SECURITY.md", "VERSION", "requirements.txt",
+    ".gitattributes", ".gitignore", ".nojekyll", "FIRST_READ.md", "FIRST_READ_JP.md",
+    "LICENSE", "README.md", "README_JP.md", "SECURITY.md", "SECURITY_JP.md", "VERSION",
+    "requirements.txt",
 })
 TEXT_SUFFIXES = frozenset({".py", ".rb", ".md", ".txt", ".json", ".fth", ".html"})
 REQUIRED_PATHS = (
     ".gitattributes",
     ".nojekyll",
     "README.md",
+    "README_JP.md",
     "FIRST_READ.md",
+    "FIRST_READ_JP.md",
     "SECURITY.md",
+    "SECURITY_JP.md",
     "LICENSE",
     "VERSION",
     "requirements.txt",
     "docs/QUICKSTART.md",
+    "docs/QUICKSTART_JP.md",
+    "docs/README.md",
+    "docs/README_JP.md",
     "docs/KNOWN_LIMITATIONS_0.1.md",
+    "docs/KNOWN_LIMITATIONS_0.1_JP.md",
     "docs/RELEASE_NOTES_0.1.md",
     "docs/RELEASE_NOTES_0.1_RC1.md",
     "docs/RELEASE_CHECKLIST_0.1.md",
     "docs/RELEASE_AUDIT_0.1.md",
     "docs/RELEASE_SECURITY_AUDIT_PLAN.md",
     "docs/LICENSE_AND_SECURITY.md",
+    "docs/LICENSE_AND_SECURITY_JP.md",
     "docs/PROJECT_ORIGIN.md",
+    "docs/PROJECT_ORIGIN_JP.md",
+    "docs/RELEASE_AUDIT_0.1.1_JP.md",
     "tools/release_tool.py",
     "workbench/min0_core_forth_vm.py",
     "workbench/min0_core_forth_vm.rb",
@@ -67,6 +78,7 @@ REQUIRED_PATHS = (
     "workbench/test_vectors/manifest.json",
     "viewer/trace-viewer-template.html",
     "viewer/value-trace.html",
+    "viewer/value-trace-en.html",
 )
 FORBIDDEN_TEXT = (
     ("private-key-pem", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")),
@@ -95,6 +107,8 @@ EXPECTED_LICENSE_SHA256 = "f597619c65a0712362d39b2a995e25bc77154964bdc6abdb71f73
 PROMINENT_NOTICE_REQUIREMENTS = {
     "README.md": ("FIRST_READ.md", "docs/LICENSE_AND_SECURITY.md"),
     "FIRST_READ.md": ("docs/LICENSE_AND_SECURITY.md",),
+    "README_JP.md": ("FIRST_READ_JP.md", "docs/LICENSE_AND_SECURITY_JP.md"),
+    "FIRST_READ_JP.md": ("docs/LICENSE_AND_SECURITY_JP.md",),
     "docs/LICENSE_AND_SECURITY.md": (
         "LICENSE", "SECURITY.md", "RELEASE_AUDIT_0.1.md",
         "KNOWN_LIMITATIONS_0.1.md", "THREAT_MODEL_R0.md",

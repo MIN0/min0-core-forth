@@ -12,8 +12,8 @@ For the simplest Windows setup:
 3. In File Explorer, open the folder named exactly `min0-core-forth-main`. Do **not** open its
    `viewer`, `docs`, or `workbench` subfolder yet.
 4. Click File Explorer's address bar, type `powershell`, and press Enter. This opens PowerShell in the
-   folder currently shown by File Explorer. You may also use **Open in Terminal**／**ターミナルで開く**
-   if it opens in the same folder.
+   folder currently shown by File Explorer. You may also use **Open in Terminal** if it opens in the
+   same folder.
 5. Confirm that PowerShell is in the repository root:
 
 ```powershell
@@ -65,8 +65,8 @@ installation for this release.
 
 ## Five-minute path
 
-Open the **[live Guided Viewer](https://min0.github.io/min0-core-forth/viewer/value-trace.html)**.
-The same page is stored in `viewer/value-trace.html`; it is self-contained and does not send traces
+Open the **[English Guided Viewer](https://min0.github.io/min0-core-forth/viewer/value-trace-en.html)**.
+The same page is stored in `viewer/value-trace-en.html`; it is self-contained and does not send traces
 or edited source over the network.
 
 Then run the included output example:
@@ -112,9 +112,8 @@ GREET CR
 BYE
 ```
 
-The first `WORDS` shows the vocabulary available at startup. After `SQUARE` is
-defined, the second `WORDS` shows it below the visible separator
-`ここから先はユーザーが : で定義したワードなどです`. Only the newest searchable
+The first `WORDS` shows the vocabulary available at startup. After `SQUARE` is defined, the second
+`WORDS` shows it below a visible separator for definitions added by the user. Only the newest searchable
 definition of a name is shown; hidden, failed, and rolled-back definitions are omitted.
 
 The host prints the DATA stack after each successful input. `BYE` and `EXIT` are launcher commands for

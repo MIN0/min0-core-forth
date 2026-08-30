@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from build_trace_viewer import build_payload, build_viewer
+from build_trace_viewer import JAPANESE_TEXT, build_payload, build_viewer
 from trace_value_demo import (
     STACK_EARLY_SOURCE,
     STACK_LATE_SOURCE,
@@ -330,6 +330,18 @@ class TraceViewerTests(unittest.TestCase):
         self.assertIn("textContent = JSON.stringify(event", template)
         self.assertIn('$("exampleSource").value', template)
         self.assertNotIn('$("source").innerHTML', template)
+
+    def test_english_viewer_contains_no_japanese_text(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = build_viewer(
+                Path(directory) / "viewer-en.html", language="en"
+            )
+            html = output.read_text(encoding="utf-8")
+        self.assertIsNone(JAPANESE_TEXT.search(html))
+        self.assertIn("Look here now", html)
+        self.assertIn("One word at a time", html)
+        self.assertIn("ANSWER was created successfully.", html)
+        self.assertIn("Safety boundary:", html)
 
 
 if __name__ == "__main__":

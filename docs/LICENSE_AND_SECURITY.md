@@ -1,73 +1,64 @@
-# ここを見てください：ライセンスと安全性について
+# License and security: read this first
 
-MIN0 CORE FORTHを利用、改造、Fork、再配布するとき、または「このリリースを信用してよいか」と
-確認するときは、最初にこのページを確認してください。
+[Read this page in Japanese](LICENSE_AND_SECURITY_JP.md)
 
-> **MIT Licenseは、利用・改造・再配布を許可する著作権上の条件です。**  
-> **安全性の認証、脆弱性がないという証明、特定用途への適合保証ではありません。**
+> **The MIT License defines copyright permissions.**<br>
+> **It is not a security certification, proof of no vulnerabilities, or fitness guarantee.**
 
-この二つを混同しないことが、MIN0 CORE FORTHの公開方針です。疑問や指摘を避けるために安全だと
-言い切るのではなく、何を確認し、何が未確認なのかを誰でも追跡できる形で公開します。
+MIN0 CORE FORTH keeps these two questions separate. Instead of claiming that everything is safe, the
+project publishes what was checked, what remains unverified, and how to report a problem privately.
 
-## MIT Licenseで許可されること
+## What the MIT License permits
 
-本リリースのソースコードと付属文書は、ルートの`LICENSE`にあるMIT Licenseで公開します。
-MIT Licenseは、著作権表示と許諾表示を残すことを条件として、利用、複製、変更、結合、公開、配布、
-サブライセンス、販売を広く認めます。標準識別子は`MIT`です。
+The source and accompanying documentation are released under the [MIT License](../LICENSE). When the
+copyright and permission notice is retained, the license broadly permits use, copying, modification,
+merging, publication, distribution, sublicensing, and sale. Its SPDX identifier is `MIT`.
 
-- 実際に適用される全文：[`LICENSE`](../LICENSE)
-- 標準ライセンス情報：<https://spdx.org/licenses/MIT.html>
+This permission fits the project's purpose of allowing people to grow CPU-, MPU-, FPGA-, and other
+target-specific child FORTH systems.
 
-CPU、MPU、FPGAなどへ移植した子FORTHを育て、研究、教育、比較、改造へ利用しやすくするという
-本プロジェクトの目的に、この許諾範囲が合っています。
+## What the license does not guarantee
 
-## MIT Licenseが保証しないこと
+The software is provided as-is. Selecting the MIT License does not mean:
 
-`LICENSE`の無保証条項にあるとおり、ソフトウェアは現状のまま提供されます。MIT Licenseを採用した
-こと自体は、次のことを意味しません。
+- certification by a security-audit organization;
+- proof that no vulnerability, design defect, or implementation defect exists;
+- fitness for medical, transportation, industrial-control, financial, or safety-critical use;
+- proof that a future hardware port preserves the current experimental controls; or
+- authenticity of a product signed with the repository's public test-fixture keys.
 
-- セキュリティ監査機関による認証
-- 脆弱性、設計ミス、実装ミスが存在しないという保証
-- 医療、交通、産業制御、金融、生命・財産に関わる用途への適合保証
-- 将来のCPU／FPGA移植にも現在の安全機構がそのまま成立するという保証
-- 公開fixture鍵による署名が、実機や公式配布物の真正性を証明するという保証
+## Evidence and limits
 
-したがって、「MIT Licenseだから安全」でも「MIT Licenseだから危険」でもありません。ライセンスと
-技術的な安全性は別々に評価します。
-
-## このリリースで確認できる根拠
-
-安全性について確認したい方は、目的に応じて次を参照してください。
-
-| 確認したいこと | 参照先 |
+| Question | Evidence |
 | --- | --- |
-| 公開前後に何を監査するか | `RELEASE_SECURITY_AUDIT_PLAN.md` |
-| 0.1.1で実際に行った監査とテスト結果 | `RELEASE_AUDIT_0.1.1.md` |
-| 最初の0.1.0リリースの監査記録 | `RELEASE_AUDIT_0.1.md` |
-| 既知の制限と未実装事項 | `KNOWN_LIMITATIONS_0.1.md` |
-| 想定する攻撃と、守れない範囲 | `THREAT_MODEL_R0.md` |
-| 脆弱性を報告する方法 | [`SECURITY.md`](../SECURITY.md) |
-| 公式版とFork版を見分ける方法 | [`FIRST_READ.md`](../FIRST_READ.md) |
+| What is checked before and after publication? | [Release security audit plan](RELEASE_SECURITY_AUDIT_PLAN.md) |
+| What passed for 0.1.1? | [0.1.1 release audit](RELEASE_AUDIT_0.1.1.md) |
+| What passed for the original 0.1.0 release? | [0.1.0 release audit](RELEASE_AUDIT_0.1.md) |
+| What remains unsupported? | [Known limitations](KNOWN_LIMITATIONS_0.1.md) |
+| Which attacks are in or out of scope? | [Threat model](THREAT_MODEL_R0.md) |
+| How should a vulnerability be reported? | [Security policy](../SECURITY.md) |
+| How is an official release identified? | [Read first](../FIRST_READ.md) |
 
-監査記録には、Python／Rubyの試験数、両言語の一致試験、公開対象ファイルのallowlist、秘密情報・
-個人pathの検査、Viewerの外部通信検査、配布ZIPのSHA-256再現性を記録します。これは確認した範囲の
-証拠であり、未知の問題がないという証明ではありません。
+Audit records include Python and Ruby test counts, cross-language agreement, the release allowlist,
+checks for private material and personal paths, Viewer network checks, and deterministic ZIP hashes.
+They are evidence for the tested scope, not proof that unknown problems do not exist.
 
-## 問題を見つけた方へ
+## Reporting a problem
 
-未公開の脆弱性、攻撃手順、秘密鍵、access token、個人情報を公開Issueへ書かないでください。
-公式repositoryの[非公開脆弱性報告窓口](https://github.com/MIN0/min0-core-forth/security/advisories/new)を
-使用してください。通常の質問、文書の誤り、すでに公開済みの設計議論は公開Issueで扱えます。
+Do not place an unpatched vulnerability, exploit procedure, private key, access token, or personal data
+in a public issue. Use the official repository's
+[private vulnerability-reporting channel](https://github.com/MIN0/min0-core-forth/security/advisories/new).
+Ordinary questions, documentation mistakes, and already-public design discussions may use public issues.
 
-報告は歓迎します。実験中の問題を見つけてくださったこと自体が、システムと資料を改善するための
-大切な成果です。
+Reports are welcome. Discovering a problem in an experiment is valuable evidence that improves both
+the implementation and its documentation.
 
-## Fork・再配布する方へ
+## Forking and redistribution
 
-- `LICENSE`の著作権表示と許諾表示を残してください。
-- 改造版であることを明記し、独自のbuild名またはversion suffixを付けてください。
-- 原版の監査結果を、改造後の版にもそのまま成立する保証として表示しないでください。
-- 第三者のコードや素材を追加した場合は、その権利と表示条件を別途確認してください。
-- 実機用の秘密鍵をrepository、配布ZIP、test fixtureへ入れないでください。
+- Retain the copyright and permission notices from `LICENSE`.
+- Clearly identify modified builds and give them a distinct build name or version suffix.
+- Do not claim that the original audit automatically covers modified code.
+- Check the rights and notice requirements of any third-party material you add.
+- Never place deployment keys in the repository, release ZIP, or test fixtures.
 
-この案内は利用者が判断材料へ早く到達するための説明であり、個別案件についての法律相談ではありません。
+This page is a navigation aid, not legal advice for an individual case.
