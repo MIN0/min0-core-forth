@@ -41,14 +41,14 @@ MIN0 CORE FORTHのPython版とRuby版は、FORTHを知らない方にも自由�
 
 ## 現在の位置付け
 
-**MIN0 CORE FORTH 0.1は、教育・実験用公式リファレンス版の候補です。製品運用向けの安全性はまだ保証しません。**
+**MIN0 CORE FORTH 0.1は、教育・実験用公式リファレンス版です。製品運用向けの安全性は保証しません。**
 
 - Python／Ruby上で動くhost executable specificationです。
 - A/B更新、署名、recovery、capabilityは将来の実機向け設計を観察する実働模型です。
 - repositoryに含まれる秘密鍵seedは公開fixtureであり、試験専用です。
 - 公開fixture鍵による署名は、実際の製品や配布物の安全性を証明しません。
 - 実Flash／EEPROM、実CPUの保護mode、TPM等での安全性は未検証です。
-- API、保存format、word setは1stリリースの凍結前には変更される可能性があります。
+- API、保存format、word setは実験の進展により将来の版で変更される可能性があります。
 - Viewerはofflineで動作し、現在networkやAIへtraceを送信しません。
 
 ## ここを見てください：ライセンスと安全性
@@ -57,7 +57,7 @@ MIN0 CORE FORTHのPython版とRuby版は、FORTHを知らない方にも自由�
 無欠陥の保証ではありません。
 
 > **利用条件と安全性の根拠・限界を確認したい方は、**  
-> **▶ [`LICENSE_AND_SECURITY.md`](LICENSE_AND_SECURITY.md)を最初に確認してください。**
+> **▶ [`LICENSE_AND_SECURITY.md`](docs/LICENSE_AND_SECURITY.md)を最初に確認してください。**
 
 そこから、実際の`LICENSE`全文、公開前後の監査計画、監査結果、既知の制限、脅威model、非公開の
 脆弱性報告方法へ進めます。「何でも安全」と主張するのではなく、確認済みと未確認を分けて公開します。
@@ -99,10 +99,10 @@ security demoへ進める構成を目指します。
 
 ## 最初に試す順番
 
-1. `viewer/value-trace.html`をbrowserで開き、案内に沿って`VALUE:`と`ANSWER`の動きを見る。
-2. `QUICKSTART.md`に従い、Python版またはRuby版で`examples/hello.fth`を実行する。
-3. READMEの実行例と仕様書を読み、好きなwordを追加する。
-4. 興味があれば署名、A/B更新、recovery、capabilityのdemoを試す。
+1. **[Guided Viewerを開く](https://min0.github.io/min0-core-forth/viewer/value-trace.html)**。案内に沿って`VALUE:`と`ANSWER`の動きを見る。
+2. **[Quick Start](docs/QUICKSTART.md)**に従い、Python版またはRuby版で[`hello.fth`](workbench/examples/hello.fth)を実行する。
+3. [README](README.md)の実行例と[設計文書](docs/)を読み、好きなwordを追加する。
+4. 興味があれば[実装・試験用workbench](workbench/)で署名、A/B更新、recovery、capabilityのdemoを試す。
 
 ## 今後整理する事項
 

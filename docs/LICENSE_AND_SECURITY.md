@@ -15,7 +15,7 @@ MIN0 CORE FORTHを利用、改造、Fork、再配布するとき、または「�
 MIT Licenseは、著作権表示と許諾表示を残すことを条件として、利用、複製、変更、結合、公開、配布、
 サブライセンス、販売を広く認めます。標準識別子は`MIT`です。
 
-- 実際に適用される全文：`LICENSE`
+- 実際に適用される全文：[`LICENSE`](../LICENSE)
 - 標準ライセンス情報：<https://spdx.org/licenses/MIT.html>
 
 CPU、MPU、FPGAなどへ移植した子FORTHを育て、研究、教育、比較、改造へ利用しやすくするという
@@ -45,8 +45,8 @@ CPU、MPU、FPGAなどへ移植した子FORTHを育て、研究、教育、比�
 | 実際に行った監査とテスト結果 | `RELEASE_AUDIT_0.1.md` |
 | 既知の制限と未実装事項 | `KNOWN_LIMITATIONS_0.1.md` |
 | 想定する攻撃と、守れない範囲 | `THREAT_MODEL_R0.md` |
-| 脆弱性を報告する方法 | `SECURITY.md` |
-| 公式版とFork版を見分ける方法 | `FIRST_READ.md` |
+| 脆弱性を報告する方法 | [`SECURITY.md`](../SECURITY.md) |
+| 公式版とFork版を見分ける方法 | [`FIRST_READ.md`](../FIRST_READ.md) |
 
 監査記録には、Python／Rubyの試験数、両言語の一致試験、公開対象ファイルのallowlist、秘密情報・
 個人pathの検査、Viewerの外部通信検査、配布ZIPのSHA-256再現性を記録します。これは確認した範囲の

@@ -12,7 +12,8 @@ from min0_core_forth_vm import Min0CoreForthVM
 
 
 ROOT = Path(__file__).resolve().parent
-VERSION = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+PROJECT_ROOT = ROOT.parent
+VERSION = (PROJECT_ROOT / "VERSION").read_text(encoding="utf-8").strip()
 BANNER = f"MIN0 CORE FORTH {VERSION} - educational and experimental reference"
 
 

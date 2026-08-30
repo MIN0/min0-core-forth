@@ -20,8 +20,9 @@ from trace_value_demo import (
 
 
 ROOT = Path(__file__).resolve().parent
-TEMPLATE = ROOT / "viewer" / "trace-viewer-template.html"
-DEFAULT_OUTPUT = ROOT / "viewer" / "value-trace.html"
+PROJECT_ROOT = ROOT.parent
+TEMPLATE = PROJECT_ROOT / "viewer" / "trace-viewer-template.html"
+DEFAULT_OUTPUT = PROJECT_ROOT / "viewer" / "value-trace.html"
 
 
 def build_payload() -> dict:

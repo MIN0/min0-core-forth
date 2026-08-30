@@ -3,7 +3,7 @@
 require_relative "min0_core_forth_dictionary"
 require_relative "min0_core_forth_outer"
 
-MIN0_FORTH_VERSION = File.read(File.join(__dir__, "VERSION"), encoding: "UTF-8").strip
+MIN0_FORTH_VERSION = File.read(File.join(__dir__, "..", "VERSION"), encoding: "UTF-8").strip
 MIN0_FORTH_BANNER = "MIN0 CORE FORTH #{MIN0_FORTH_VERSION} - educational and experimental reference"
 
 def make_min0_host

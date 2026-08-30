@@ -12,49 +12,53 @@ import zipfile
 from pathlib import Path
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ALLOWED_DIRECTORIES = {
-    "examples": frozenset({".fth"}),
-    "test_vectors": frozenset({".fcb", ".json"}),
+    "docs": frozenset({".md"}),
+    "tools": frozenset({".py"}),
+    "workbench": frozenset({".py", ".rb", ".fth", ".fcb", ".json"}),
     "viewer": frozenset({".html"}),
 }
 EXCLUDED_PARTS = frozenset({
     ".git", "__pycache__", "document_work", "release", "release-staging",
 })
 EXPLICIT_TOP_LEVEL = frozenset({
-    ".gitattributes", ".gitignore", "LICENSE", "VERSION", "requirements.txt",
+    ".gitattributes", ".gitignore", ".nojekyll", "FIRST_READ.md", "LICENSE",
+    "README.md", "SECURITY.md", "VERSION", "requirements.txt",
 })
-TOP_LEVEL_SUFFIXES = frozenset({".py", ".rb", ".md"})
 TEXT_SUFFIXES = frozenset({".py", ".rb", ".md", ".txt", ".json", ".fth", ".html"})
 REQUIRED_PATHS = (
     ".gitattributes",
+    ".nojekyll",
     "README.md",
-    "QUICKSTART.md",
     "FIRST_READ.md",
     "SECURITY.md",
-    "KNOWN_LIMITATIONS_0.1.md",
-    "RELEASE_NOTES_0.1.md",
-    "RELEASE_NOTES_0.1_RC1.md",
-    "RELEASE_CHECKLIST_0.1.md",
-    "RELEASE_AUDIT_0.1.md",
-    "RELEASE_SECURITY_AUDIT_PLAN.md",
-    "LICENSE_AND_SECURITY.md",
     "LICENSE",
     "VERSION",
     "requirements.txt",
-    "min0_core_forth_vm.py",
-    "min0_core_forth_vm.rb",
-    "min0_core_forth_outer.py",
-    "min0_core_forth_outer.rb",
-    "min0_forth.py",
-    "min0_forth.rb",
-    "test_vm.py",
-    "test_ruby_vm.rb",
-    "cross_check.py",
-    "cross_cli_check.py",
-    "examples/basic.fth",
-    "examples/hello.fth",
-    "test_vectors/manifest.json",
+    "docs/QUICKSTART.md",
+    "docs/KNOWN_LIMITATIONS_0.1.md",
+    "docs/RELEASE_NOTES_0.1.md",
+    "docs/RELEASE_NOTES_0.1_RC1.md",
+    "docs/RELEASE_CHECKLIST_0.1.md",
+    "docs/RELEASE_AUDIT_0.1.md",
+    "docs/RELEASE_SECURITY_AUDIT_PLAN.md",
+    "docs/LICENSE_AND_SECURITY.md",
+    "docs/PROJECT_ORIGIN.md",
+    "tools/release_tool.py",
+    "workbench/min0_core_forth_vm.py",
+    "workbench/min0_core_forth_vm.rb",
+    "workbench/min0_core_forth_outer.py",
+    "workbench/min0_core_forth_outer.rb",
+    "workbench/min0_forth.py",
+    "workbench/min0_forth.rb",
+    "workbench/test_vm.py",
+    "workbench/test_ruby_vm.rb",
+    "workbench/cross_check.py",
+    "workbench/cross_cli_check.py",
+    "workbench/examples/basic.fth",
+    "workbench/examples/hello.fth",
+    "workbench/test_vectors/manifest.json",
     "viewer/trace-viewer-template.html",
     "viewer/value-trace.html",
 )
@@ -83,9 +87,9 @@ VIEWER_NETWORK_PATTERNS = (
 )
 EXPECTED_LICENSE_SHA256 = "f597619c65a0712362d39b2a995e25bc77154964bdc6abdb71f73747d1c9ee08"
 PROMINENT_NOTICE_REQUIREMENTS = {
-    "README.md": ("FIRST_READ.md", "LICENSE_AND_SECURITY.md"),
-    "FIRST_READ.md": ("LICENSE_AND_SECURITY.md",),
-    "LICENSE_AND_SECURITY.md": (
+    "README.md": ("FIRST_READ.md", "docs/LICENSE_AND_SECURITY.md"),
+    "FIRST_READ.md": ("docs/LICENSE_AND_SECURITY.md",),
+    "docs/LICENSE_AND_SECURITY.md": (
         "LICENSE", "SECURITY.md", "RELEASE_AUDIT_0.1.md",
         "KNOWN_LIMITATIONS_0.1.md", "THREAT_MODEL_R0.md",
     ),
@@ -97,9 +101,9 @@ def _allowed(relative: Path) -> bool:
     if not parts or any(part in EXCLUDED_PARTS for part in parts):
         return False
     if len(parts) == 1:
-        return relative.name in EXPLICIT_TOP_LEVEL or relative.suffix in TOP_LEVEL_SUFFIXES
+        return relative.name in EXPLICIT_TOP_LEVEL
     suffixes = ALLOWED_DIRECTORIES.get(parts[0])
-    return len(parts) == 2 and suffixes is not None and relative.suffix in suffixes
+    return suffixes is not None and relative.suffix in suffixes
 
 
 def collect_release_files(root: Path = PROJECT_ROOT) -> list[Path]:
@@ -189,7 +193,7 @@ def audit_tree(root: Path = PROJECT_ROOT) -> dict[str, object]:
             continue
         issues.extend(_scan_text(relative, text))
         if relative.as_posix() in {
-            "viewer/trace-viewer-template.html", "viewer/value-trace.html",
+        "viewer/trace-viewer-template.html", "viewer/value-trace.html",
         }:
             for pattern in VIEWER_NETWORK_PATTERNS:
                 if pattern.search(text):

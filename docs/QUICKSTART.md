@@ -1,6 +1,7 @@
 # MIN0 CORE FORTH quick start
 
-This release candidate provides equivalent Python and Ruby host launchers. Start in this directory.
+This release provides equivalent Python and Ruby host launchers. Run the commands below from the
+repository root.
 
 ## Requirements
 
@@ -15,13 +16,15 @@ python -m pip install -r requirements.txt
 
 ## Five-minute path
 
-Open `viewer/value-trace.html` directly in a browser. It is self-contained and offline.
+Open the **[live Guided Viewer](https://min0.github.io/min0-core-forth/viewer/value-trace.html)**.
+The same page is stored in `viewer/value-trace.html`; it is self-contained and does not send traces
+or edited source over the network.
 
 Then run the included output example:
 
 ```powershell
-python min0_forth.py -z examples/hello.fth
-ruby min0_forth.rb -z examples/hello.fth
+python workbench/min0_forth.py -z workbench/examples/hello.fth
+ruby workbench/min0_forth.rb -z workbench/examples/hello.fth
 ```
 
 Both commands print only:
@@ -37,13 +40,13 @@ return a nonzero process status.
 ## Interactive path
 
 ```powershell
-python min0_forth.py
+python workbench/min0_forth.py
 ```
 
 or:
 
 ```powershell
-ruby min0_forth.rb
+ruby workbench/min0_forth.rb
 ```
 
 Try:
@@ -70,11 +73,11 @@ leaving this reference REPL; they are not frozen CORE words.
 
 ## File mode with diagnostics
 
-Without `-z`, the launcher identifies the candidate and shows the final DATA stack:
+Without `-z`, the launcher identifies the release and shows the final DATA stack:
 
 ```powershell
-python min0_forth.py examples/basic.fth
-ruby min0_forth.rb examples/basic.fth
+python workbench/min0_forth.py workbench/examples/basic.fth
+ruby workbench/min0_forth.rb workbench/examples/basic.fth
 ```
 
 The older `run_source.py/.rb` tools exercise the smaller raw bytecode compiler and are retained for
@@ -82,6 +85,6 @@ cross-language experiments. New users should prefer `min0_forth.py/.rb`.
 
 ## Safety
 
-Read `FIRST_READ.md` before using the security demonstrations. All included signing keys are public test
+Read [`FIRST_READ.md`](../FIRST_READ.md) before using the security demonstrations. All included signing keys are public test
 fixtures. Edited Viewer source is not executed inside the Viewer; copy or save it and use one of the host
 launchers above.

@@ -9,20 +9,39 @@
 >
 > **▶ [公開目的・安全上の位置付け・公式版の見分け方](FIRST_READ.md)**
 >
-> **▶ [ここを見てください：MIT Licenseと安全性は別の約束です](LICENSE_AND_SECURITY.md)**
+> **▶ [ここを見てください：MIT Licenseと安全性は別の約束です](docs/LICENSE_AND_SECURITY.md)**
 
 **MIN0 CORE FORTH 0.1 — Educational & Experimental Reference Release**
 
 Current release: `0.1.0`. For the shortest path from Viewer to actual execution, see
-**[QUICKSTART.md](QUICKSTART.md)**.
+**[QUICKSTART.md](docs/QUICKSTART.md)**.
+
+## まず試してみる
+
+- **[Guided Viewerをブラウザーで動かす](https://min0.github.io/min0-core-forth/viewer/value-trace.html)**
+- **[5分間のQuick Start](docs/QUICKSTART.md)**
+- **[なぜRubyとPythonで始めたのか](docs/PROJECT_ORIGIN.md)**
+- **[設計・監査文書の一覧](docs/)**
+
+## Repository案内
+
+| 場所 | 内容 |
+| --- | --- |
+| [`viewer/`](viewer/) | Guided ViewerのHTML。通常は上の「ブラウザーで動かす」リンクを使用します |
+| [`workbench/`](workbench/) | Python／Ruby実装、試験、相互確認、例題、test vector |
+| [`docs/`](docs/) | 設計、解説、監査記録、リリース資料 |
+| [`tools/`](tools/) | リリース監査・再現可能パッケージ作成工具 |
+
+最上位には、最初に読む案内、ライセンス、安全性、versionなど、入口として必要なファイルだけを
+置いています。
 
 Official repository: **<https://github.com/MIN0/min0-core-forth>**  
 Release tag: **`v0.1.0`**
 
 Release status and public-safety preparation are recorded in
-**[RELEASE_AUDIT_0.1.md](RELEASE_AUDIT_0.1.md)**. Source and documentation are licensed under the
+**[RELEASE_AUDIT_0.1.md](docs/RELEASE_AUDIT_0.1.md)**. Source and documentation are licensed under the
 **[MIT License](LICENSE)**. The license permits reuse but is not a security certification; the exact
-distinction and supporting audit links are collected in **[LICENSE_AND_SECURITY.md](LICENSE_AND_SECURITY.md)**.
+distinction and supporting audit links are collected in **[LICENSE_AND_SECURITY.md](docs/LICENSE_AND_SECURITY.md)**.
 
 MIN0 CORE FORTH is an independent educational and research project. It is not
 an official implementation issued by a Forth standards organization, and it
@@ -30,14 +49,17 @@ does not yet claim complete Forth-standard conformance. Here, “CORE” means t
 common mother system from which CPU-, MPU-, and FPGA-specific descendants can
 grow.
 
-## Executable draft
+## なぜRubyとPythonなのか
 
-This directory contains the first CPU-independent executable experiment for
-the new MIN0 CORE FORTH project. It is independent of the released MSX0-FORTH.
-Python is the leading executable specification and Ruby is an independent
-second implementation. Both execute the same bytecode test vectors.
-The first source-language experiment now compiles colon definitions and a
-small primitive vocabulary independently in both languages.
+MIN0 CORE FORTHは、実機のCPUやメモリ容量を決める前に、さまざまな実装の共通の根となる
+FORTHを自由に実験するために始まりました。Ruby版とPython版は最終ターゲットではなく、同じ
+FORTHの意味を二つの独立した言語で表し、結果を照合する「実行できる仕様」です。一方だけでは
+見落としやすい曖昧さや移植上の問題を早く見つけ、将来のMPU、FPGA、そのほかの実装へ進む前に
+設計を育てます。開発者自身の80386アセンブラ経験、Rubyで再び感じたプログラミングの楽しさ、
+そして現在の実験に欠かせないPythonも、この二言語構成につながりました。
+
+詳しい背景は **[なぜMIN0 CORE FORTHをRubyとPythonで始めたのか](docs/PROJECT_ORIGIN.md)** に
+まとめています。FORTH2020などで紹介するときの説明資料にも展開できる内容です。
 
 ## Fixed for this experiment
 
@@ -269,13 +291,14 @@ saved as `.fth` for testing in the Python/Ruby hosts or a future target.
 For normal use, start with the full host launcher:
 
 ```powershell
-python min0_forth.py
-ruby min0_forth.rb
-python min0_forth.py -z examples/hello.fth
-ruby min0_forth.rb -z examples/hello.fth
+python workbench/min0_forth.py
+ruby workbench/min0_forth.rb
+python workbench/min0_forth.py -z workbench/examples/hello.fth
+ruby workbench/min0_forth.rb -z workbench/examples/hello.fth
 ```
 
-The longer list below contains development, cross-language, and audit commands.
+The longer list below contains development and cross-language commands. Run it after changing to the
+workbench directory with `Set-Location workbench`.
 
 ```powershell
 python demo.py

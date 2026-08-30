@@ -44,7 +44,7 @@ class HostCliTests(unittest.TestCase):
                 text=True, capture_output=True, check=False, encoding="utf-8",
             )
         self.assertEqual(result.returncode, 0)
-        version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+        version = (ROOT.parent / "VERSION").read_text(encoding="utf-8").strip()
         self.assertIn(f"MIN0 CORE FORTH {version}", result.stdout)
         self.assertIn("DATA stack: [5]", result.stdout)
 

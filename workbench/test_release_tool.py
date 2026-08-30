@@ -1,7 +1,10 @@
 import hashlib
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 
 from release_tool import (
     PROMINENT_NOTICE_REQUIREMENTS,
@@ -19,6 +22,8 @@ class ReleaseToolTests(unittest.TestCase):
         selected = {path.as_posix() for path in collect_release_files(PROJECT_ROOT)}
         self.assertIn(".gitattributes", selected)
         self.assertIn("viewer/value-trace.html", selected)
+        self.assertIn("workbench/min0_forth.py", selected)
+        self.assertIn("docs/QUICKSTART.md", selected)
         self.assertNotIn("新FORTHシステム仕様を検討_会話記録.docx", selected)
         self.assertFalse(any(path.startswith("document_work/") for path in selected))
         self.assertFalse(any("__pycache__" in path for path in selected))

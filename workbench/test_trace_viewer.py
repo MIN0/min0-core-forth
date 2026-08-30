@@ -321,7 +321,7 @@ class TraceViewerTests(unittest.TestCase):
 
     def test_viewer_uses_text_nodes_for_trace_derived_content(self) -> None:
         template = (
-            Path(__file__).resolve().parent
+            Path(__file__).resolve().parent.parent
             / "viewer"
             / "trace-viewer-template.html"
         ).read_text(encoding="utf-8")
