@@ -10,6 +10,7 @@ from release_tool import (
     PROMINENT_NOTICE_REQUIREMENTS,
     PROJECT_ROOT,
     REQUIRED_PATHS,
+    _is_internal_document,
     _scan_text,
     audit_tree,
     build_release,
@@ -24,9 +25,21 @@ class ReleaseToolTests(unittest.TestCase):
         self.assertIn("viewer/value-trace.html", selected)
         self.assertIn("workbench/min0_forth.py", selected)
         self.assertIn("docs/QUICKSTART.md", selected)
+        self.assertNotIn("docs/CHECKPOINT_2026-08-26.md", selected)
         self.assertNotIn("新FORTHシステム仕様を検討_会話記録.docx", selected)
         self.assertFalse(any(path.startswith("document_work/") for path in selected))
         self.assertFalse(any("__pycache__" in path for path in selected))
+
+    def test_internal_conversation_and_checkpoint_names_are_not_publishable(self) -> None:
+        rejected = (
+            Path("docs/CHECKPOINT_2026-08-26.md"),
+            Path("docs/project-conversation.md"),
+            Path("docs/開発会話記録.md"),
+            Path("docs/20260824_2142_新規FORTH_CORE開発.md"),
+        )
+        for relative in rejected:
+            with self.subTest(relative=relative):
+                self.assertTrue(_is_internal_document(relative))
 
     def test_current_tree_has_no_unexpected_release_blocker(self) -> None:
         result = audit_tree(PROJECT_ROOT)

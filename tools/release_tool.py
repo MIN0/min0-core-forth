@@ -22,6 +22,12 @@ ALLOWED_DIRECTORIES = {
 EXCLUDED_PARTS = frozenset({
     ".git", "__pycache__", "document_work", "release", "release-staging",
 })
+INTERNAL_DOCUMENT_PATTERNS = (
+    re.compile(r"checkpoint", re.IGNORECASE),
+    re.compile(r"conversation", re.IGNORECASE),
+    re.compile(r"会話"),
+    re.compile(r"^[0-9]{8}_[0-9]{4}_"),
+)
 EXPLICIT_TOP_LEVEL = frozenset({
     ".gitattributes", ".gitignore", ".nojekyll", "FIRST_READ.md", "LICENSE",
     "README.md", "SECURITY.md", "VERSION", "requirements.txt",
@@ -100,10 +106,20 @@ def _allowed(relative: Path) -> bool:
     parts = relative.parts
     if not parts or any(part in EXCLUDED_PARTS for part in parts):
         return False
+    if _is_internal_document(relative):
+        return False
     if len(parts) == 1:
         return relative.name in EXPLICIT_TOP_LEVEL
     suffixes = ALLOWED_DIRECTORIES.get(parts[0])
     return suffixes is not None and relative.suffix in suffixes
+
+
+def _is_internal_document(relative: Path) -> bool:
+    """Reject conversation exports and chronological working notes from publication."""
+
+    return relative.suffix.lower() == ".md" and any(
+        pattern.search(relative.name) for pattern in INTERNAL_DOCUMENT_PATTERNS
+    )
 
 
 def collect_release_files(root: Path = PROJECT_ROOT) -> list[Path]:
@@ -159,6 +175,14 @@ def audit_tree(root: Path = PROJECT_ROOT) -> dict[str, object]:
     except ValueError as exc:
         files = []
         issues.append(str(exc))
+    for path in root.rglob("*.md"):
+        relative = path.relative_to(root)
+        if any(part in EXCLUDED_PARTS for part in relative.parts):
+            continue
+        if _is_internal_document(relative):
+            issues.append(
+                f"{relative.as_posix()}: internal conversation/checkpoint document is not publishable"
+            )
     selected = {path.as_posix() for path in files}
     for required in REQUIRED_PATHS:
         if required not in selected:
