@@ -2,7 +2,7 @@
 
 [英語版はこちらです](RELEASE_AUDIT_0.1.2.md)
 
-状態：Gate A合格。公開と公開後の独立検証は未実施です。
+状態：Gate A、Gate B、Gate Cすべて合格。`v0.1.2`を公開し、公開物を独立して再取得して検証済みです。
 
 ## 対象範囲
 
@@ -28,11 +28,27 @@
 
 ## Gate B：公開
 
-未実施です。
+- [公式v0.1.2リリース](https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.2)
+- 公開日時：2026-08-30 22:36:50（日本時間）
+- tag commit：`e34d203837ddc6bbd3ac1262d0b0c72d69c68af1`
+- 配布物：`min0-core-forth-0.1.2.zip`、630759バイト
+- SHA-256：`1fa73ed9278acda7dfa491fcf090e0f14175e13144727ad8c896e0ecd466f522`
+- `SHA256SUMS.txt`：92バイト。記載したZIP digestとGitHub asset metadataが一致
+- draftでもpre-releaseでもない通常Releaseとして公開し、latest releaseになったことを確認
 
 ## Gate C：公開後
 
-未実施です。公開ZIP、checksum、tag付きsource、日英経路、Viewer、安全alertを公開後に再取得または
-再照合します。
+- 公開ZIPと`SHA256SUMS.txt`を新しいdirectoryへ取得。ZIPのsizeとSHA-256が、公開前の最終物、checksum、
+  GitHub asset metadataと一致
+- ZIP内の監査対象380ファイルと`RELEASE_MANIFEST.txt`を照合し、全SHA-256一致、欠落0、余分0
+- remote `v0.1.2` tagの380 blobと公開ZIP展開物をpathおよびGit blob単位で照合し、欠落0、余分0、差0
+- 公開ZIP展開物でrelease audit 380ファイル・問題0、Python 298、Ruby 46、相互検査49に合格
+- GitHub Pagesはtag commit `e34d203837ddc6bbd3ac1262d0b0c72d69c68af1`からHTTPS強制で構築済み。
+  日本語版／英語版ViewerのSHA-256はtag側とそれぞれ完全一致：
+  `8994161f5d83f39b194d658698ba211283ceab839a6d9d539a5e5ca56d89f853`、
+  `ed5f6a61b16b3f2bc86f11cc378f8547fb9c9dd8938fa61de6e56d54571b27c8`
+- 公開後のGitHub secret-scanning alertsはopen 0、Dependabot alertsはopen 0
+- この最終監査記録をmainへ追加する前に、remote `main`と`v0.1.2`が同じrelease commitを指すことを確認。
+  tagとrelease assetは変更しない履歴証拠として保存
 
 本監査はMIN0 CORE FORTHだけを対象とし、MSX0-FORTHを変更または公開しません。
