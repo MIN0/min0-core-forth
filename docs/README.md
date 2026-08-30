@@ -10,6 +10,8 @@
 - [Project origin](PROJECT_ORIGIN.md)
 - [License and security](LICENSE_AND_SECURITY.md)
 - [Known limitations](KNOWN_LIMITATIONS_0.1.md)
+- [0.1.2 release notes](RELEASE_NOTES_0.1.2.md)
+- [0.1.2 release audit](RELEASE_AUDIT_0.1.2.md)
 - [0.1.1 release audit](RELEASE_AUDIT_0.1.1.md)
 - [Repository read-first notice](../FIRST_READ.md)
 - [English Guided Viewer](https://min0.github.io/min0-core-forth/viewer/value-trace-en.html)

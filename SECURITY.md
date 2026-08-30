@@ -2,7 +2,7 @@
 
 ## Supported release
 
-Security review currently applies to release `0.1.1`. MIN0 CORE FORTH is an
+Security review currently applies to release `0.1.2`. MIN0 CORE FORTH is an
 educational and experimental reference implementation, not a product-security-certified runtime.
 
 The MIT License grants copyright permissions; it does not certify security or guarantee fitness for a

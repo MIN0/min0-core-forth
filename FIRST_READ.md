@@ -65,7 +65,7 @@ Forks and modified builds are welcome. Modified distributions should use a disti
 version suffix and should not present the original release audit as proof for changed code.
 
 The official repository is <https://github.com/MIN0/min0-core-forth>. The first release is `v0.1.0`;
-the recommended maintenance release is `v0.1.1`. Releases provide a tag, ZIP, SHA-256 list, notes,
+the recommended maintenance release is `v0.1.2`. Releases provide a tag, ZIP, SHA-256 list, notes,
 known limitations, and audit records.
 
 ## Recommended order

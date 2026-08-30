@@ -61,7 +61,7 @@ Forkや改造版を歓迎します。変更した配布物には固有のbuild�
 
 公式リポジトリは[日本語版の入口](https://github.com/MIN0/min0-core-forth/blob/main/README_JP.md)です。
 最初の版は`v0.1.0`、現在おすすめする
-保守版は`v0.1.1`です。タグ、ZIP、SHA-256一覧、release notes、既知の制限、監査記録を公開しています。
+保守版は`v0.1.2`です。タグ、ZIP、SHA-256一覧、release notes、既知の制限、監査記録を公開しています。
 
 ## おすすめの順番
 

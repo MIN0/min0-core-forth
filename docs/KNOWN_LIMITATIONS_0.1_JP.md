@@ -2,7 +2,7 @@
 
 [英語版はこちらです](KNOWN_LIMITATIONS_0.1.md)
 
-対象：`0.1.0`と`0.1.1`
+対象：`0.1.0`、`0.1.1`、`0.1.2`
 
 ## 言語と互換性
 
@@ -31,5 +31,6 @@
 ## リリース境界
 
 MIT Licenseは再利用を許可しますが、安全性や特定用途への適合を保証しません。公式repositoryは
-<https://github.com/MIN0/min0-core-forth>です。`v0.1.0`は最初の版、`v0.1.1`は導線、package、文書を
-改善した保守版です。Forkや改造版には識別できるbuild名またはversion suffixを付けてください。
+<https://github.com/MIN0/min0-core-forth>です。`v0.1.0`は最初の版、`v0.1.1`は導線とpackageの改善版、
+`v0.1.2`は日英の入口、ワード・ポケットリファレンス、学習資料を正式収録した保守版です。Forkや
+改造版には識別できるbuild名またはversion suffixを付けてください。

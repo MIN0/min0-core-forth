@@ -2,7 +2,7 @@
 
 [Read this page in Japanese](WORD_REFERENCE_JP.md)
 
-This is the short manual for the 61 startup words printed by `WORDS` in release 0.1.1. It is designed
+This is the short manual for the 61 startup words printed by `WORDS` in release 0.1.2. It is designed
 for use beside the terminal. Detailed rationale and implementation limits remain in the specification
 documents.
 

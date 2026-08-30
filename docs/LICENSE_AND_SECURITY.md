@@ -32,6 +32,7 @@ The software is provided as-is. Selecting the MIT License does not mean:
 | Question | Evidence |
 | --- | --- |
 | What is checked before and after publication? | [Release security audit plan](RELEASE_SECURITY_AUDIT_PLAN.md) |
+| What passed for 0.1.2? | [0.1.2 release audit](RELEASE_AUDIT_0.1.2.md) |
 | What passed for 0.1.1? | [0.1.1 release audit](RELEASE_AUDIT_0.1.1.md) |
 | What passed for the original 0.1.0 release? | [0.1.0 release audit](RELEASE_AUDIT_0.1.md) |
 | What remains unsupported? | [Known limitations](KNOWN_LIMITATIONS_0.1.md) |

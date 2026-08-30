@@ -15,9 +15,10 @@
 
 **MIN0 CORE FORTH 0.1 — Educational and Experimental Reference Release**
 
-Current release: `0.1.1`<br>
+Current release: `0.1.2`<br>
 Official repository: <https://github.com/MIN0/min0-core-forth><br>
-Release tag: `v0.1.1`
+Release tag: `v0.1.2`<br>
+Release notes: **[0.1.2 documentation maintenance release](docs/RELEASE_NOTES_0.1.2.md)**
 
 ## Start here
 
@@ -70,7 +71,7 @@ dependency pin, and packaging controls.
 - Forth true as `0xFFFFFFFF` and false as `0`
 - deterministic faults for invalid instructions, stack limits, and invalid memory access
 
-## Included in release 0.1.1
+## Included in release 0.1.2
 
 - Independent Python and Ruby implementations of the same bytecode and dictionary behavior
 - Data, return, and loop stacks with explicit overflow and underflow checks
@@ -84,6 +85,9 @@ dependency pin, and packaging controls.
 - `DEFER` and authenticated Monitor switching experiments
 - Signed-image, anti-rollback, A/B installation, recovery, trust rotation, and capability models
 - A measured, word-by-word Guided Viewer with success, rollback, constructor, and output scenarios
+- Independent English and Japanese entry paths, including separate Guided Viewer pages
+- A pocket reference covering all 61 startup words and the dynamic `DEFER` family
+- A purpose-oriented guide to FORTH design references and learning material
 - Interactive and quiet file launchers for both Python and Ruby
 
 These security-related components are executable experiments. They are not a claim that a product or
@@ -129,16 +133,17 @@ effect, permitted use, and short meaning of every startup word.
 
 ## Verification
 
-The `v0.1.1` public artifact and independently downloaded tagged source passed:
+Release `0.1.2` was prepared with:
 
-- 291 Python tests
+- 298 Python tests
 - 46 Ruby test files
 - 49 Python/Ruby cross-language check files
-- a 360-file path-and-content comparison with no differences
+- a 380-file release allowlist audit with no issues
 - offline Viewer and text-only trace-data checks
 - deterministic package reproduction and SHA-256 verification
 
-The completed evidence is recorded in the **[0.1.1 release audit](docs/RELEASE_AUDIT_0.1.1.md)**.
+The publication and independent-download evidence is recorded in the
+**[0.1.2 release audit](docs/RELEASE_AUDIT_0.1.2.md)**.
 
 ## License and security boundary
 
