@@ -25,8 +25,10 @@ Release tag: `v0.1.1`
 2. Follow the **[five-minute Quick Start](docs/QUICKSTART.md)** with Python or Ruby.
 3. Keep the **[pocket word reference](docs/WORD_REFERENCE.md)** beside the terminal. It explains every
    word printed by `WORDS` and highlights dynamic switching with `DEFER`.
-4. Read **[why the project began with Ruby and Python](docs/PROJECT_ORIGIN.md)**.
-5. Use the **[English documentation index](docs/README.md)** to explore the design and audits.
+4. Use the **[FORTH design and learning references](docs/REFERENCES.md)** to find books, historical
+   implementations, and material for studying small-system design.
+5. Read **[why the project began with Ruby and Python](docs/PROJECT_ORIGIN.md)**.
+6. Use the **[English documentation index](docs/README.md)** to explore the design and audits.
 
 The Viewer is self-contained. It displays measured traces but does not execute edited source or send
 trace data over the network.

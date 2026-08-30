@@ -43,6 +43,7 @@ class DocumentationLanguageTests(unittest.TestCase):
             "docs/README.md",
             "docs/QUICKSTART.md",
             "docs/WORD_REFERENCE.md",
+            "docs/REFERENCES.md",
             "docs/PROJECT_ORIGIN.md",
             "docs/LICENSE_AND_SECURITY.md",
             "docs/KNOWN_LIMITATIONS_0.1.md",
@@ -59,6 +60,7 @@ class DocumentationLanguageTests(unittest.TestCase):
             "FIRST_READ_JP.md",
             "docs/QUICKSTART_JP.md",
             "docs/WORD_REFERENCE_JP.md",
+            "docs/REFERENCES_JP.md",
             "docs/PROJECT_ORIGIN_JP.md",
             "docs/README_JP.md",
             "docs/LICENSE_AND_SECURITY_JP.md",
@@ -78,6 +80,7 @@ class DocumentationLanguageTests(unittest.TestCase):
             "FIRST_READ.md",
             "docs/QUICKSTART.md",
             "docs/WORD_REFERENCE.md",
+            "docs/REFERENCES.md",
             "docs/PROJECT_ORIGIN.md",
             "docs/README.md",
             "docs/LICENSE_AND_SECURITY.md",
@@ -97,6 +100,19 @@ class DocumentationLanguageTests(unittest.TestCase):
         for relative in ("docs/WORD_REFERENCE.md", "docs/WORD_REFERENCE_JP.md"):
             with self.subTest(relative=relative):
                 self.assertEqual(reference_table_words(PROJECT_ROOT / relative), expected)
+
+    def test_reference_pages_cross_link_and_credit_source_lists(self) -> None:
+        english = (PROJECT_ROOT / "docs/REFERENCES.md").read_text(encoding="utf-8")
+        japanese = (PROJECT_ROOT / "docs/REFERENCES_JP.md").read_text(encoding="utf-8")
+        self.assertIn("REFERENCES_JP.md", english)
+        self.assertIn("REFERENCES.md", japanese)
+        for source in (
+            "forth-in-motion/blob/main/docs/ja/REFERENCES.md",
+            "forth-in-motion/blob/main/docs/en/REFERENCES.md",
+        ):
+            with self.subTest(source=source):
+                self.assertIn(source, english)
+                self.assertIn(source, japanese)
 
 
 if __name__ == "__main__":

@@ -196,3 +196,8 @@ ANSWER .              \ 123を表示
 - `\`から行末まではcommentです。
 - 引用文字列以外の入力は大文字・小文字を区別しません。
 - `BYE`と`EXIT`はhost参照REPLを終了するlauncher commandであり、凍結したCORE wordではありません。
+
+## 次に学ぶために
+
+[FORTHの設計と学習のための参考資料](REFERENCES_JP.md)では、入門書から辞書、interpreter、小さなVM、
+小規模MPU実装へ進むための読書順を案内しています。

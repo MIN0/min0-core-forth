@@ -200,3 +200,8 @@ are omitted.
 - `\` starts a comment that continues to the end of the line.
 - Input is case-insensitive except for quoted text.
 - `BYE` and `EXIT` leave the host reference REPL; they are launcher commands, not frozen CORE words.
+
+## Continue learning
+
+The [FORTH design and learning references](REFERENCES.md) provide a reading path from introductory books
+to dictionaries, interpreters, compact VMs, and small-MPU implementations.

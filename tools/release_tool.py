@@ -50,6 +50,8 @@ REQUIRED_PATHS = (
     "docs/QUICKSTART_JP.md",
     "docs/WORD_REFERENCE.md",
     "docs/WORD_REFERENCE_JP.md",
+    "docs/REFERENCES.md",
+    "docs/REFERENCES_JP.md",
     "docs/README.md",
     "docs/README_JP.md",
     "docs/KNOWN_LIMITATIONS_0.1.md",

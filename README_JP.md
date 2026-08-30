@@ -25,8 +25,10 @@
 2. PythonまたはRubyで**[5分間のQuick Start](docs/QUICKSTART_JP.md)**を試します。
 3. 端末の横に**[ワード・ポケットリファレンス](docs/WORD_REFERENCE_JP.md)**を置きます。`WORDS`に
    表示される全ワードと、`DEFER`による動的切替えの入口を説明しています。
-4. **[なぜRubyとPythonで始めたのか](docs/PROJECT_ORIGIN_JP.md)**を読みます。
-5. **[日本語文書索引](docs/README_JP.md)**から設計と監査を調べます。
+4. **[FORTHの設計と学習のための参考資料](docs/REFERENCES_JP.md)**から、書籍、歴史的実装、
+   小規模systemの設計を学ぶ資料を探します。
+5. **[なぜRubyとPythonで始めたのか](docs/PROJECT_ORIGIN_JP.md)**を読みます。
+6. **[日本語文書索引](docs/README_JP.md)**から設計と監査を調べます。
 
 Viewerは単独で動作します。測定済みトレースを表示しますが、編集したソースを実行したり、
 トレースをネットワークへ送信したりしません。
