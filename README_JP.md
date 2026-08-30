@@ -23,8 +23,10 @@
 
 1. **[日本語版Guided Viewer](https://min0.github.io/min0-core-forth/viewer/value-trace.html)**を開きます。
 2. PythonまたはRubyで**[5分間のQuick Start](docs/QUICKSTART_JP.md)**を試します。
-3. **[なぜRubyとPythonで始めたのか](docs/PROJECT_ORIGIN_JP.md)**を読みます。
-4. **[日本語文書索引](docs/README_JP.md)**から設計と監査を調べます。
+3. 端末の横に**[ワード・ポケットリファレンス](docs/WORD_REFERENCE_JP.md)**を置きます。`WORDS`に
+   表示される全ワードと、`DEFER`による動的切替えの入口を説明しています。
+4. **[なぜRubyとPythonで始めたのか](docs/PROJECT_ORIGIN_JP.md)**を読みます。
+5. **[日本語文書索引](docs/README_JP.md)**から設計と監査を調べます。
 
 Viewerは単独で動作します。測定済みトレースを表示しますが、編集したソースを実行したり、
 トレースをネットワークへ送信したりしません。
@@ -119,7 +121,8 @@ BYE
 ```
 
 Windowsでのフォルダー確認、必要な版、Ruby／Pythonの実行方法、問題発生時の確認は、
-**[Quick Start](docs/QUICKSTART_JP.md)**を参照してください。
+**[Quick Start](docs/QUICKSTART_JP.md)**を参照してください。起動時の全ワードについて、stack effect、
+使える場所、短い意味を調べるには**[ワード・ポケットリファレンス](docs/WORD_REFERENCE_JP.md)**を使います。
 
 ## 検証結果
 

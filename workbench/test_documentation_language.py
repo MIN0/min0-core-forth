@@ -1,10 +1,30 @@
 import re
+import sys
 import unittest
 from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 JAPANESE = re.compile(r"[\u3040-\u30ff\u3400-\u9fff]")
+sys.path.insert(0, str(PROJECT_ROOT / "workbench"))
+
+from min0_core_forth_outer import PRIMITIVES, WORD_LIST_STARTUP_WORDS
+
+
+def reference_table_words(path: Path) -> set[str]:
+    """Extract the word name from each first table cell in a pocket reference."""
+
+    result = set()
+    for cell in re.findall(r"(?m)^\| `([^`]+)` \|", path.read_text(encoding="utf-8")):
+        if cell.startswith("[']"):
+            result.add("[']")
+        elif cell.startswith('."'):
+            result.add('."')
+        elif cell.startswith('S"'):
+            result.add('S"')
+        else:
+            result.add(cell.split()[0])
+    return result
 
 
 class DocumentationLanguageTests(unittest.TestCase):
@@ -22,6 +42,7 @@ class DocumentationLanguageTests(unittest.TestCase):
             "SECURITY.md",
             "docs/README.md",
             "docs/QUICKSTART.md",
+            "docs/WORD_REFERENCE.md",
             "docs/PROJECT_ORIGIN.md",
             "docs/LICENSE_AND_SECURITY.md",
             "docs/KNOWN_LIMITATIONS_0.1.md",
@@ -37,6 +58,7 @@ class DocumentationLanguageTests(unittest.TestCase):
         for target in (
             "FIRST_READ_JP.md",
             "docs/QUICKSTART_JP.md",
+            "docs/WORD_REFERENCE_JP.md",
             "docs/PROJECT_ORIGIN_JP.md",
             "docs/README_JP.md",
             "docs/LICENSE_AND_SECURITY_JP.md",
@@ -55,6 +77,7 @@ class DocumentationLanguageTests(unittest.TestCase):
         for target in (
             "FIRST_READ.md",
             "docs/QUICKSTART.md",
+            "docs/WORD_REFERENCE.md",
             "docs/PROJECT_ORIGIN.md",
             "docs/README.md",
             "docs/LICENSE_AND_SECURITY.md",
@@ -67,6 +90,13 @@ class DocumentationLanguageTests(unittest.TestCase):
                 self.assertIn(target, text)
                 if not target.startswith("viewer/"):
                     self.assertTrue((PROJECT_ROOT / target).is_file())
+
+    def test_pocket_references_cover_exact_startup_vocabulary(self) -> None:
+        expected = set(WORD_LIST_STARTUP_WORDS) | set(PRIMITIVES)
+        self.assertEqual(len(expected), 61)
+        for relative in ("docs/WORD_REFERENCE.md", "docs/WORD_REFERENCE_JP.md"):
+            with self.subTest(relative=relative):
+                self.assertEqual(reference_table_words(PROJECT_ROOT / relative), expected)
 
 
 if __name__ == "__main__":

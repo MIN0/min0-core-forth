@@ -23,8 +23,10 @@ Release tag: `v0.1.1`
 
 1. Open the **[English Guided Viewer](https://min0.github.io/min0-core-forth/viewer/value-trace-en.html)**.
 2. Follow the **[five-minute Quick Start](docs/QUICKSTART.md)** with Python or Ruby.
-3. Read **[why the project began with Ruby and Python](docs/PROJECT_ORIGIN.md)**.
-4. Use the **[English documentation index](docs/README.md)** to explore the design and audits.
+3. Keep the **[pocket word reference](docs/WORD_REFERENCE.md)** beside the terminal. It explains every
+   word printed by `WORDS` and highlights dynamic switching with `DEFER`.
+4. Read **[why the project began with Ruby and Python](docs/PROJECT_ORIGIN.md)**.
+5. Use the **[English documentation index](docs/README.md)** to explore the design and audits.
 
 The Viewer is self-contained. It displays measured traces but does not execute edited source or send
 trace data over the network.
@@ -120,7 +122,8 @@ BYE
 ```
 
 See the **[Quick Start](docs/QUICKSTART.md)** for Windows folder checks, requirements, Ruby and Python
-commands, and troubleshooting.
+commands, and troubleshooting. The **[pocket word reference](docs/WORD_REFERENCE.md)** gives the stack
+effect, permitted use, and short meaning of every startup word.
 
 ## Verification
 

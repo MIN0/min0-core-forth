@@ -116,6 +116,12 @@ The first `WORDS` shows the vocabulary available at startup. After `SQUARE` is d
 `WORDS` shows it below a visible separator for definitions added by the user. Only the newest searchable
 definition of a name is shown; hidden, failed, and rolled-back definitions are omitted.
 
+> [!TIP]
+> Open the **[pocket word reference](WORD_REFERENCE.md)** when a name in `WORDS` catches your eye. It
+> covers all 61 startup words and begins with a “what becomes possible” map. In particular, the
+> `DEFER ' ['] IS ACTION-OF` example shows how one selected action can change without recompiling its
+> callers.
+
 The host prints the DATA stack after each successful input. `BYE` and `EXIT` are launcher commands for
 leaving this reference REPL; they are not frozen CORE words.
 

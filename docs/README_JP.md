@@ -4,6 +4,7 @@
 
 ## 最初に読む文書
 
+- [ワード・ポケットリファレンス―起動時の全61ワード](WORD_REFERENCE_JP.md)
 - [Quick Start](QUICKSTART_JP.md)
 - [プロジェクトの由来](PROJECT_ORIGIN_JP.md)
 - [ライセンスと安全性](LICENSE_AND_SECURITY_JP.md)

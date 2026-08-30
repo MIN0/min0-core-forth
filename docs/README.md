@@ -4,6 +4,7 @@
 
 ## Entry documents
 
+- [Pocket word reference — all 61 startup words](WORD_REFERENCE.md)
 - [Quick Start](QUICKSTART.md)
 - [Project origin](PROJECT_ORIGIN.md)
 - [License and security](LICENSE_AND_SECURITY.md)
