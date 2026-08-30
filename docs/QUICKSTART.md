@@ -9,20 +9,36 @@ For the simplest Windows setup:
 
 1. On the [repository page](https://github.com/MIN0/min0-core-forth), select **Code → Download ZIP**.
 2. Extract the ZIP. The resulting folder is normally named `min0-core-forth-main`.
-3. Open that folder in File Explorer, then select **Open in Terminal**／**ターミナルで開く**.
-4. Confirm that PowerShell is in the correct folder:
+3. In File Explorer, open the folder named exactly `min0-core-forth-main`. Do **not** open its
+   `viewer`, `docs`, or `workbench` subfolder yet.
+4. Click File Explorer's address bar, type `powershell`, and press Enter. This opens PowerShell in the
+   folder currently shown by File Explorer. You may also use **Open in Terminal**／**ターミナルで開く**
+   if it opens in the same folder.
+5. Confirm that PowerShell is in the repository root:
 
 ```powershell
 Get-Location
+Split-Path -Leaf (Get-Location)
 Test-Path .\requirements.txt
+Test-Path .\workbench\min0_forth.py
 ```
 
-The second command must print `True`. All commands in this guide are run from this repository root.
+The last three results should be `min0-core-forth-main`, `True`, and `True`. All commands in this guide
+are run from this repository root.
 
 If it prints `False`, do not run the installation command yet. Move to the extracted
 `min0-core-forth-main` folder first. An error such as
 `Could not open requirements file: No such file or directory` means that PowerShell is still in a
 different folder; it does not mean that `pip` or MIN0 CORE FORTH is damaged.
+
+For example, if `Get-Location` ends in `min0-core-forth-main\viewer`, you are one level too deep. Return
+to the repository root and confirm again:
+
+```powershell
+Set-Location ..
+Get-Location
+Test-Path .\requirements.txt
+```
 
 ## Requirements
 
