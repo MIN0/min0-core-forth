@@ -189,8 +189,8 @@ def audit_tree(root: Path = PROJECT_ROOT) -> dict[str, object]:
             issues.append(f"missing required release file: {required}")
     version_path = root / "VERSION"
     version = version_path.read_text(encoding="utf-8").strip() if version_path.is_file() else ""
-    if not re.fullmatch(r"0\.1\.0(?:-rc\.[1-9][0-9]*)?", version):
-        issues.append("VERSION must be 0.1.0 or 0.1.0-rc.N")
+    if not re.fullmatch(r"0\.1\.(?:0|[1-9][0-9]*)(?:-rc\.[1-9][0-9]*)?", version):
+        issues.append("VERSION must be a 0.1.x release or 0.1.x-rc.N")
     license_path = root / "LICENSE"
     if license_path.is_file() and _sha256(license_path) != EXPECTED_LICENSE_SHA256:
         issues.append("LICENSE does not match the approved MIN0 CORE FORTH MIT text")

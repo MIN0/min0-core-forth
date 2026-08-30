@@ -67,7 +67,7 @@ class ReleaseToolTests(unittest.TestCase):
                 path = source / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
                 if relative.name == "VERSION":
-                    content = "0.1.0-rc.1\n"
+                    content = "0.1.1\n"
                 elif relative.name == "LICENSE":
                     content = (PROJECT_ROOT / "LICENSE").read_text(encoding="utf-8")
                 elif relative.as_posix() in PROMINENT_NOTICE_REQUIREMENTS:

@@ -1,6 +1,6 @@
 # MIN0 CORE FORTH 0.1 known limitations
 
-Status: applies to release `0.1.0`.
+Status: applies to releases `0.1.0` and `0.1.1`.
 
 ## Language and compatibility
 
@@ -41,6 +41,6 @@ Status: applies to release `0.1.0`.
 - Source and documentation use the MIT License. This permits reuse but does not certify security or
   guarantee fitness for a particular use; see `LICENSE_AND_SECURITY.md`.
 - The official repository is <https://github.com/MIN0/min0-core-forth>. Release tag `v0.1.0` identifies
-  the first release authorized by the completed `v0.1.0-rc.1` post-publication Gate C audit.
+  the first release; `v0.1.1` is its navigation, packaging, and documentation maintenance release.
 - Forks and modified builds are welcome but should use a distinct build name or version suffix so users
   can distinguish them from the official release.

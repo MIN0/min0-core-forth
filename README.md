@@ -13,7 +13,7 @@
 
 **MIN0 CORE FORTH 0.1 — Educational & Experimental Reference Release**
 
-Current release: `0.1.0`. For the shortest path from Viewer to actual execution, see
+Current release: `0.1.1`. For the shortest path from Viewer to actual execution, see
 **[QUICKSTART.md](docs/QUICKSTART.md)**.
 
 ## まず試してみる
@@ -36,10 +36,10 @@ Current release: `0.1.0`. For the shortest path from Viewer to actual execution,
 置いています。
 
 Official repository: **<https://github.com/MIN0/min0-core-forth>**  
-Release tag: **`v0.1.0`**
+Release tag: **`v0.1.1`**
 
 Release status and public-safety preparation are recorded in
-**[RELEASE_AUDIT_0.1.md](docs/RELEASE_AUDIT_0.1.md)**. Source and documentation are licensed under the
+**[RELEASE_AUDIT_0.1.1.md](docs/RELEASE_AUDIT_0.1.1.md)**. Source and documentation are licensed under the
 **[MIT License](LICENSE)**. The license permits reuse but is not a security certification; the exact
 distinction and supporting audit links are collected in **[LICENSE_AND_SECURITY.md](docs/LICENSE_AND_SECURITY.md)**.
 
