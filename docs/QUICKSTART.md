@@ -1,18 +1,51 @@
 # MIN0 CORE FORTH quick start
 
-This release provides equivalent Python and Ruby host launchers. Run the commands below from the
-repository root.
+This release provides equivalent Python and Ruby host launchers. The commands below run on files stored
+on your PC; viewing this page on GitHub does not download those files automatically.
+
+## 0. Get the source and open the repository root
+
+For the simplest Windows setup:
+
+1. On the [repository page](https://github.com/MIN0/min0-core-forth), select **Code → Download ZIP**.
+2. Extract the ZIP. The resulting folder is normally named `min0-core-forth-main`.
+3. Open that folder in File Explorer, then select **Open in Terminal**／**ターミナルで開く**.
+4. Confirm that PowerShell is in the correct folder:
+
+```powershell
+Get-Location
+Test-Path .\requirements.txt
+```
+
+The second command must print `True`. All commands in this guide are run from this repository root.
+
+If it prints `False`, do not run the installation command yet. Move to the extracted
+`min0-core-forth-main` folder first. An error such as
+`Could not open requirements file: No such file or directory` means that PowerShell is still in a
+different folder; it does not mean that `pip` or MIN0 CORE FORTH is damaged.
 
 ## Requirements
 
 - Python 3.12 and `cryptography` 50.0.0, or
 - Ruby 4.0 with OpenSSL 3.x.
 
-For Python, install the pinned dependency into your own virtual environment:
+For Python, confirm the interpreter and install the pinned dependency into your own virtual environment:
 
 ```powershell
-python -m pip install -r requirements.txt
+python --version
+python -m pip install -r .\requirements.txt
 ```
+
+For Ruby, confirm both Ruby and its OpenSSL library:
+
+```powershell
+ruby --version
+ruby -ropenssl -e 'puts OpenSSL::OPENSSL_VERSION'
+```
+
+The expected major versions are Ruby 4.0 and OpenSSL 3.x. The Ruby implementation uses libraries
+included with the Ruby installation and does not require a separate `bundle install` or additional Gem
+installation for this release.
 
 ## Five-minute path
 
