@@ -20,7 +20,7 @@ Official repository: <https://github.com/MIN0/min0-core-forth><br>
 Release tag: `v0.1.2`<br>
 Release notes: **[0.1.2 documentation maintenance release](docs/RELEASE_NOTES_0.1.2.md)**
 
-Current development candidate: `0.1.3-rc.1` (evaluation pre-release candidate)<br>
+Current development candidate: [`0.1.3-rc.1`](https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.3-rc.1) (published evaluation pre-release)<br>
 Candidate changes: **[0.1.3 compatibility release notes](docs/RELEASE_NOTES_0.1.3.md)**<br>
 Candidate verification: **[0.1.3 release audit](docs/RELEASE_AUDIT_0.1.3.md)**
 

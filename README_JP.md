@@ -20,7 +20,7 @@
 リリースタグ：`v0.1.2`<br>
 リリースノート：**[0.1.2文書整備版](docs/RELEASE_NOTES_0.1.2_JP.md)**
 
-現在の開発候補：`0.1.3-rc.1`（評価用pre-release候補）<br>
+現在の開発候補：[`0.1.3-rc.1`](https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.3-rc.1)（公開済み評価用pre-release）<br>
 候補版の変更内容：**[0.1.3互換性改善版リリースノート](docs/RELEASE_NOTES_0.1.3_JP.md)**<br>
 候補版の検証状況：**[0.1.3リリース監査](docs/RELEASE_AUDIT_0.1.3_JP.md)**
 
