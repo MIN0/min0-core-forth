@@ -5,7 +5,7 @@ Status: interpret-state and interactive runtime-compiler executable experiment.
 ## Token decision
 
 For each whitespace-separated, case-insensitive token after removal of `\`
-line comments:
+line comments and `( ... )` comments:
 
 1. Handle reserved interpret-state data and defining words.
 2. If it is a decimal or `0x` hexadecimal integer, push one 32-bit cell.
@@ -16,23 +16,32 @@ line comments:
 Numbers are handled by the host outer interpreter and therefore consume no VM
 instructions in this experiment.
 
+Direct `IF`, `BEGIN`, `DO`, `?DO`, and `FOR` change the host to direct-control state and delay execution
+until the matching closer has been collected. Mixed nested structures are validated before any branch
+runs. Definition forms continue to use ordinary branch and loop bytecode. See `DIRECT_CONTROL_V0_3.md`.
+
+Both comment forms are accepted in interpret and compile state without changing state or the DATA
+stack. Parenthesis comments may span physical lines and must end with `)`. Tokenization validates the
+complete source block before any token in that block is executed. If tokenization fails while a colon
+definition from an earlier input block is open, that definition is rolled back.
+
 ## Minimal terminal output
 
-`.` is an interpret-state host word in v0.1. It removes the top DATA-stack cell,
-converts it to a signed decimal number, and appends that text to the outer
-interpreter's deterministic output sequence. It is not a VM opcode and therefore
-does not make the minimal VM depend on a console device.
+`.` removes the top DATA-stack cell, converts it to a signed decimal number, and appends that text to the
+outer interpreter's deterministic output sequence. Direct execution calls the same handler as compiled
+`SERVICE 3`, so the minimal VM remains independent of a console device.
 
-An empty stack raises `StackUnderflow` without adding output. The name `.` is
-reserved and cannot be redefined. Compiling `.` inside a colon definition is not
-yet supported.
+An empty stack raises `StackUnderflow` without adding output. The name `.` is reserved and cannot be
+redefined.
 
-`EMIT`, `CR`, and `TYPE` are now implemented with the host-side byte-character boundary defined in
-`TERMINAL_OUTPUT_V0_1.md`. `TYPE` validates and reads the complete byte range before changing output or
-consuming either stack argument; zero length does not dereference its address. Interpret-state `S"` and
-`."` use the quote-aware parser and byte policy in `STRING_LITERALS_V0_1.md`. Interactive definitions
-compile `S"` as relocated DATA address plus byte length. Compiled `."` adds generic `SERVICE 1`; the
-trusted target registers its terminal adapter before verified execution is sealed.
+`EMIT`, `CR`, and `TYPE` use the host-side byte-character boundary defined in
+`TERMINAL_OUTPUT_V0_1.md`. Colon definitions compile `TYPE`, `EMIT`, `.`, and `CR` as generic verified
+services 1, 2, 3, and 4 respectively. Direct execution calls those same service handlers. `TYPE` validates
+and reads the complete byte range before changing output or consuming either stack argument; zero length
+does not dereference its address. Interpret-state `S"` and `."` use the quote-aware parser and byte policy in
+`STRING_LITERALS_V0_1.md`. Interactive definitions compile `S"` as relocated DATA address plus byte length;
+compiled `."` then adds `SERVICE 1`. The trusted target registers every required terminal adapter before
+verified execution is sealed.
 
 ## XT execution bridge
 
@@ -53,6 +62,6 @@ bytecode or target ABI. A later VM may provide a native XT dispatch path.
 
 ## Still outside this stage
 
-- compiled `.`, `EMIT`, `CR`, `TYPE`, and output services other than terminal-type v0.1
+- compilation semantics for the remaining context-sensitive host words listed by `CORE_WORD_SEMANTICS_MATRIX.md`
 - a self-hosted parser and dictionary allocator
 - `CATCH`/`THROW` and transactional memory recovery

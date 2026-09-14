@@ -68,6 +68,11 @@ class StringOutputTests(unittest.TestCase):
         outer.interpret('." A\\B" \\ ignored\n ." C"')
         self.assertEqual(outer.output, ["A\\B", "C"])
 
+    def test_parentheses_inside_quotes_are_data(self) -> None:
+        _vm, _dictionary, outer = build_outer()
+        outer.interpret('." (not a comment)" ( ignored ) ." OK"')
+        self.assertEqual(outer.output, ["(not a comment)", "OK"])
+
     def test_unterminated_or_nonbyte_text_changes_nothing(self) -> None:
         vm, dictionary, outer = build_outer()
         before = dictionary.data_here

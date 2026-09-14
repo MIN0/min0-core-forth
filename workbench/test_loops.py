@@ -77,9 +77,12 @@ class LoopTests(unittest.TestCase):
                 self.assertEqual(outer.code_here, saved_code_here)
                 self.assertIsNone(dictionary.find("BAD", include_hidden=True))
 
-    def test_loop_words_are_compile_only(self) -> None:
+    def test_direct_begin_and_unmatched_delimiters(self) -> None:
         _vm, _dictionary, outer = build_outer()
-        for token in ("BEGIN", "UNTIL", "AGAIN", "WHILE", "REPEAT"):
+        self.assertEqual(outer.interpret("BEGIN"), [])
+        self.assertTrue(outer.awaiting_direct_control)
+        self.assertEqual(outer.interpret("1 UNTIL"), [])
+        for token in ("UNTIL", "AGAIN", "WHILE", "REPEAT"):
             with self.subTest(token=token), self.assertRaises(CompileStateError):
                 outer.interpret(token)
 

@@ -1,4 +1,4 @@
-"""Compare Python and Ruby DO/LOOP/I compilation and execution."""
+"""Compare Python and Ruby DO/LOOP and FOR/NEXT execution."""
 
 from __future__ import annotations
 

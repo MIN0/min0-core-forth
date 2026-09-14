@@ -4,12 +4,19 @@
 
 ## Entry documents
 
-- [Pocket word reference — all 61 startup words](WORD_REFERENCE.md)
+- [Pocket word reference — all 65 startup words](WORD_REFERENCE.md)
+- [Understanding FORTH interpretation, compilation, and execution](FORTH_EXECUTION_PHASES.md)
+- [CORE word compilation-compatibility plan](CORE_WORD_COMPILATION_PLAN.md)
+- [Semantics audit for all 65 startup words](CORE_WORD_SEMANTICS_MATRIX.md)
+- [Direct control-structure design](DIRECT_CONTROL_V0_3.md)
+- [FOR/NEXT direct-loop design](FOR_NEXT_DIRECT_V0_2.md)
 - [FORTH design and learning references](REFERENCES.md)
 - [Quick Start](QUICKSTART.md)
 - [Project origin](PROJECT_ORIGIN.md)
 - [License and security](LICENSE_AND_SECURITY.md)
 - [Known limitations](KNOWN_LIMITATIONS_0.1.md)
+- [0.1.3 compatibility release notes](RELEASE_NOTES_0.1.3.md)
+- [0.1.3 release audit](RELEASE_AUDIT_0.1.3.md)
 - [0.1.2 release notes](RELEASE_NOTES_0.1.2.md)
 - [0.1.2 release audit](RELEASE_AUDIT_0.1.2.md)
 - [0.1.1 release audit](RELEASE_AUDIT_0.1.1.md)
@@ -22,7 +29,7 @@ The remaining files in this directory are the detailed executable-specification 
 names remain stable so tests, discussions, and future target ports can cite them precisely.
 
 - VM and language: `BYTECODE_V0_1.md`, `SOURCE_V0_1.md`, `DICTIONARY_V0_1.md`,
-  `INTERACTIVE_COMPILER_V0_1.md`, `CONTROL_FLOW_V0_1.md`, and loop/data/string documents
+  `INTERACTIVE_COMPILER_V0_1.md`, `CONTROL_FLOW_V0_1.md`, `DIRECT_CONTROL_V0_3.md`, and loop/data/string documents
 - Defining words: `DOES_DESCRIPTOR_V0_1.md`, `SOURCE_DOES_V0_1.md`, and constructor-plan documents
 - Memory and relocation: memory-profile, split-dictionary, relocation, linker, and envelope documents
 - Runtime boundaries: output service, execution profile, verifier, sealed execution, W^X, and capability documents

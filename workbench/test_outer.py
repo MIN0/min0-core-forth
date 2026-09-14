@@ -1,5 +1,6 @@
 import unittest
 
+from min0_core_forth_compiler import CompileError
 from min0_core_forth_dictionary import RuntimeDictionary
 from min0_core_forth_outer import (
     STATE_COMPILE,
@@ -61,7 +62,7 @@ class OuterInterpreterTests(unittest.TestCase):
             self.outer.interpret("EMIT")
         self.assertEqual(self.outer.output, [])
 
-    def test_host_words_are_reserved_as_interpret_only_words(self) -> None:
+    def test_reserved_host_word_names_cannot_be_redefined(self) -> None:
         for name in (".", "EMIT", "CR", "WORDS"):
             with self.subTest(name=name), self.assertRaises(CompileStateError):
                 self.outer.interpret(f": {name} DUP ;")
@@ -76,6 +77,8 @@ class OuterInterpreterTests(unittest.TestCase):
         user_words = user.split()
 
         self.assertIn("WORDS", startup_words)
+        self.assertIn("(", startup_words)
+        self.assertIn("\\", startup_words)
         self.assertIn("DOUBLE", startup_words)
         self.assertNotIn("SQUARE", startup_words)
         self.assertIn("CUBE", user_words)
@@ -89,6 +92,30 @@ class OuterInterpreterTests(unittest.TestCase):
 
     def test_case_and_line_comment(self) -> None:
         self.assertEqual(self.outer.interpret("8 double \\ ignore\n 2 +"), [18])
+
+    def test_parenthesis_comments_preserve_interpret_and_compile_state(self) -> None:
+        self.assertEqual(self.outer.interpret("8 ( ignored ) DOUBLE"), [16])
+        self.outer.interpret(": PLUS2 ( n -- n+2\n stack effect ) 2 + ;")
+        self.assertEqual(self.outer.state, STATE_INTERPRET)
+        self.assertEqual(self.outer.interpret("3 PLUS2"), [16, 5])
+
+    def test_unterminated_comment_aborts_a_spanning_definition(self) -> None:
+        saved_dictionary_here = self.dictionary.here
+        saved_latest = self.dictionary.latest
+        saved_code_here = self.outer.code_here
+        self.outer.interpret(": BROKEN")
+        with self.assertRaisesRegex(CompileError, "parenthesis comment"):
+            self.outer.interpret("( missing")
+        self.assertEqual(self.outer.state, STATE_INTERPRET)
+        self.assertEqual(self.dictionary.here, saved_dictionary_here)
+        self.assertEqual(self.dictionary.latest, saved_latest)
+        self.assertEqual(self.outer.code_here, saved_code_here)
+        self.assertIsNone(self.dictionary.find("BROKEN", include_hidden=True))
+
+    def test_unterminated_comment_executes_none_of_its_input_block(self) -> None:
+        with self.assertRaisesRegex(CompileError, "parenthesis comment"):
+            self.outer.interpret("65 ( missing")
+        self.assertEqual(self.vm.data_stack, [])
 
     def test_state_persists_across_calls(self) -> None:
         self.outer.interpret("6")

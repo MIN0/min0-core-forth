@@ -43,10 +43,17 @@ class DocumentationLanguageTests(unittest.TestCase):
             "docs/README.md",
             "docs/QUICKSTART.md",
             "docs/WORD_REFERENCE.md",
+            "docs/FORTH_EXECUTION_PHASES.md",
+            "docs/CORE_WORD_COMPILATION_PLAN.md",
+            "docs/CORE_WORD_SEMANTICS_MATRIX.md",
+            "docs/DIRECT_CONTROL_V0_3.md",
+            "docs/FOR_NEXT_DIRECT_V0_2.md",
             "docs/REFERENCES.md",
             "docs/PROJECT_ORIGIN.md",
             "docs/LICENSE_AND_SECURITY.md",
             "docs/KNOWN_LIMITATIONS_0.1.md",
+            "docs/RELEASE_NOTES_0.1.3.md",
+            "docs/RELEASE_AUDIT_0.1.3.md",
             "docs/RELEASE_NOTES_0.1.2.md",
             "docs/RELEASE_AUDIT_0.1.2.md",
             "docs/RELEASE_AUDIT_0.1.1.md",
@@ -62,11 +69,14 @@ class DocumentationLanguageTests(unittest.TestCase):
             "FIRST_READ_JP.md",
             "docs/QUICKSTART_JP.md",
             "docs/WORD_REFERENCE_JP.md",
+            "docs/DIRECT_CONTROL_V0_3_JP.md",
             "docs/REFERENCES_JP.md",
             "docs/PROJECT_ORIGIN_JP.md",
             "docs/README_JP.md",
             "docs/LICENSE_AND_SECURITY_JP.md",
             "docs/KNOWN_LIMITATIONS_0.1_JP.md",
+            "docs/RELEASE_NOTES_0.1.3_JP.md",
+            "docs/RELEASE_AUDIT_0.1.3_JP.md",
             "docs/RELEASE_NOTES_0.1.2_JP.md",
             "docs/RELEASE_AUDIT_0.1.2_JP.md",
             "SECURITY_JP.md",
@@ -83,11 +93,14 @@ class DocumentationLanguageTests(unittest.TestCase):
             "FIRST_READ.md",
             "docs/QUICKSTART.md",
             "docs/WORD_REFERENCE.md",
+            "docs/DIRECT_CONTROL_V0_3.md",
             "docs/REFERENCES.md",
             "docs/PROJECT_ORIGIN.md",
             "docs/README.md",
             "docs/LICENSE_AND_SECURITY.md",
             "docs/KNOWN_LIMITATIONS_0.1.md",
+            "docs/RELEASE_NOTES_0.1.3.md",
+            "docs/RELEASE_AUDIT_0.1.3.md",
             "docs/RELEASE_NOTES_0.1.2.md",
             "docs/RELEASE_AUDIT_0.1.2.md",
             "SECURITY.md",
@@ -100,8 +113,17 @@ class DocumentationLanguageTests(unittest.TestCase):
 
     def test_pocket_references_cover_exact_startup_vocabulary(self) -> None:
         expected = set(WORD_LIST_STARTUP_WORDS) | set(PRIMITIVES)
-        self.assertEqual(len(expected), 61)
+        self.assertEqual(len(expected), 65)
         for relative in ("docs/WORD_REFERENCE.md", "docs/WORD_REFERENCE_JP.md"):
+            with self.subTest(relative=relative):
+                self.assertEqual(reference_table_words(PROJECT_ROOT / relative), expected)
+
+    def test_semantics_matrices_cover_exact_startup_vocabulary(self) -> None:
+        expected = set(WORD_LIST_STARTUP_WORDS) | set(PRIMITIVES)
+        for relative in (
+            "docs/CORE_WORD_SEMANTICS_MATRIX.md",
+            "docs/CORE_WORD_SEMANTICS_MATRIX_JP.md",
+        ):
             with self.subTest(relative=relative):
                 self.assertEqual(reference_table_words(PROJECT_ROOT / relative), expected)
 
@@ -117,6 +139,16 @@ class DocumentationLanguageTests(unittest.TestCase):
             with self.subTest(source=source):
                 self.assertIn(source, english)
                 self.assertIn(source, japanese)
+
+    def test_execution_phase_note_is_linked_from_both_document_indexes(self) -> None:
+        english = (PROJECT_ROOT / "docs/README.md").read_text(encoding="utf-8")
+        japanese = (PROJECT_ROOT / "docs/README_JP.md").read_text(encoding="utf-8")
+        self.assertIn("FORTH_EXECUTION_PHASES.md", english)
+        self.assertIn("FORTH_EXECUTION_PHASES_JP.md", japanese)
+        self.assertIn("CORE_WORD_COMPILATION_PLAN.md", english)
+        self.assertIn("CORE_WORD_COMPILATION_PLAN_JP.md", japanese)
+        self.assertIn("CORE_WORD_SEMANTICS_MATRIX.md", english)
+        self.assertIn("CORE_WORD_SEMANTICS_MATRIX_JP.md", japanese)
 
 
 if __name__ == "__main__":

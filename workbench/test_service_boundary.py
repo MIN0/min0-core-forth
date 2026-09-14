@@ -145,12 +145,12 @@ class ServiceBoundaryTests(unittest.TestCase):
 
     def test_compiled_dot_quote_runs_with_code_and_data_sealed(self) -> None:
         result = run_demo()
-        self.assertEqual(result["service_ids"], [1])
-        self.assertEqual(result["registered_service_ids"], [1])
+        self.assertEqual(result["service_ids"], [1, 2, 3, 4])
+        self.assertEqual(result["registered_service_ids"], [1, 2, 3, 4])
         self.assertTrue(result["registry_sealed"])
         self.assertTrue(result["late_registration_rejected"])
         self.assertEqual(result["stack"], [])
-        self.assertEqual(result["terminal_text"], "Hello Service")
+        self.assertEqual(result["terminal_text"], "Hello ServiceA\n-42ABC")
         self.assertEqual(result["code_permissions"], "rx")
         self.assertEqual(result["data_permissions"], "r")
 

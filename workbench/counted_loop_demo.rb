@@ -10,7 +10,9 @@ Min0CoreForth.install_core_primitives(dictionary)
 outer = Min0CoreForth::OuterInterpreter.new(vm, dictionary)
 outer.interpret(": INDEXES 5 0 DO I LOOP ;")
 outer.interpret(": GRID 2 0 DO 3 0 DO I LOOP LOOP ;")
-stack = outer.interpret("INDEXES GRID")
+outer.interpret(": FOR-INDEXES 3 FOR I NEXT ;")
+outer.interpret("2 FOR I NEXT")
+stack = outer.interpret("INDEXES GRID FOR-INDEXES")
 puts JSON.generate(
   {
     stack: stack,

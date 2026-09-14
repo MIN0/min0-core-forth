@@ -55,6 +55,10 @@ _vm, _dictionary, outer = build_string_outer
 outer.interpret(%Q{." A\\B" \\ ignored\n ." C"})
 assert_equal(["A\\B", "C"], outer.output, "quoted backslash")
 
+_vm, _dictionary, outer = build_string_outer
+outer.interpret('." (not a comment)" ( ignored ) ." OK"')
+assert_equal(["(not a comment)", "OK"], outer.output, "quoted parentheses")
+
 vm, dictionary, outer = build_string_outer
 before = dictionary.data_here
 begin

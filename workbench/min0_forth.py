@@ -41,6 +41,7 @@ def run_file(path: Path, *, quiet: bool) -> int:
     try:
         source = path.read_text(encoding="utf-8")
         execute_source(outer, source)
+        outer.finish_input()
     except Exception as exc:
         print(f"ERROR {type(exc).__name__}: {exc}", file=sys.stderr)
         return 1
@@ -61,9 +62,15 @@ def repl() -> int:
     print("Type BYE or EXIT to leave. Output bytes are emitted by the program.")
     while True:
         try:
-            source = input("ok> ")
+            prompt = "...> " if outer.awaiting_direct_control else "ok> "
+            source = input(prompt)
         except EOFError:
             print()
+            try:
+                outer.finish_input()
+            except Exception as exc:
+                print(f"ERROR {type(exc).__name__}: {exc}", file=sys.stderr)
+                return 1
             return 0
         if source.strip().upper() in {"BYE", "EXIT"}:
             return 0
@@ -72,6 +79,8 @@ def repl() -> int:
             output_index = _write_new_output(outer, output_index)
             if outer.output and not outer.terminal_text.endswith("\n"):
                 print()
+            if outer.awaiting_direct_control:
+                continue
             print(f" ok {outer.vm.data_stack}")
         except Exception as exc:
             print(f"ERROR {type(exc).__name__}: {exc}", file=sys.stderr)

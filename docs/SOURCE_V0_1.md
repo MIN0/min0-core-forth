@@ -8,6 +8,8 @@ than an ANS Forth system and does not yet define an interactive environment.
 - Source is split on whitespace.
 - Word matching is case-insensitive and canonicalized to uppercase.
 - `\` starts a comment that continues to the end of the physical line.
+- `(` starts a comment that continues through the next `)`, including across physical lines.
+- Comments do not change interpret/compile state or the DATA stack. A missing closing `)` is an error.
 - Integers may be decimal or use a `0x` hexadecimal prefix.
 
 ## Definitions

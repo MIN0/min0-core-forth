@@ -26,6 +26,7 @@ def run_min0_file(path, quiet:)
   outer = make_min0_host
   begin
     outer.interpret(File.read(path, encoding: "UTF-8"))
+    outer.finish_input
   rescue StandardError => e
     warn "ERROR #{e.class.name.split('::').last}: #{e.message}"
     return 1
@@ -45,11 +46,17 @@ def run_min0_repl
   puts MIN0_FORTH_BANNER
   puts "Type BYE or EXIT to leave. Output bytes are emitted by the program."
   loop do
-    $stdout.write("ok> ")
+    $stdout.write(outer.awaiting_direct_control? ? "...> " : "ok> ")
     $stdout.flush
     source = $stdin.gets
     if source.nil?
       puts
+      begin
+        outer.finish_input
+      rescue StandardError => e
+        warn "ERROR #{e.class.name.split('::').last}: #{e.message}"
+        return 1
+      end
       return 0
     end
     return 0 if %w[BYE EXIT].include?(source.strip.upcase)
@@ -58,6 +65,8 @@ def run_min0_repl
       outer.interpret(source)
       output_index = write_new_min0_output(outer, output_index)
       puts if !outer.output.empty? && !outer.terminal_text.end_with?("\n")
+      next if outer.awaiting_direct_control?
+
       puts " ok #{outer.vm.data_stack.inspect}"
     rescue StandardError => e
       warn "ERROR #{e.class.name.split('::').last}: #{e.message}"

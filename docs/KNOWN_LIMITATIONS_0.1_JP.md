@@ -10,6 +10,9 @@
 - ワード集合は教育・実験のため意図的に小さくしています。
 - 32ビット、little-endian、64 KiB仮想メモリは参照プロファイルであり、CORE全体の上限ではありません。
 - 引用文字列は1文字1バイトです。UTF-8や日本語ソース文字列のtarget profileは未凍結です。
+- リリース`0.1.0`～`0.1.2`では`.`, `EMIT`, `CR`, `TYPE`がinterpret状態だけのhost wordであり、colon
+  definitionへcompileできません。この不足はリリース後の現在の開発版で`SERVICE 1`～`4`へ接続して解消済みです。
+  次回リリースへ収録するまでは、配布済みtagと開発版の動作差に注意してください。
 - API、image format、machine identifierは実験中の0.1インターフェースです。
 
 ## ホストと実機の境界

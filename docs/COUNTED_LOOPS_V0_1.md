@@ -1,6 +1,6 @@
 # MIN0 CORE FORTH counted loops v0.1
 
-Status: executable `DO ?DO LOOP +LOOP I J UNLOOP LEAVE` experiment.
+Status: executable `DO ?DO LOOP +LOOP FOR NEXT I J UNLOOP LEAVE` experiment.
 
 ## Logical frame
 
@@ -56,9 +56,17 @@ body target, then patches every exit to the address after the terminator.
 operand to that record's exit-patch list. This also permits `LEAVE` inside an
 unresolved `IF` belonging to the loop body.
 
-`I`, `J`, and `UNLOOP` are ordinary primitive dictionary entries. `DO`, `?DO`,
-`LOOP`, `+LOOP`, and `LEAVE` are compile-only structural words. Unmatched
-structures abort and roll back the definition like other control-flow errors.
+`I`, `J`, and `UNLOOP` are ordinary primitive dictionary entries. In a definition, `DO`, `?DO`,
+`LOOP`, `+LOOP`, and `LEAVE` are structural compilation words. In direct input the opener starts
+buffered collection, and an unmatched closer remains an error. Malformed structures roll back the
+definition or direct-input block.
+
+`FOR ... NEXT` is a CF-inspired MIN0 extension with `( u -- )` run-time input and a zero-based index.
+In a colon definition, `FOR` compiles `LIT 0` followed by `QDO`; `NEXT` compiles `LOOP`. This reuses the
+same loop frames and gives zero iterations when `u` is zero. At the prompt, the outer interpreter
+buffers through the matching closer. Direct `DO` and `?DO` now run with `LOOP` or `+LOOP`, including
+nested `IF`, `BEGIN`, and `FOR` structures. The generalized contract and current restrictions are in
+`DIRECT_CONTROL_V0_3.md`; `FOR_NEXT_DIRECT_V0_2.md` records the earlier FOR-only stage.
 
 ## Nesting and limits
 

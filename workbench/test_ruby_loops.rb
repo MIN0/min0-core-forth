@@ -73,12 +73,15 @@ malformed.each do |source|
   end
 end
 
-["BEGIN", "UNTIL", "AGAIN", "WHILE", "REPEAT"].each do |token|
+assert_equal([], outer.interpret("BEGIN"), "direct BEGIN begins")
+assert_equal(true, outer.awaiting_direct_control?, "direct BEGIN awaits delimiter")
+assert_equal([], outer.interpret("1 UNTIL"), "direct BEGIN UNTIL completes")
+["UNTIL", "AGAIN", "WHILE", "REPEAT"].each do |token|
   begin
     outer.interpret(token)
     raise "#{token}: expected CompileStateError"
   rescue Min0CoreForth::CompileStateError
-    puts "#{token} compile-only: PASS"
+    puts "unmatched #{token}: PASS"
   end
 end
 

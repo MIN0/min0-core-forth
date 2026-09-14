@@ -56,9 +56,12 @@ class ControlFlowTests(unittest.TestCase):
         self.assertEqual(outer.control_stack, [])
         self.assertIsNone(dictionary.find("BROKEN", include_hidden=True))
 
-    def test_else_then_and_if_are_compile_only(self) -> None:
+    def test_direct_if_and_unmatched_delimiters(self) -> None:
         _vm, _dictionary, outer = build_outer()
-        for token in ("IF", "ELSE", "THEN"):
+        self.assertEqual(outer.interpret("1 IF"), [])
+        self.assertTrue(outer.awaiting_direct_control)
+        self.assertEqual(outer.interpret("7 THEN"), [7])
+        for token in ("ELSE", "THEN"):
             with self.subTest(token=token), self.assertRaises(CompileStateError):
                 outer.interpret(token)
 

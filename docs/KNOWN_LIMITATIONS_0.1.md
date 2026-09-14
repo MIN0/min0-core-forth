@@ -10,8 +10,10 @@ Status: applies to releases `0.1.0`, `0.1.1`, and `0.1.2`.
   limit and not yet configurable at runtime.
 - Quoted text uses one byte per character, U+0000..U+00FF. UTF-8 and Japanese source strings are not yet
   a frozen target profile.
-- `.`, `EMIT`, `CR`, and `TYPE` remain interpret-state host words. Compiled `."` is available through the
-  verified `terminal-type-v0.1` service boundary.
+- In releases `0.1.0` through `0.1.2`, `.`, `EMIT`, `CR`, and `TYPE` are interpret-state-only host words.
+  The current post-release development version resolves this gap through verified services 1 through 4.
+  Until that work is included in a release, note the behavioral difference between released tags and the
+  development tree.
 - APIs, image formats, and machine identifiers are experimental `0.1` interfaces and may evolve in later releases.
 
 ## Host and target boundary

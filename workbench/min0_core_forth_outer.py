@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from min0_core_forth_compiler import PRIMITIVES, QuotedText, parse_number, tokenize
 from min0_core_forth_dictionary import (
     CONSTRUCTOR_ACTION_ALIGN,
@@ -30,26 +32,41 @@ from min0_core_forth_relocation import (
 )
 from min0_core_forth_vm import (
     DataStackOverflow,
+    LoopFrame,
+    LoopStackOverflow,
     Min0CoreForthVM,
     Op,
     StackUnderflow,
     UnassignedDefer,
+    cell,
     signed,
 )
 
 
 STATE_INTERPRET = 0
 STATE_COMPILE = 1
+STATE_DIRECT_CONTROL = 2
+# Compatibility name retained for callers written for the first FOR/NEXT draft.
+STATE_DIRECT_LOOP = STATE_DIRECT_CONTROL
 SOURCE_PROFILE_SAFE_RUNTIME = "safe-runtime"
 SOURCE_PROFILE_STANDARD_BUILD = "standard-build"
 DEFAULT_CODE_BASE = 0x1000
 PRIMITIVE_DISPATCH_SLOT_BYTES = 2
 TERMINAL_TYPE_SERVICE_ID = 1
+TERMINAL_EMIT_SERVICE_ID = 2
+TERMINAL_DOT_SERVICE_ID = 3
+TERMINAL_CR_SERVICE_ID = 4
+DEFAULT_DIRECT_TOKEN_LIMIT = 4096
+DEFAULT_DIRECT_EXECUTION_LIMIT = 100_000
 CONTROL_WORDS = frozenset(
     {
         "IF", "ELSE", "THEN", "BEGIN", "UNTIL", "AGAIN", "WHILE", "REPEAT",
-        "DO", "?DO", "LOOP", "+LOOP", "LEAVE", "DOES>", "[']",
+        "DO", "?DO", "LOOP", "+LOOP", "FOR", "NEXT", "LEAVE", "DOES>", "[']",
     }
+)
+DIRECT_CONTROL_OPENERS = frozenset({"IF", "BEGIN", "DO", "?DO", "FOR"})
+DIRECT_CONTROL_CLOSERS = frozenset(
+    {"ELSE", "THEN", "UNTIL", "AGAIN", "WHILE", "REPEAT", "LOOP", "+LOOP", "NEXT"}
 )
 DATA_WORDS = frozenset(
     {
@@ -58,7 +75,10 @@ DATA_WORDS = frozenset(
     }
 )
 HOST_WORDS = frozenset({".", "EMIT", "CR", "TYPE", "WORDS", 'S"', '."'})
-WORD_LIST_STARTUP_WORDS = frozenset({":", ";"}) | CONTROL_WORDS | DATA_WORDS | HOST_WORDS
+COMMENT_WORDS = frozenset({"(", "\\"})
+WORD_LIST_STARTUP_WORDS = (
+    frozenset({":", ";"}) | CONTROL_WORDS | DATA_WORDS | HOST_WORDS | COMMENT_WORDS
+)
 WORD_LIST_USER_HEADING = (
     "--- ここから先はユーザーが : で定義したワードなどです ---"
 )
@@ -81,6 +101,29 @@ class CompileStateError(OuterInterpreterError):
     pass
 
 
+@dataclass
+class _DirectControlCollection:
+    opener: str
+    operands: list[int]
+    tokens: list[str | QuotedText]
+    structures: list[str]
+    data_before: list[int]
+    loops_before: list[LoopFrame]
+
+
+@dataclass
+class _DirectNode:
+    kind: str
+    body: list["_DirectNode"]
+    alternate: list["_DirectNode"] | None = None
+    token: str | QuotedText | None = None
+    terminator: str | None = None
+
+
+class _DirectLeave(Exception):
+    """Internal non-local exit from the innermost direct DO/FOR loop."""
+
+
 class OuterInterpreter:
     """Host prototype that consumes the VM-resident runtime dictionary."""
 
@@ -92,12 +135,19 @@ class OuterInterpreter:
         code_base: int = DEFAULT_CODE_BASE,
         trace: object | None = None,
         source_profile: str = SOURCE_PROFILE_SAFE_RUNTIME,
+        direct_token_limit: int = DEFAULT_DIRECT_TOKEN_LIMIT,
+        direct_execution_limit: int = DEFAULT_DIRECT_EXECUTION_LIMIT,
     ) -> None:
         self.vm = vm
         self.dictionary = dictionary
         self.trace = trace
         self.trace_failures: list[str] = []
         self.output: list[str] = []
+        if direct_token_limit <= 0 or direct_execution_limit <= 0:
+            raise OuterInterpreterError("direct-control limits must be positive")
+        self.direct_token_limit = direct_token_limit
+        self.direct_execution_limit = direct_execution_limit
+        self._direct_control: _DirectControlCollection | None = None
         self._startup_dictionary_entries = frozenset(
             entry.header_address
             for entry in dictionary.entries(include_hidden=False)
@@ -156,6 +206,9 @@ class OuterInterpreter:
         dispatch.append(int(Op.HALT))
         self.vm.memory.program(self.primitive_trampoline, bytes(dispatch))
         self.vm.register_service(TERMINAL_TYPE_SERVICE_ID, self._service_type)
+        self.vm.register_service(TERMINAL_EMIT_SERVICE_ID, self._service_emit)
+        self.vm.register_service(TERMINAL_DOT_SERVICE_ID, self._service_dot)
+        self.vm.register_service(TERMINAL_CR_SERVICE_ID, self._service_cr)
 
     def relocation_manifest(self) -> list[dict[str, str | int]]:
         """Return a stable copy of compiler-emitted typed references."""
@@ -167,6 +220,31 @@ class OuterInterpreter:
         """Return the exact host-side output stream accumulated so far."""
 
         return "".join(self.output)
+
+    @property
+    def awaiting_direct_control(self) -> bool:
+        """Whether direct input is waiting for a matching control-flow closer."""
+
+        return self._direct_control is not None
+
+    @property
+    def awaiting_direct_loop(self) -> bool:
+        """Compatibility alias for the original FOR/NEXT-only API."""
+
+        return self.awaiting_direct_control
+
+    def finish_input(self) -> None:
+        """Reject an unfinished direct control structure at file or input EOF."""
+
+        collection = self._direct_control
+        if collection is None:
+            return
+        expected = self._direct_expected_closer(collection.structures[-1])
+        opener = collection.opener
+        self._abort_direct_control()
+        raise CompileStateError(
+            f"{opener} is missing its matching {expected} at end of input"
+        )
 
     def execution_extra_entries(self) -> list[int]:
         """Validate and return fixed dispatch/HALT boundaries outside image CODE."""
@@ -183,9 +261,16 @@ class OuterInterpreter:
         return entries
 
     def interpret(self, source: str) -> list[int]:
-        tokens = tokenize(source)
         index = 0
+        input_data_before = list(self.vm.data_stack)
         try:
+            tokens = tokenize(source)
+            if self.state == STATE_DIRECT_CONTROL:
+                trailing = self._collect_direct_control(tokens)
+                if trailing is None:
+                    return list(self.vm.data_stack)
+                tokens = trailing
+                input_data_before = list(self.vm.data_stack)
             while index < len(tokens):
                 token = tokens[index]
                 data_before = list(self.vm.data_stack)
@@ -232,6 +317,16 @@ class OuterInterpreter:
                         code_here_before,
                     )
                     index += 1
+                    continue
+                if self.state == STATE_INTERPRET and token in DIRECT_CONTROL_OPENERS:
+                    operands = self._consume_direct_control_operands(token)
+                    self._begin_direct_control(token, operands, input_data_before)
+                    trailing = self._collect_direct_control(tokens[index + 1 :])
+                    if trailing is None:
+                        return list(self.vm.data_stack)
+                    tokens = trailing
+                    index = 0
+                    input_data_before = list(self.vm.data_stack)
                     continue
                 if self.state == STATE_INTERPRET and token in (
                     "DEFER", "'", "IS", "ACTION-OF"
@@ -344,6 +439,17 @@ class OuterInterpreter:
                 if token == ";":
                     raise CompileStateError("';' outside a definition")
                 if token in CONTROL_WORDS:
+                    self.vm.data_stack[:] = input_data_before
+                    if token in ("LOOP", "+LOOP"):
+                        raise CompileStateError(
+                            f"{token!r} requires an unmatched direct DO or ?DO"
+                        )
+                    if token == "NEXT":
+                        raise CompileStateError("NEXT requires an unmatched direct FOR")
+                    if token in DIRECT_CONTROL_CLOSERS:
+                        raise CompileStateError(
+                            f"{token!r} has no matching direct control opener"
+                        )
                     raise CompileStateError(f"{token!r} is compile-only")
                 if parse_number(token) is None:
                     entry = self.dictionary.find(token)
@@ -421,22 +527,410 @@ class OuterInterpreter:
         except Exception:
             if self.state == STATE_COMPILE:
                 self._abort_definition()
+            elif self.state == STATE_DIRECT_CONTROL:
+                self._abort_direct_control()
             raise
         return list(self.vm.data_stack)
 
+    def _consume_direct_control_operands(self, opener: str) -> list[int]:
+        required = 2 if opener in ("DO", "?DO") else 1 if opener in ("IF", "FOR") else 0
+        if len(self.vm.data_stack) < required:
+            raise StackUnderflow(f"data stack underflow in direct {opener}")
+        if required == 0:
+            return []
+        if required == 1:
+            return [self.vm.pop()]
+        start = self.vm.pop()
+        limit = self.vm.pop()
+        return [limit, start]
+
+    def _begin_direct_control(
+        self, opener: str, operands: list[int], data_before: list[int]
+    ) -> None:
+        self._direct_control = _DirectControlCollection(
+            opener,
+            list(operands),
+            [],
+            [opener],
+            list(data_before),
+            [
+                LoopFrame(limit=frame.limit, index=frame.index)
+                for frame in self.vm.loop_stack
+            ],
+        )
+        self.state = STATE_DIRECT_CONTROL
+
+    def _collect_direct_control(
+        self, tokens: list[str | QuotedText]
+    ) -> list[str | QuotedText] | None:
+        collection = self._direct_control
+        if collection is None:
+            raise CompileStateError("direct-control collection is not active")
+        for index, token in enumerate(tokens):
+            if isinstance(token, str):
+                self._advance_direct_structure(collection.structures, token)
+                if not collection.structures:
+                    trailing = tokens[index + 1 :]
+                    self._direct_control = None
+                    self.state = STATE_INTERPRET
+                    try:
+                        program = [collection.opener, *collection.tokens, token]
+                        nodes = self._parse_direct_program(program)
+                        self._validate_direct_nodes(nodes)
+                        for operand in collection.operands:
+                            self.vm.push(operand)
+                        self._execute_direct_nodes(
+                            nodes, [self.direct_execution_limit]
+                        )
+                    except Exception:
+                        self.vm.data_stack[:] = collection.data_before
+                        self.vm.loop_stack[:] = collection.loops_before
+                        raise
+                    return trailing
+            if len(collection.tokens) >= self.direct_token_limit:
+                self._abort_direct_control()
+                raise CompileStateError(
+                    f"direct control body exceeds {self.direct_token_limit} tokens"
+                )
+            collection.tokens.append(token)
+        return None
+
+    @staticmethod
+    def _advance_direct_structure(structures: list[str], token: str) -> None:
+        if token in DIRECT_CONTROL_OPENERS:
+            structures.append(token)
+            return
+        if token == "ELSE":
+            if not structures or structures[-1] != "IF":
+                raise CompileStateError("ELSE requires an unmatched direct IF")
+            structures[-1] = "IF-ELSE"
+            return
+        if token == "THEN":
+            if not structures or structures[-1] not in ("IF", "IF-ELSE"):
+                raise CompileStateError("THEN requires an unmatched direct IF")
+            structures.pop()
+            return
+        if token == "WHILE":
+            if not structures or structures[-1] != "BEGIN":
+                raise CompileStateError("WHILE requires an unmatched direct BEGIN")
+            structures[-1] = "BEGIN-WHILE"
+            return
+        if token in ("UNTIL", "AGAIN"):
+            if not structures or structures[-1] != "BEGIN":
+                raise CompileStateError(
+                    f"{token} requires an unmatched direct BEGIN"
+                )
+            structures.pop()
+            return
+        if token == "REPEAT":
+            if not structures or structures[-1] != "BEGIN-WHILE":
+                raise CompileStateError(
+                    "REPEAT requires matching direct BEGIN and WHILE"
+                )
+            structures.pop()
+            return
+        if token in ("LOOP", "+LOOP"):
+            if not structures or structures[-1] not in ("DO", "?DO"):
+                raise CompileStateError(
+                    f"{token} requires an unmatched direct DO or ?DO"
+                )
+            structures.pop()
+            return
+        if token == "NEXT":
+            if not structures or structures[-1] != "FOR":
+                raise CompileStateError("NEXT requires an unmatched direct FOR")
+            structures.pop()
+
+    @staticmethod
+    def _direct_expected_closer(structure: str) -> str:
+        return {
+            "IF": "THEN",
+            "IF-ELSE": "THEN",
+            "BEGIN": "UNTIL, AGAIN, or WHILE ... REPEAT",
+            "BEGIN-WHILE": "REPEAT",
+            "DO": "LOOP or +LOOP",
+            "?DO": "LOOP or +LOOP",
+            "FOR": "NEXT",
+        }[structure]
+
+    def _abort_direct_control(self) -> None:
+        collection = self._direct_control
+        if collection is not None:
+            self.vm.data_stack[:] = collection.data_before
+            self.vm.loop_stack[:] = collection.loops_before
+        self._direct_control = None
+        self.state = STATE_INTERPRET
+
+    def _parse_direct_program(
+        self, tokens: list[str | QuotedText]
+    ) -> list[_DirectNode]:
+        nodes, index, terminator = self._parse_direct_sequence(tokens, 0, frozenset())
+        if terminator is not None or index != len(tokens):
+            raise CompileStateError("unexpected direct-control terminator")
+        return nodes
+
+    def _parse_direct_sequence(
+        self,
+        tokens: list[str | QuotedText],
+        start: int,
+        stops: frozenset[str],
+    ) -> tuple[list[_DirectNode], int, str | None]:
+        nodes: list[_DirectNode] = []
+        index = start
+        while index < len(tokens):
+            token = tokens[index]
+            if isinstance(token, str) and token in stops:
+                return nodes, index + 1, token
+            if isinstance(token, str) and token in DIRECT_CONTROL_CLOSERS:
+                raise CompileStateError(
+                    f"unexpected {token} in direct control structure"
+                )
+            if token == "IF":
+                body, index, closer = self._parse_direct_sequence(
+                    tokens, index + 1, frozenset({"ELSE", "THEN"})
+                )
+                alternate: list[_DirectNode] = []
+                if closer == "ELSE":
+                    alternate, index, closer = self._parse_direct_sequence(
+                        tokens, index, frozenset({"THEN"})
+                    )
+                nodes.append(_DirectNode("IF", body, alternate))
+                continue
+            if token == "BEGIN":
+                body, index, closer = self._parse_direct_sequence(
+                    tokens,
+                    index + 1,
+                    frozenset({"UNTIL", "AGAIN", "WHILE"}),
+                )
+                alternate = None
+                if closer == "WHILE":
+                    alternate, index, closer = self._parse_direct_sequence(
+                        tokens, index, frozenset({"REPEAT"})
+                    )
+                nodes.append(_DirectNode("BEGIN", body, alternate, terminator=closer))
+                continue
+            if token in ("DO", "?DO"):
+                body, index, closer = self._parse_direct_sequence(
+                    tokens, index + 1, frozenset({"LOOP", "+LOOP"})
+                )
+                nodes.append(_DirectNode("DO", body, token=token, terminator=closer))
+                continue
+            if token == "FOR":
+                body, index, _closer = self._parse_direct_sequence(
+                    tokens, index + 1, frozenset({"NEXT"})
+                )
+                nodes.append(_DirectNode("FOR", body))
+                continue
+            nodes.append(_DirectNode("TOKEN", [], token=token))
+            index += 1
+        if stops:
+            expected = ", ".join(sorted(stops))
+            raise CompileStateError(
+                f"direct control structure is missing {expected}"
+            )
+        return nodes, index, None
+
+    def _validate_direct_nodes(
+        self, nodes: list[_DirectNode], loop_depth: int = 0
+    ) -> None:
+        for node in nodes:
+            if node.kind == "IF":
+                self._validate_direct_nodes(node.body, loop_depth)
+                self._validate_direct_nodes(node.alternate or [], loop_depth)
+                continue
+            if node.kind == "BEGIN":
+                self._validate_direct_nodes(node.body, loop_depth)
+                self._validate_direct_nodes(node.alternate or [], loop_depth)
+                continue
+            if node.kind in ("DO", "FOR"):
+                self._validate_direct_nodes(node.body, loop_depth + 1)
+                continue
+            token = node.token
+            if isinstance(token, QuotedText):
+                if token.word == 'S"':
+                    raise CompileStateError(
+                        'S" is not supported inside direct control input'
+                    )
+                continue
+            if token == "LEAVE":
+                if loop_depth == 0:
+                    raise CompileStateError("LEAVE requires a direct DO, ?DO, or FOR")
+                continue
+            if token in CONTROL_WORDS:
+                raise CompileStateError(
+                    f"{token!r} is not valid in direct control input"
+                )
+            if token in DATA_WORDS or token in (":", ";", "UNLOOP"):
+                raise CompileStateError(
+                    f"{token!r} is not supported inside direct control input"
+                )
+            if parse_number(token) is None and token not in HOST_WORDS:
+                entry = self.dictionary.find(token)
+                if entry is None:
+                    raise UnknownWord(
+                        f"unknown word {token!r} in direct control input"
+                    )
+                if entry.kind == KIND_DEFINER:
+                    raise CompileStateError(
+                        f"defining word {token!r} is not supported inside "
+                        "direct control input"
+                    )
+
+    def _execute_direct_nodes(
+        self, nodes: list[_DirectNode], budget: list[int]
+    ) -> None:
+        for node in nodes:
+            self._consume_direct_budget(budget)
+            if node.kind == "IF":
+                flag = self._peek_data("IF")
+                self.vm.pop()
+                self._execute_direct_nodes(
+                    node.body if flag != 0 else node.alternate or [], budget
+                )
+                continue
+            if node.kind == "BEGIN":
+                self._run_direct_begin(node, budget)
+                continue
+            if node.kind == "FOR":
+                count = self._peek_data("FOR")
+                self.vm.pop()
+                self._run_direct_for(count, node.body, budget)
+                continue
+            if node.kind == "DO":
+                if len(self.vm.data_stack) < 2:
+                    raise StackUnderflow(f"data stack underflow in direct {node.token}")
+                start_value = self.vm.pop()
+                limit = self.vm.pop()
+                self._run_direct_do(
+                    limit,
+                    start_value,
+                    node.body,
+                    conditional=node.token == "?DO",
+                    plus=node.terminator == "+LOOP",
+                    budget=budget,
+                )
+                continue
+            token = node.token
+            if isinstance(token, QuotedText):
+                self._interpret_quoted_text(token)
+            elif token == "LEAVE":
+                raise _DirectLeave
+            else:
+                self._interpret_token(token)
+
+    def _run_direct_begin(self, node: _DirectNode, budget: list[int]) -> None:
+        while True:
+            self._consume_direct_budget(budget)
+            self._execute_direct_nodes(node.body, budget)
+            if node.terminator == "UNTIL":
+                flag = self._peek_data("UNTIL")
+                self.vm.pop()
+                if flag != 0:
+                    return
+            elif node.terminator == "AGAIN":
+                continue
+            else:
+                flag = self._peek_data("WHILE")
+                self.vm.pop()
+                if flag == 0:
+                    return
+                self._execute_direct_nodes(node.alternate or [], budget)
+
+    def _run_direct_for(
+        self, count: int, nodes: list[_DirectNode], budget: list[int]
+    ) -> None:
+        if count == 0:
+            return
+        self._require_direct_loop_capacity()
+        loop_depth = len(self.vm.loop_stack)
+        frame = LoopFrame(limit=cell(count), index=0)
+        self.vm.loop_stack.append(frame)
+        try:
+            for index in range(count):
+                self._consume_direct_budget(budget)
+                frame.index = cell(index)
+                try:
+                    self._execute_direct_nodes(nodes, budget)
+                except _DirectLeave:
+                    return
+                self._require_unchanged_direct_loop(loop_depth, frame)
+        finally:
+            del self.vm.loop_stack[loop_depth:]
+
+    def _run_direct_do(
+        self,
+        limit: int,
+        start: int,
+        nodes: list[_DirectNode],
+        *,
+        conditional: bool,
+        plus: bool,
+        budget: list[int],
+    ) -> None:
+        if conditional and start == limit:
+            return
+        self._require_direct_loop_capacity()
+        loop_depth = len(self.vm.loop_stack)
+        frame = LoopFrame(limit=cell(limit), index=cell(start))
+        self.vm.loop_stack.append(frame)
+        try:
+            while True:
+                self._consume_direct_budget(budget)
+                try:
+                    self._execute_direct_nodes(nodes, budget)
+                except _DirectLeave:
+                    return
+                self._require_unchanged_direct_loop(loop_depth, frame)
+                if plus:
+                    increment = signed(self._peek_data("+LOOP"))
+                    self.vm.pop()
+                    old_delta = signed(frame.index - frame.limit)
+                    frame.index = cell(frame.index + increment)
+                    new_delta = signed(frame.index - frame.limit)
+                    crossed = (
+                        increment > 0 and old_delta < 0 <= new_delta
+                    ) or (
+                        increment < 0 and old_delta > 0 >= new_delta
+                    )
+                    if crossed:
+                        return
+                else:
+                    frame.index = cell(frame.index + 1)
+                    if frame.index == frame.limit:
+                        return
+        finally:
+            del self.vm.loop_stack[loop_depth:]
+
+    def _require_direct_loop_capacity(self) -> None:
+        if len(self.vm.loop_stack) >= self.vm.max_loop_depth:
+            raise LoopStackOverflow(
+                f"loop stack limit {self.vm.max_loop_depth} frame(s) exceeded"
+            )
+
+    def _require_unchanged_direct_loop(
+        self, loop_depth: int, frame: LoopFrame
+    ) -> None:
+        if (
+            len(self.vm.loop_stack) != loop_depth + 1
+            or self.vm.loop_stack[loop_depth] is not frame
+        ):
+            raise CompileStateError("direct body changed its active loop frame")
+
+    @staticmethod
+    def _consume_direct_budget(budget: list[int]) -> None:
+        if budget[0] <= 0:
+            raise CompileStateError("direct control execution limit exceeded")
+        budget[0] -= 1
+
     def _interpret_token(self, token: str) -> None:
         if token == ".":
-            value = self._peek_data(".")
-            self.output.append(str(signed(value)))
-            self.vm.pop()
+            self._service_dot()
             return
         if token == "EMIT":
-            value = self._peek_data("EMIT")
-            self.output.append(chr(value & 0xFF))
-            self.vm.pop()
+            self._service_emit()
             return
         if token == "CR":
-            self.output.append("\n")
+            self._service_cr()
             return
         if token == "TYPE":
             self._service_type()
@@ -575,6 +1069,19 @@ class OuterInterpreter:
         text = "".join(chr(byte) for byte in raw)
         self.output.append(text)
         del self.vm.data_stack[-2:]
+
+    def _service_emit(self) -> None:
+        value = self._peek_data("EMIT")
+        self.output.append(chr(value & 0xFF))
+        self.vm.pop()
+
+    def _service_dot(self) -> None:
+        value = self._peek_data(".")
+        self.output.append(str(signed(value)))
+        self.vm.pop()
+
+    def _service_cr(self) -> None:
+        self.output.append("\n")
 
     @staticmethod
     def _encode_quoted_text(token: QuotedText) -> bytes:
@@ -728,6 +1235,22 @@ class OuterInterpreter:
             if token == "ALIGN":
                 self._compile_constructor_action(CONSTRUCTOR_ACTION_ALIGN)
                 return
+        if token == "TYPE":
+            self._emit_opcode(Op.SERVICE)
+            self._emit_cell(TERMINAL_TYPE_SERVICE_ID)
+            return
+        if token == "EMIT":
+            self._emit_opcode(Op.SERVICE)
+            self._emit_cell(TERMINAL_EMIT_SERVICE_ID)
+            return
+        if token == ".":
+            self._emit_opcode(Op.SERVICE)
+            self._emit_cell(TERMINAL_DOT_SERVICE_ID)
+            return
+        if token == "CR":
+            self._emit_opcode(Op.SERVICE)
+            self._emit_cell(TERMINAL_CR_SERVICE_ID)
+            return
         if token in DATA_WORDS:
             raise CompileStateError(f"{token!r} is interpret-only in v0.1")
         if token == "IF":
@@ -765,6 +1288,12 @@ class OuterInterpreter:
             return
         if token == "+LOOP":
             self._compile_loop(plus=True)
+            return
+        if token == "FOR":
+            self._compile_for()
+            return
+        if token == "NEXT":
+            self._compile_next()
             return
         if token == "LEAVE":
             self._compile_leave()
@@ -919,15 +1448,32 @@ class OuterInterpreter:
         for patch_address in exit_patches:
             self.vm.write_cell(patch_address, self.code_here)
 
+    def _compile_for(self) -> None:
+        self._emit_opcode(Op.LIT)
+        self._emit_cell(0)
+        self._emit_opcode(Op.QDO)
+        exit_patch = self.code_here
+        self._emit_reference(0, TARGET_CODE, "for-exit")
+        self.control_stack.append(("FOR", self.code_here, [exit_patch]))
+
+    def _compile_next(self) -> None:
+        if not self.control_stack or self.control_stack[-1][0] != "FOR":
+            raise CompileStateError("NEXT requires an unmatched FOR")
+        _kind, loop_address, exit_patches = self.control_stack.pop()
+        self._emit_opcode(Op.LOOP)
+        self._emit_reference(loop_address, TARGET_CODE, "next")
+        for patch_address in exit_patches:
+            self.vm.write_cell(patch_address, self.code_here)
+
     def _compile_leave(self) -> None:
         for mark in reversed(self.control_stack):
-            if mark[0] == "DO":
+            if mark[0] in ("DO", "FOR"):
                 self._emit_opcode(Op.LEAVE)
                 patch_address = self.code_here
                 self._emit_reference(0, TARGET_CODE, "leave")
                 mark[2].append(patch_address)
                 return
-        raise CompileStateError("LEAVE requires an unmatched DO or ?DO")
+        raise CompileStateError("LEAVE requires an unmatched DO, ?DO, or FOR")
 
     def _compile_create(self) -> None:
         if self.current_definition is None:

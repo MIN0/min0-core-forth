@@ -2,7 +2,7 @@
 
 [英語版はこちらです](WORD_REFERENCE.md)
 
-これはリリース0.1.2の`WORDS`が表示する起動時ワード61個の短いマニュアルです。端末の横に置いて
+これは現在の`WORDS`が表示する起動時ワード65個の短いマニュアルです。端末の横に置いて
 使うことを想定しています。詳しい設計理由と制限は、各仕様書に残しています。
 
 ## 最初にここを見る：何ができるのか
@@ -46,8 +46,19 @@ USE-ACTION          \ 20を残す。USE-ACTIONは再compileしていない
 - `flag`は偽が`0`、真が`0xFFFFFFFF`です。
 - `xt`はexecution tokenであり、生のCODE addressではありません。
 
-「解釈」はpromptで直接使うこと、「compile」は`: name ... ;`の中で使うことです。「構造」はcompile時に
-形を作り、定義したワードを後で実行したときにstack effectが現れるワードです。
+「解釈」はpromptで直接使うこと、「compile」は`: name ... ;`の中で使うことです。「構造」は対応する
+開始語と終端語で制御構造を作るワードです。定義内では制御用bytecodeを生成し、直接入力に対応する構造は
+終端まで収集してから実行します。
+
+## コメント
+
+| ワード | stack effect | 使用場所 | 意味 |
+| --- | --- | --- | --- |
+| `(` | `( -- )` | 解釈／compile | 次の`)`までの入力を読み飛ばします。複数行にまたがることができます。 |
+| `\` | `( -- )` | 解釈／compile | 現在の物理行の残りを読み飛ばします。 |
+
+コメント内の文字列は検索・実行・compileされず、interpreterの状態も変更しません。`)`がない括弧コメントは
+エラーになります。
 
 ## stack操作、算術、論理、比較
 
@@ -82,6 +93,8 @@ USE-ACTION          \ 20を残す。USE-ACTIONは再compileしていない
 | `CHARS` | `( n -- n )` | 解釈／compile | 文字数をbyte address単位へ変換します。 |
 
 `!`はmemory backendの権限を回避できません。seal済みCODEは通常の`!`では書き換えられません。
+次の32ビットcellへ進むときは`1 +`ではなく`CELL+`を使います。byte addressに対する`1 +`は
+1 byteしか進めません。
 
 ## 辞書allocationとdata定義
 
@@ -112,46 +125,56 @@ SLOT @ .             \ 123を表示
 | --- | --- | --- | --- |
 | `: name` | `( -- )` | 解釈 | hidden状態でcolon definitionを開始します。 |
 | `;` | `( -- )` | compile専用 | 現在の定義を完成して公開します。 |
-| `IF` | `( flag -- )` | 構造 | 真のとき次の部分を実行します。 |
-| `ELSE` | `( -- )` | 構造 | 偽の場合の部分を開始します。 |
-| `THEN` | `( -- )` | 構造 | `IF`または`ELSE`を閉じます。 |
-| `BEGIN` | `( -- )` | 構造 | 不定回loopの開始位置です。 |
-| `UNTIL` | `( flag -- )` | 構造 | 偽なら`BEGIN`へ戻ります。 |
-| `AGAIN` | `( -- )` | 構造 | 無条件に`BEGIN`へ戻ります。 |
-| `WHILE` | `( flag -- )` | 構造 | 偽なら`BEGIN ... REPEAT`を抜けます。 |
-| `REPEAT` | `( -- )` | 構造 | `BEGIN`へ戻り`WHILE`を閉じます。 |
+| `IF` | `( flag -- )` | 直接入力／構造 | 真のとき次の部分を実行します。 |
+| `ELSE` | `( -- )` | 直接入力／構造 | 偽の場合の部分を開始します。 |
+| `THEN` | `( -- )` | 直接入力／構造 | `IF`または`ELSE`を閉じます。 |
+| `BEGIN` | `( -- )` | 直接入力／構造 | 不定回loopの開始位置です。 |
+| `UNTIL` | `( flag -- )` | 直接入力／構造 | 偽なら`BEGIN`へ戻ります。 |
+| `AGAIN` | `( -- )` | 直接入力／構造 | 無条件に`BEGIN`へ戻ります。 |
+| `WHILE` | `( flag -- )` | 直接入力／構造 | 偽なら`BEGIN ... REPEAT`を抜けます。 |
+| `REPEAT` | `( -- )` | 直接入力／構造 | `BEGIN`へ戻り`WHILE`を閉じます。 |
 
-構造の対応が崩れた場合は定義を中止し、辞書とcompile済みCODE allocationを元へ戻します。
+構造の対応が崩れた場合は定義または直接入力blockを中止します。定義では辞書とcompile済みCODE allocation、
+直接入力ではDATA stackとloop stackを開始時点へ戻します。
 
 ## 回数指定loop
 
 | ワード | 実行時stack effect | 使用場所 | 意味 |
 | --- | --- | --- | --- |
-| `DO` | `( limit start -- )` | 構造 | 回数指定loopを開始します。同値開始は避けます。 |
-| `?DO` | `( limit start -- )` | 構造 | startとlimitが同じならloopを飛ばします。 |
-| `LOOP` | `( -- )` | 構造 | indexを1増やし、必要なら続けます。 |
-| `+LOOP` | `( increment -- )` | 構造 | 符号付きincrementを加え、limit通過を調べます。 |
+| `DO` | `( limit start -- )` | 直接入力／構造 | 回数指定loopを開始します。同値開始は避けます。 |
+| `?DO` | `( limit start -- )` | 直接入力／構造 | startとlimitが同じならloopを飛ばします。 |
+| `LOOP` | `( -- )` | 直接入力／構造 | indexを1増やし、必要なら続けます。 |
+| `+LOOP` | `( increment -- )` | 直接入力／構造 | 符号付きincrementを加え、limit通過を調べます。 |
+| `FOR` | `( u -- )` | 直接入力／構造 | indexを0から始め、本体を`u`回繰り返します。 |
+| `NEXT` | `( -- )` | 直接入力／構造 | 対応する`FOR`本体を閉じ、indexを進めます。 |
 | `I` | `( -- index )` | 解釈／compile | 最も内側のloop indexを複写します。 |
 | `J` | `( -- index )` | 解釈／compile | 一つ外側のloop indexを複写します。 |
-| `LEAVE` | `( -- )` | 構造 | 最も内側の回数指定loopを抜けます。 |
+| `LEAVE` | `( -- )` | 直接loop／構造 | 最も内側の回数指定loopを抜けます。 |
 | `UNLOOP` | `( -- )` | 解釈／compile | loop frameを一個明示的に外します。 |
 
 参照上限は32 frame、移植可能な最低保証は8 frameです。必要なframeがない`I`、`J`、`UNLOOP`は
 errorになります。
 
+promptでは、`IF`、`BEGIN`、`DO`、`?DO`、`FOR`が対応する終端までのtokenを収集してから実行します。
+colon definition内の`FOR ... NEXT`は、0回実行に対応する既存の回数指定loop bytecodeへcompileします。
+`0 FOR ... NEXT`は直接入力と定義内の両方で0回実行です。直接入力の`DO ... LOOP`、`?DO ... LOOP`、
+`DO ... +LOOP`も定義内と同じindex結果を与えます。詳しくは
+[直接制御構造設計](DIRECT_CONTROL_V0_3_JP.md)を参照してください。
+
 ## 文字、文字列、数値出力
 
 | ワード | stack effect | 使用場所 | 意味 |
 | --- | --- | --- | --- |
-| `.` | `( n -- )` | 解釈 | 符号付き10進数を表示し、`n`を取り除きます。 |
-| `EMIT` | `( x -- )` | 解釈 | 下位1 byteを一文字として出力します。 |
-| `CR` | `( -- )` | 解釈 | 論理的な改行を一つ出力します。 |
-| `TYPE` | `( c-addr u -- )` | 解釈 | `u` byte全体を検査して一括出力します。 |
+| `.` | `( n -- )` | 解釈／compile | 符号付き10進数を表示し、`n`を取り除きます。compile時は`SERVICE 3`を生成します。 |
+| `EMIT` | `( x -- )` | 解釈／compile | 下位1 byteを一文字として出力します。compile時は`SERVICE 2`を生成します。 |
+| `CR` | `( -- )` | 解釈／compile | 論理的な改行を一つ出力します。compile時はstackを使わない`SERVICE 4`を生成します。 |
+| `TYPE` | `( c-addr u -- )` | 解釈／compile | `u` byte全体を検査して一括出力します。compile時は`SERVICE 1`を生成します。 |
 | `S" text"` | `( -- c-addr u )` | 解釈／compile | 引用byte列を保存またはcompileし、範囲を返します。 |
 | `." text"` | `( -- )` | 解釈／compile | 引用byte列を出力し、compile時は検証済みSERVICE 1を使います。 |
 
-引用文字列は現在1文字1 byte、U+0000からU+00FFです。移植可能な表示用部分集合はASCIIです。解釈時の
-`.`、`EMIT`、`CR`、`TYPE`はhost wordであり、そのままcolon definitionへcompileできません。
+引用文字列は現在1文字1 byte、U+0000からU+00FFです。移植可能な表示用部分集合はASCIIです。直接入力と
+compile済みの`.`、`EMIT`、`CR`、`TYPE`は同じtarget-owned handlerを使うため、出力、stack effect、error時の
+状態が一致します。VMにはterminal専用opcodeを追加せず、検証済み`SERVICE`境界を使用します。
 
 ## 定義ワード：`CREATE`と`DOES>`
 
@@ -190,10 +213,9 @@ ANSWER .              \ 123を表示
 
 `WORDS`は同名ワードの最新の検索可能な定義だけを表示します。hidden、失敗、rollbackされたentryは表示しません。
 
-## 起動時ワードではない入力構文
+## その他の入力構文
 
 - `123`のような10進数と`0x7B`のような16進数は一つのcellを積みます。
-- `\`から行末まではcommentです。
 - 引用文字列以外の入力は大文字・小文字を区別しません。
 - `BYE`と`EXIT`はhost参照REPLを終了するlauncher commandであり、凍結したCORE wordではありません。
 

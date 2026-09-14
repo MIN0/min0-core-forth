@@ -74,6 +74,14 @@ def tokenize(source: str) -> list[str | QuotedText]:
             while index < len(source) and source[index] not in "\r\n":
                 index += 1
             continue
+        if character == "(":
+            index += 1
+            while index < len(source) and source[index] != ")":
+                index += 1
+            if index >= len(source):
+                raise CompileError("parenthesis comment is missing closing ')'")
+            index += 1
+            continue
 
         introducer = source[index : index + 2].upper()
         if introducer in {'S"', '."'}:

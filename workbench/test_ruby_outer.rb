@@ -74,6 +74,8 @@ startup, user = outer.terminal_text.split(
 startup_words = startup.split
 user_words = user.split
 assert_equal(true, startup_words.include?("WORDS"), "WORDS lists itself as startup word")
+assert_equal(true, startup_words.include?("("), "WORDS lists parenthesis comment")
+assert_equal(true, startup_words.include?("\\"), "WORDS lists line comment")
 assert_equal(true, startup_words.include?("DOUBLE"), "WORDS lists startup dictionary word")
 assert_equal(false, startup_words.include?("SQUARE"), "WORDS removes shadowed startup word")
 assert_equal(true, user_words.include?("CUBE"), "WORDS lists user colon word")
@@ -87,6 +89,38 @@ assert_equal(false, outer.terminal_text.include?("SECRET"), "WORDS omits hidden 
 
 _vm, _dictionary, outer = build_outer
 assert_equal([18], outer.interpret("8 double \\ ignore\n 2 +"), "case and comment")
+
+_vm, _dictionary, outer = build_outer
+assert_equal([16], outer.interpret("8 ( ignored ) DOUBLE"), "interpret parenthesis comment")
+outer.interpret(": PLUS2 ( n -- n+2\n stack effect ) 2 + ;")
+assert_equal(Min0CoreForth::STATE_INTERPRET, outer.state, "comment preserves compile state")
+assert_equal([16, 5], outer.interpret("3 PLUS2"), "compiled parenthesis comment")
+
+_vm, dictionary, outer = build_outer
+saved_dictionary_here = dictionary.here
+saved_latest = dictionary.latest
+saved_code_here = outer.code_here
+outer.interpret(": BROKEN")
+begin
+  outer.interpret("( missing")
+  raise "unterminated parenthesis comment: expected CompileError"
+rescue Min0CoreForth::CompileError => error
+  raise unless error.message.include?("parenthesis comment")
+
+  assert_equal(Min0CoreForth::STATE_INTERPRET, outer.state, "comment error rollback state")
+  assert_equal(saved_dictionary_here, dictionary.here, "comment error rollback dictionary HERE")
+  assert_equal(saved_latest, dictionary.latest, "comment error rollback LATEST")
+  assert_equal(saved_code_here, outer.code_here, "comment error rollback code HERE")
+  assert_equal(nil, dictionary.find("BROKEN", include_hidden: true), "comment error rollback word")
+end
+
+_vm, _dictionary, outer = build_outer
+begin
+  outer.interpret("65 ( missing")
+  raise "unterminated comment atomicity: expected CompileError"
+rescue Min0CoreForth::CompileError
+  assert_equal([], outer.vm.data_stack, "unterminated comment executes no input token")
+end
 
 _vm, _dictionary, outer = build_outer
 outer.interpret("6")

@@ -8,6 +8,9 @@ from constructor_image_fixture import make_system
 from min0_core_forth_linker import build_manifest
 from min0_core_forth_outer import (
     DEFAULT_CODE_BASE,
+    TERMINAL_CR_SERVICE_ID,
+    TERMINAL_DOT_SERVICE_ID,
+    TERMINAL_EMIT_SERVICE_ID,
     TERMINAL_TYPE_SERVICE_ID,
     OuterInterpreter,
     install_core_primitives,
@@ -22,6 +25,7 @@ def run_demo(implementation: str = "python") -> dict[str, object]:
     outer = OuterInterpreter(vm, dictionary)
     outer.interpret(': HELLO ." Hello" ;')
     outer.interpret(': GREET HELLO ."  Service" ;')
+    outer.interpret(': CORE-OUTPUT 65 EMIT CR -42 . S" ABC" TYPE ;')
     components = {
         "code": vm.read_bytes(DEFAULT_CODE_BASE, outer.code_here - DEFAULT_CODE_BASE),
         "dictionary": dictionary.image(),
@@ -39,9 +43,9 @@ def run_demo(implementation: str = "python") -> dict[str, object]:
     vm.seal_verified_execution(
         verification, extra_entries=outer.execution_extra_entries()
     )
-    stack = outer.interpret("GREET")
+    stack = outer.interpret("GREET CORE-OUTPUT")
     try:
-        vm.register_service(2, lambda: None)
+        vm.register_service(99, lambda: None)
     except ServiceRegistrySealed:
         late_registration_rejected = True
     else:
@@ -51,6 +55,12 @@ def run_demo(implementation: str = "python") -> dict[str, object]:
     return {
         "implementation": implementation,
         "service_id": TERMINAL_TYPE_SERVICE_ID,
+        "service_id_map": {
+            "terminal-type-v0.1": TERMINAL_TYPE_SERVICE_ID,
+            "terminal-emit-v0.1": TERMINAL_EMIT_SERVICE_ID,
+            "terminal-dot-v0.1": TERMINAL_DOT_SERVICE_ID,
+            "terminal-cr-v0.1": TERMINAL_CR_SERVICE_ID,
+        },
         "service_ids": verification["service_ids"],
         "service_addresses": verification["service_addresses"],
         "registered_service_ids": list(vm.registered_service_ids()),

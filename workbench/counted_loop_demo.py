@@ -1,4 +1,4 @@
-"""Compile and execute DO/LOOP/I through the Python outer interpreter."""
+"""Execute DO/LOOP and direct/compiled FOR/NEXT in the Python host."""
 
 from __future__ import annotations
 
@@ -16,7 +16,9 @@ install_core_primitives(dictionary)
 outer = OuterInterpreter(vm, dictionary)
 outer.interpret(": INDEXES 5 0 DO I LOOP ;")
 outer.interpret(": GRID 2 0 DO 3 0 DO I LOOP LOOP ;")
-stack = outer.interpret("INDEXES GRID")
+outer.interpret(": FOR-INDEXES 3 FOR I NEXT ;")
+outer.interpret("2 FOR I NEXT")
+stack = outer.interpret("INDEXES GRID FOR-INDEXES")
 print(
     json.dumps(
         {

@@ -51,6 +51,16 @@ module Min0CoreForth
           index += 1 while index < source.length && !["\r", "\n"].include?(source[index])
           next
         end
+        if character == "("
+          index += 1
+          index += 1 while index < source.length && source[index] != ")"
+          if index >= source.length
+            raise CompileError, "parenthesis comment is missing closing ')'"
+          end
+
+          index += 1
+          next
+        end
 
         introducer = source[index, 2].upcase
         if ['S"', '."'].include?(introducer)

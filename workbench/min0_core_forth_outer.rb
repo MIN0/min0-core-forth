@@ -8,22 +8,34 @@ require_relative "min0_core_forth_trace"
 module Min0CoreForth
   STATE_INTERPRET = 0
   STATE_COMPILE = 1
+  STATE_DIRECT_CONTROL = 2
+  STATE_DIRECT_LOOP = STATE_DIRECT_CONTROL
   SOURCE_PROFILE_SAFE_RUNTIME = "safe-runtime"
   SOURCE_PROFILE_STANDARD_BUILD = "standard-build"
   DEFAULT_CODE_BASE = 0x1000
   PRIMITIVE_DISPATCH_SLOT_BYTES = 2
   TERMINAL_TYPE_SERVICE_ID = 1
+  TERMINAL_EMIT_SERVICE_ID = 2
+  TERMINAL_DOT_SERVICE_ID = 3
+  TERMINAL_CR_SERVICE_ID = 4
+  DEFAULT_DIRECT_TOKEN_LIMIT = 4096
+  DEFAULT_DIRECT_EXECUTION_LIMIT = 100_000
   CONTROL_WORDS = [
     "IF", "ELSE", "THEN", "BEGIN", "UNTIL", "AGAIN", "WHILE", "REPEAT",
-    "DO", "?DO", "LOOP", "+LOOP", "LEAVE", "DOES>", "[']"
+    "DO", "?DO", "LOOP", "+LOOP", "FOR", "NEXT", "LEAVE", "DOES>", "[']"
+  ].freeze
+  DIRECT_CONTROL_OPENERS = ["IF", "BEGIN", "DO", "?DO", "FOR"].freeze
+  DIRECT_CONTROL_CLOSERS = [
+    "ELSE", "THEN", "UNTIL", "AGAIN", "WHILE", "REPEAT", "LOOP", "+LOOP", "NEXT"
   ].freeze
   DATA_WORDS = [
     "HERE", ",", "C,", "ALLOT", "ALIGN", "CONSTANT", "VARIABLE", "CREATE",
     "DEFER", "'", "IS", "ACTION-OF"
   ].freeze
   HOST_WORDS = [".", "EMIT", "CR", "TYPE", "WORDS", 'S"', '."'].freeze
+  COMMENT_WORDS = ["(", "\\"].freeze
   WORD_LIST_STARTUP_WORDS = (
-    [":", ";"] + CONTROL_WORDS + DATA_WORDS + HOST_WORDS
+    [":", ";"] + CONTROL_WORDS + DATA_WORDS + HOST_WORDS + COMMENT_WORDS
   ).uniq.freeze
   WORD_LIST_USER_HEADING =
     "--- ここから先はユーザーが : で定義したワードなどです ---"
@@ -34,6 +46,14 @@ module Min0CoreForth
   class InvalidExecutionToken < OuterInterpreterError; end
   class CompileStateError < OuterInterpreterError; end
 
+  DirectControlCollection = Struct.new(
+    :opener, :operands, :tokens, :structures, :data_before, :loops_before
+  )
+  DirectNode = Struct.new(
+    :kind, :body, :alternate, :token, :terminator, keyword_init: true
+  )
+  class DirectLeave < StandardError; end
+
   class OuterInterpreter
     attr_reader :vm, :dictionary, :primitive_trampoline, :return_trampoline,
                 :code_here, :code_limit, :state, :current_definition,
@@ -42,13 +62,21 @@ module Min0CoreForth
 
     def initialize(
       vm, dictionary, code_base: DEFAULT_CODE_BASE, trace: nil,
-      source_profile: SOURCE_PROFILE_SAFE_RUNTIME
+      source_profile: SOURCE_PROFILE_SAFE_RUNTIME,
+      direct_token_limit: DEFAULT_DIRECT_TOKEN_LIMIT,
+      direct_execution_limit: DEFAULT_DIRECT_EXECUTION_LIMIT
     )
       @vm = vm
       @dictionary = dictionary
       @trace = trace
       @trace_failures = []
       @output = []
+      unless direct_token_limit.positive? && direct_execution_limit.positive?
+        raise OuterInterpreterError, "direct-control limits must be positive"
+      end
+      @direct_token_limit = direct_token_limit
+      @direct_execution_limit = direct_execution_limit
+      @direct_control = nil
       @startup_dictionary_entries = dictionary.entries(include_hidden: false)
                                               .map(&:header_address).to_h { |address| [address, true] }
       unless [SOURCE_PROFILE_SAFE_RUNTIME, SOURCE_PROFILE_STANDARD_BUILD].include?(source_profile)
@@ -98,6 +126,9 @@ module Min0CoreForth
       dispatch << Op::HALT
       vm.memory.program(primitive_trampoline, dispatch.pack("C*"))
       vm.register_service(TERMINAL_TYPE_SERVICE_ID, method(:service_type))
+      vm.register_service(TERMINAL_EMIT_SERVICE_ID, method(:service_emit))
+      vm.register_service(TERMINAL_DOT_SERVICE_ID, method(:service_dot))
+      vm.register_service(TERMINAL_CR_SERVICE_ID, method(:service_cr))
     end
 
     def relocation_manifest
@@ -106,6 +137,21 @@ module Min0CoreForth
 
     def terminal_text
       output.join
+    end
+
+    def awaiting_direct_control? = !@direct_control.nil?
+
+    def awaiting_direct_loop? = awaiting_direct_control?
+
+    def finish_input
+      collection = @direct_control
+      return if collection.nil?
+
+      expected = direct_expected_closer(collection.structures[-1])
+      opener = collection.opener
+      abort_direct_control
+      raise CompileStateError,
+            "#{opener} is missing its matching #{expected} at end of input"
     end
 
     def execution_extra_entries
@@ -125,9 +171,17 @@ module Min0CoreForth
     end
 
     def interpret(source)
-      tokens = Compiler.tokenize(source)
       index = 0
+      input_data_before = vm.data_stack.dup
       begin
+        tokens = Compiler.tokenize(source)
+        if state == STATE_DIRECT_CONTROL
+          trailing = collect_direct_control(tokens)
+          return vm.data_stack.dup if trailing.nil?
+
+          tokens = trailing
+          input_data_before = vm.data_stack.dup
+        end
         while index < tokens.length
           token = tokens[index]
           if token.is_a?(QuotedText)
@@ -141,6 +195,17 @@ module Min0CoreForth
             end
             byte_count = interpret_quoted_text(token)
             index += 1
+            next
+          end
+          if state == STATE_INTERPRET && DIRECT_CONTROL_OPENERS.include?(token)
+            operands = consume_direct_control_operands(token)
+            begin_direct_control(token, operands, input_data_before)
+            trailing = collect_direct_control(tokens[(index + 1)..] || [])
+            return vm.data_stack.dup if trailing.nil?
+
+            tokens = trailing
+            index = 0
+            input_data_before = vm.data_stack.dup
             next
           end
           if state == STATE_INTERPRET && ["DEFER", "'", "IS", "ACTION-OF"].include?(token)
@@ -206,7 +271,19 @@ module Min0CoreForth
             next
           end
           raise CompileStateError, "';' outside a definition" if token == ";"
-          raise CompileStateError, "#{token.inspect} is compile-only" if CONTROL_WORDS.include?(token)
+          if CONTROL_WORDS.include?(token)
+            vm.data_stack.replace(input_data_before)
+            if ["LOOP", "+LOOP"].include?(token)
+              raise CompileStateError,
+                    "#{token.inspect} requires an unmatched direct DO or ?DO"
+            elsif token == "NEXT"
+              raise CompileStateError, "NEXT requires an unmatched direct FOR"
+            elsif DIRECT_CONTROL_CLOSERS.include?(token)
+              raise CompileStateError,
+                    "#{token.inspect} has no matching direct control opener"
+            end
+            raise CompileStateError, "#{token.inspect} is compile-only"
+          end
 
           if Compiler.parse_number(token).nil?
             entry = dictionary.find(token)
@@ -231,6 +308,7 @@ module Min0CoreForth
         end
       rescue StandardError
         abort_definition if state == STATE_COMPILE
+        abort_direct_control if state == STATE_DIRECT_CONTROL
         raise
       end
       vm.data_stack.dup
@@ -290,6 +368,364 @@ module Min0CoreForth
 
     private
 
+    def consume_direct_control_operands(opener)
+      required = if ["DO", "?DO"].include?(opener)
+                   2
+                 elsif ["IF", "FOR"].include?(opener)
+                   1
+                 else
+                   0
+                 end
+      if vm.data_stack.length < required
+        raise StackUnderflow, "data stack underflow in direct #{opener}"
+      end
+      return [] if required.zero?
+      return [vm.pop] if required == 1
+
+      start = vm.pop
+      limit = vm.pop
+      [limit, start]
+    end
+
+    def begin_direct_control(opener, operands, data_before)
+      @direct_control = DirectControlCollection.new(
+        opener, operands.dup, [], [opener], data_before.dup,
+        vm.loop_stack.map(&:dup)
+      )
+      @state = STATE_DIRECT_CONTROL
+    end
+
+    def collect_direct_control(tokens)
+      collection = @direct_control
+      raise CompileStateError, "direct-control collection is not active" if collection.nil?
+
+      tokens.each_with_index do |token, index|
+        if token.is_a?(String)
+          advance_direct_structure(collection.structures, token)
+          if collection.structures.empty?
+            trailing = tokens[(index + 1)..] || []
+            @direct_control = nil
+            @state = STATE_INTERPRET
+            begin
+              program = [collection.opener, *collection.tokens, token]
+              nodes = parse_direct_program(program)
+              validate_direct_nodes(nodes)
+              collection.operands.each { |operand| vm.push(operand) }
+              execute_direct_nodes(nodes, [@direct_execution_limit])
+        rescue StandardError
+          vm.data_stack.replace(collection.data_before)
+          vm.loop_stack.replace(collection.loops_before)
+          raise
+            end
+            return trailing
+          end
+        end
+        if collection.tokens.length >= @direct_token_limit
+          abort_direct_control
+          raise CompileStateError,
+                "direct control body exceeds #{@direct_token_limit} tokens"
+        end
+        collection.tokens << token
+      end
+      nil
+    end
+
+    def advance_direct_structure(structures, token)
+      if DIRECT_CONTROL_OPENERS.include?(token)
+        structures << token
+      elsif token == "ELSE"
+        unless structures[-1] == "IF"
+          raise CompileStateError, "ELSE requires an unmatched direct IF"
+        end
+        structures[-1] = "IF-ELSE"
+      elsif token == "THEN"
+        unless ["IF", "IF-ELSE"].include?(structures[-1])
+          raise CompileStateError, "THEN requires an unmatched direct IF"
+        end
+        structures.pop
+      elsif token == "WHILE"
+        unless structures[-1] == "BEGIN"
+          raise CompileStateError, "WHILE requires an unmatched direct BEGIN"
+        end
+        structures[-1] = "BEGIN-WHILE"
+      elsif ["UNTIL", "AGAIN"].include?(token)
+        unless structures[-1] == "BEGIN"
+          raise CompileStateError, "#{token} requires an unmatched direct BEGIN"
+        end
+        structures.pop
+      elsif token == "REPEAT"
+        unless structures[-1] == "BEGIN-WHILE"
+          raise CompileStateError, "REPEAT requires matching direct BEGIN and WHILE"
+        end
+        structures.pop
+      elsif ["LOOP", "+LOOP"].include?(token)
+        unless ["DO", "?DO"].include?(structures[-1])
+          raise CompileStateError, "#{token} requires an unmatched direct DO or ?DO"
+        end
+        structures.pop
+      elsif token == "NEXT"
+        unless structures[-1] == "FOR"
+          raise CompileStateError, "NEXT requires an unmatched direct FOR"
+        end
+        structures.pop
+      end
+    end
+
+    def direct_expected_closer(structure)
+      {
+        "IF" => "THEN",
+        "IF-ELSE" => "THEN",
+        "BEGIN" => "UNTIL, AGAIN, or WHILE ... REPEAT",
+        "BEGIN-WHILE" => "REPEAT",
+        "DO" => "LOOP or +LOOP",
+        "?DO" => "LOOP or +LOOP",
+        "FOR" => "NEXT"
+      }.fetch(structure)
+    end
+
+    def abort_direct_control
+      collection = @direct_control
+      unless collection.nil?
+        vm.data_stack.replace(collection.data_before)
+        vm.loop_stack.replace(collection.loops_before)
+      end
+      @direct_control = nil
+      @state = STATE_INTERPRET
+    end
+
+    def parse_direct_program(tokens)
+      nodes, index, terminator = parse_direct_sequence(tokens, 0, [])
+      if !terminator.nil? || index != tokens.length
+        raise CompileStateError, "unexpected direct-control terminator"
+      end
+      nodes
+    end
+
+    def parse_direct_sequence(tokens, start, stops)
+      nodes = []
+      index = start
+      while index < tokens.length
+        token = tokens[index]
+        return [nodes, index + 1, token] if token.is_a?(String) && stops.include?(token)
+        if token.is_a?(String) && DIRECT_CONTROL_CLOSERS.include?(token)
+          raise CompileStateError, "unexpected #{token} in direct control structure"
+        end
+        if token == "IF"
+          body, index, closer = parse_direct_sequence(tokens, index + 1, ["ELSE", "THEN"])
+          alternate = []
+          if closer == "ELSE"
+            alternate, index, closer = parse_direct_sequence(tokens, index, ["THEN"])
+          end
+          nodes << DirectNode.new(kind: "IF", body: body, alternate: alternate)
+          next
+        elsif token == "BEGIN"
+          body, index, closer = parse_direct_sequence(
+            tokens, index + 1, ["UNTIL", "AGAIN", "WHILE"]
+          )
+          alternate = nil
+          if closer == "WHILE"
+            alternate, index, closer = parse_direct_sequence(tokens, index, ["REPEAT"])
+          end
+          nodes << DirectNode.new(
+            kind: "BEGIN", body: body, alternate: alternate, terminator: closer
+          )
+          next
+        elsif ["DO", "?DO"].include?(token)
+          body, index, closer = parse_direct_sequence(tokens, index + 1, ["LOOP", "+LOOP"])
+          nodes << DirectNode.new(
+            kind: "DO", body: body, token: token, terminator: closer
+          )
+          next
+        elsif token == "FOR"
+          body, index, = parse_direct_sequence(tokens, index + 1, ["NEXT"])
+          nodes << DirectNode.new(kind: "FOR", body: body)
+          next
+        end
+        nodes << DirectNode.new(kind: "TOKEN", body: [], token: token)
+        index += 1
+      end
+      unless stops.empty?
+        raise CompileStateError,
+              "direct control structure is missing #{stops.sort.join(', ')}"
+      end
+      [nodes, index, nil]
+    end
+
+    def validate_direct_nodes(nodes, loop_depth = 0)
+      nodes.each do |node|
+        if node.kind == "IF" || node.kind == "BEGIN"
+          validate_direct_nodes(node.body, loop_depth)
+          validate_direct_nodes(node.alternate || [], loop_depth)
+          next
+        elsif ["DO", "FOR"].include?(node.kind)
+          validate_direct_nodes(node.body, loop_depth + 1)
+          next
+        end
+        token = node.token
+        if token.is_a?(QuotedText)
+          if token.word == 'S"'
+            raise CompileStateError, 'S" is not supported inside direct control input'
+          end
+          next
+        end
+        if token == "LEAVE"
+          if loop_depth.zero?
+            raise CompileStateError, "LEAVE requires a direct DO, ?DO, or FOR"
+          end
+          next
+        end
+        if CONTROL_WORDS.include?(token)
+          raise CompileStateError, "#{token.inspect} is not valid in direct control input"
+        end
+        if DATA_WORDS.include?(token) || [":", ";", "UNLOOP"].include?(token)
+          raise CompileStateError,
+                "#{token.inspect} is not supported inside direct control input"
+        end
+        next unless Compiler.parse_number(token).nil? && !HOST_WORDS.include?(token)
+
+        entry = dictionary.find(token)
+        raise UnknownWord, "unknown word #{token.inspect} in direct control input" if entry.nil?
+        if entry.kind == KIND_DEFINER
+          raise CompileStateError,
+                "defining word #{token.inspect} is not supported inside direct control input"
+        end
+      end
+    end
+
+    def execute_direct_nodes(nodes, budget)
+      nodes.each do |node|
+        consume_direct_budget(budget)
+        if node.kind == "IF"
+          flag = peek_data("IF")
+          vm.pop
+          execute_direct_nodes(flag.zero? ? node.alternate || [] : node.body, budget)
+        elsif node.kind == "BEGIN"
+          run_direct_begin(node, budget)
+        elsif node.kind == "FOR"
+          count = peek_data("FOR")
+          vm.pop
+          run_direct_for(count, node.body, budget)
+        elsif node.kind == "DO"
+          if vm.data_stack.length < 2
+            raise StackUnderflow, "data stack underflow in direct #{node.token}"
+          end
+          start = vm.pop
+          limit = vm.pop
+          run_direct_do(
+            limit, start, node.body,
+            conditional: node.token == "?DO",
+            plus: node.terminator == "+LOOP",
+            budget: budget
+          )
+        elsif node.token.is_a?(QuotedText)
+          interpret_quoted_text(node.token)
+        elsif node.token == "LEAVE"
+          raise DirectLeave
+        else
+          interpret_token(node.token)
+        end
+      end
+    end
+
+    def run_direct_begin(node, budget)
+      loop do
+        consume_direct_budget(budget)
+        execute_direct_nodes(node.body, budget)
+        if node.terminator == "UNTIL"
+          flag = peek_data("UNTIL")
+          vm.pop
+          return unless flag.zero?
+        elsif node.terminator == "AGAIN"
+          next
+        else
+          flag = peek_data("WHILE")
+          vm.pop
+          return if flag.zero?
+
+          execute_direct_nodes(node.alternate || [], budget)
+        end
+      end
+    end
+
+    def run_direct_for(count, nodes, budget)
+      return if count.zero?
+
+      require_direct_loop_capacity
+      loop_depth = vm.loop_stack.length
+      frame = LoopFrame.new(Min0CoreForth.cell(count), 0)
+      vm.loop_stack << frame
+      begin
+        count.times do |index|
+          consume_direct_budget(budget)
+          frame.index = Min0CoreForth.cell(index)
+          begin
+            execute_direct_nodes(nodes, budget)
+          rescue DirectLeave
+            return
+          end
+          require_unchanged_direct_loop(loop_depth, frame)
+        end
+      ensure
+        vm.loop_stack.slice!(loop_depth..)
+      end
+    end
+
+    def run_direct_do(limit, start, nodes, conditional:, plus:, budget:)
+      return if conditional && start == limit
+
+      require_direct_loop_capacity
+      loop_depth = vm.loop_stack.length
+      frame = LoopFrame.new(Min0CoreForth.cell(limit), Min0CoreForth.cell(start))
+      vm.loop_stack << frame
+      begin
+        loop do
+          consume_direct_budget(budget)
+          begin
+            execute_direct_nodes(nodes, budget)
+          rescue DirectLeave
+            return
+          end
+          require_unchanged_direct_loop(loop_depth, frame)
+          if plus
+            increment = Min0CoreForth.signed(peek_data("+LOOP"))
+            vm.pop
+            old_delta = Min0CoreForth.signed(frame.index - frame.limit)
+            frame.index = Min0CoreForth.cell(frame.index + increment)
+            new_delta = Min0CoreForth.signed(frame.index - frame.limit)
+            crossed = (increment.positive? && old_delta.negative? && new_delta >= 0) ||
+                      (increment.negative? && old_delta.positive? && new_delta <= 0)
+            return if crossed
+          else
+            frame.index = Min0CoreForth.cell(frame.index + 1)
+            return if frame.index == frame.limit
+          end
+        end
+      ensure
+        vm.loop_stack.slice!(loop_depth..)
+      end
+    end
+
+    def require_direct_loop_capacity
+      if vm.loop_stack.length >= vm.max_loop_depth
+        raise LoopStackOverflow,
+              "loop stack limit #{vm.max_loop_depth} frame(s) exceeded"
+      end
+    end
+
+    def require_unchanged_direct_loop(loop_depth, frame)
+      return if vm.loop_stack.length == loop_depth + 1 && vm.loop_stack[loop_depth].equal?(frame)
+
+      raise CompileStateError, "direct body changed its active loop frame"
+    end
+
+    def consume_direct_budget(budget)
+      unless budget[0].positive?
+        raise CompileStateError, "direct control execution limit exceeded"
+      end
+
+      budget[0] -= 1
+    end
+
     def interpret_defer_word(token, name)
       if token == "DEFER"
         validate_data_name(name)
@@ -318,17 +754,13 @@ module Min0CoreForth
 
     def interpret_token(token)
       if token == "."
-        value = peek_data(".")
-        output << Min0CoreForth.signed(value).to_s
-        vm.pop
+        service_dot
         return
       elsif token == "EMIT"
-        value = peek_data("EMIT")
-        output << (value & 0xFF).chr(Encoding::UTF_8)
-        vm.pop
+        service_emit
         return
       elsif token == "CR"
-        output << "\n"
+        service_cr
         return
       elsif token == "TYPE"
         service_type
@@ -472,6 +904,22 @@ module Min0CoreForth
       vm.data_stack.slice!(-2, 2)
     end
 
+    def service_emit
+      value = peek_data("EMIT")
+      output << (value & 0xFF).chr(Encoding::UTF_8)
+      vm.pop
+    end
+
+    def service_dot
+      value = peek_data(".")
+      output << Min0CoreForth.signed(value).to_s
+      vm.pop
+    end
+
+    def service_cr
+      output << "\n"
+    end
+
     def encode_quoted_text(token)
       unless token.text.codepoints.all? { |codepoint| codepoint <= 0xFF }
         raise CompileStateError,
@@ -607,6 +1055,23 @@ module Min0CoreForth
           return
         end
       end
+      if token == "TYPE"
+        emit_opcode(Op::SERVICE)
+        emit_cell(TERMINAL_TYPE_SERVICE_ID)
+        return
+      elsif token == "EMIT"
+        emit_opcode(Op::SERVICE)
+        emit_cell(TERMINAL_EMIT_SERVICE_ID)
+        return
+      elsif token == "."
+        emit_opcode(Op::SERVICE)
+        emit_cell(TERMINAL_DOT_SERVICE_ID)
+        return
+      elsif token == "CR"
+        emit_opcode(Op::SERVICE)
+        emit_cell(TERMINAL_CR_SERVICE_ID)
+        return
+      end
       raise CompileStateError, "#{token.inspect} is interpret-only in v0.1" if DATA_WORDS.include?(token)
 
       if token == "IF"
@@ -644,6 +1109,12 @@ module Min0CoreForth
         return
       elsif token == "+LOOP"
         compile_loop(plus: true)
+        return
+      elsif token == "FOR"
+        compile_for
+        return
+      elsif token == "NEXT"
+        compile_next
         return
       elsif token == "LEAVE"
         compile_leave
@@ -820,9 +1291,31 @@ module Min0CoreForth
       exit_patches.each { |patch_address| vm.write_cell(patch_address, code_here) }
     end
 
+    def compile_for
+      emit_opcode(Op::LIT)
+      emit_cell(0)
+      emit_opcode(Op::QDO)
+      exit_patch = code_here
+      emit_reference(0, TARGET_CODE, "for-exit")
+      control_stack << ["FOR", code_here, [exit_patch]]
+    end
+
+    def compile_next
+      unless !control_stack.empty? && control_stack.last.first == "FOR"
+        raise CompileStateError, "NEXT requires an unmatched FOR"
+      end
+
+      _kind, loop_address, exit_patches = control_stack.pop
+      emit_opcode(Op::LOOP)
+      emit_reference(loop_address, TARGET_CODE, "next")
+      exit_patches.each { |patch_address| vm.write_cell(patch_address, code_here) }
+    end
+
     def compile_leave
-      mark = control_stack.reverse.find { |item| item.first == "DO" }
-      raise CompileStateError, "LEAVE requires an unmatched DO or ?DO" if mark.nil?
+      mark = control_stack.reverse.find { |item| ["DO", "FOR"].include?(item.first) }
+      if mark.nil?
+        raise CompileStateError, "LEAVE requires an unmatched DO, ?DO, or FOR"
+      end
 
       emit_opcode(Op::LEAVE)
       patch_address = code_here
