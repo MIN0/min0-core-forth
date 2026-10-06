@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -136,12 +137,18 @@ class LiveViewerHandler(BaseHTTPRequestHandler):
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the localhost MIN0 Live Viewer")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument(
+        "--no-open", action="store_true", help="do not open the default browser"
+    )
     args = parser.parse_args(argv)
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535")
     server = HTTPServer(("127.0.0.1", args.port), LiveViewerHandler)
-    print(f"MIN0 Live Viewer: http://127.0.0.1:{args.port}/")
+    url = f"http://127.0.0.1:{args.port}/"
+    print(f"MIN0 Live Viewer: {url}")
     print("Localhost only. Press Ctrl+C to stop.")
+    if not args.no_open:
+        webbrowser.open(url)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

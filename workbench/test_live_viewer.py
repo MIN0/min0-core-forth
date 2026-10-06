@@ -29,6 +29,8 @@ class LiveViewerTests(unittest.TestCase):
         html = (ROOT / "viewer" / "live-viewer.html").read_text(encoding="utf-8")
         self.assertNotIn("innerHTML", html)
         self.assertIn("textContent", html)
+        self.assertIn("location.protocol === 'file:'", html)
+        self.assertIn("HTMLは直接開かず", html)
 
     def test_rejects_oversized_source(self) -> None:
         with self.assertRaises(ValueError):

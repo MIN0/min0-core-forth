@@ -56,6 +56,12 @@
     const errorBox = document.getElementById('error');
     const errorText = document.getElementById('errorText');
     const shown = value => JSON.stringify(value);
+    if (location.protocol === 'file:') {
+      errorBox.hidden = false;
+      errorText.textContent = 'このHTMLは直接開かず、PowerShellで python tools/run_live_viewer.py を起動してください。正しい http://127.0.0.1:8765/ が自動的に開きます。';
+      run.disabled = true;
+      run.title = 'localhostサーバーから開く必要があります';
+    }
     function cell(text) { const td = document.createElement('td'); td.textContent = text; return td; }
     function render(result) {
       terminal.textContent = result.terminal || '（出力なし）';
@@ -70,6 +76,7 @@
       errorText.textContent = result.error ? `${result.error.name}: ${result.error.message}` : '';
     }
     run.addEventListener('click', async () => {
+      if (location.protocol === 'file:') return;
       run.disabled = true; errorBox.hidden = true;
       try {
         const response = await fetch('/api/run', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({source: source.value})});

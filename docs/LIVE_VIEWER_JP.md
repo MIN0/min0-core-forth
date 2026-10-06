@@ -14,11 +14,16 @@ Live Viewerは、入力したFORTH sourceをPython参照実装の新しいVMで�
 python tools/run_live_viewer.py
 ```
 
-ブラウザーで次を開く。
+既定ブラウザーで次のURLが自動的に開く。
 
 ```text
 http://127.0.0.1:8765/
 ```
+
+`viewer/live-viewer.html`をfileとして直接開いてもFORTHは実行できない。実行APIは
+上記localhost serverが提供するため、address欄が`file:///...`ではなく
+`http://127.0.0.1:8765/`であることを確認する。ブラウザーを自動で開きたくない場合は
+`python tools/run_live_viewer.py --no-open`とする。
 
 終了は起動したterminalで`Ctrl+C`を押す。portを変える場合は、例えば
 `python tools/run_live_viewer.py --port 9000`とする。
