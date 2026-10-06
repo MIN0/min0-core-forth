@@ -21,7 +21,19 @@ module Min0CoreForth
     "HERE", ",", "C,", "ALLOT", "ALIGN", "CONSTANT", "VARIABLE", "CREATE",
     "DEFER", "'", "IS", "ACTION-OF"
   ].freeze
-  HOST_WORDS = [".", "EMIT", "CR", "TYPE", "WORDS", 'S"', '."'].freeze
+  HOST_WORDS = [".", ".S", "EMIT", "CR", "TYPE", "WORDS", 'S"', '."'].freeze
+  CORE_DERIVED_SOURCE = <<~FORTH.freeze
+    : 2DUP OVER OVER ;
+    : 2DROP DROP DROP ;
+    : NEGATE 0 SWAP - ;
+    : ABS DUP 0 < IF NEGATE THEN ;
+    : 1+ 1 + ;
+    : 1- 1 - ;
+    : 0= 0 = ;
+    : / /MOD SWAP DROP ;
+    : MOD /MOD DROP ;
+  FORTH
+  CORE_DERIVED_WORDS = %w[2DUP 2DROP NEGATE ABS 1+ 1- 0= / MOD].freeze
   WORD_LIST_STARTUP_WORDS = (
     [":", ";"] + CONTROL_WORDS + DATA_WORDS + HOST_WORDS
   ).uniq.freeze
@@ -59,7 +71,9 @@ module Min0CoreForth
               "standard-build profile requires a build VM with DEFER store enabled"
       end
       @source_profile = source_profile
-      primitive_opcodes = PRIMITIVES.values.uniq.sort
+      primitive_opcodes = dictionary.entries(include_hidden: false)
+                                    .select { |entry| entry.kind == KIND_PRIMITIVE }
+                                    .map(&:payload).uniq.sort
       if (primitive_opcodes & Op::OPERAND_OPS).any?
         raise OuterInterpreterError,
               "fixed primitive dispatch only supports operand-free opcodes"
@@ -106,6 +120,11 @@ module Min0CoreForth
 
     def terminal_text
       output.join
+    end
+
+    def mark_current_words_as_startup
+      @startup_dictionary_entries = dictionary.entries(include_hidden: false)
+                                              .map(&:header_address).to_h { |address| [address, true] }
     end
 
     def execution_extra_entries
@@ -321,6 +340,10 @@ module Min0CoreForth
         value = peek_data(".")
         output << Min0CoreForth.signed(value).to_s
         vm.pop
+        return
+      elsif token == ".S"
+        values = vm.data_stack.map { |value| Min0CoreForth.signed(value) }.join(" ")
+        output << "<#{vm.data_stack.length}>#{values.empty? ? '' : " #{values}"}"
         return
       elsif token == "EMIT"
         value = peek_data("EMIT")
@@ -1016,7 +1039,20 @@ module Min0CoreForth
     end
   end
 
-  def self.install_core_primitives(dictionary)
-    PRIMITIVES.each { |name, opcode| dictionary.add_primitive(name, opcode) }
+  def self.install_core_primitives(dictionary, extended: false)
+    primitives = extended ? BASE_PRIMITIVES.merge(EXTENDED_PRIMITIVES) : BASE_PRIMITIVES
+    primitives.each { |name, opcode| dictionary.add_primitive(name, opcode) }
+  end
+
+  def self.install_core_vocabulary(outer)
+    unless outer.dictionary.find("2DUP").nil?
+      raise OuterInterpreterError, "derived CORE vocabulary is already installed"
+    end
+    missing = EXTENDED_PRIMITIVES.keys.select { |name| outer.dictionary.find(name).nil? }
+    unless missing.empty?
+      raise OuterInterpreterError, "extended CORE primitives are missing: #{missing.join(', ')}"
+    end
+    outer.interpret(CORE_DERIVED_SOURCE)
+    outer.mark_current_words_as_startup
   end
 end

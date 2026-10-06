@@ -64,6 +64,14 @@ class StepLimitExceeded(VMError):
     pass
 
 
+class DivisionByZero(VMError):
+    pass
+
+
+class DivisionOverflow(VMError):
+    pass
+
+
 class UnassignedDefer(VMError):
     pass
 
@@ -511,6 +519,9 @@ class Op(IntEnum):
     ICALL = 0x24
     DSET = 0x25
     SERVICE = 0x26
+    ROT = 0x27
+    DEPTH = 0x28
+    DIVMOD = 0x29
 
 
 def cell(value: int) -> int:
@@ -828,6 +839,33 @@ class Min0CoreForthVM:
         if op is Op.OVER:
             self._require_data(2)
             self.push(self.data_stack[-2])
+            return
+        if op is Op.ROT:
+            self._require_data(3)
+            first = self.data_stack[-3]
+            self.data_stack[-3] = self.data_stack[-2]
+            self.data_stack[-2] = self.data_stack[-1]
+            self.data_stack[-1] = first
+            return
+        if op is Op.DEPTH:
+            self.push(len(self.data_stack))
+            return
+        if op is Op.DIVMOD:
+            self._require_data(2)
+            dividend = signed(self.data_stack[-2])
+            divisor = signed(self.data_stack[-1])
+            if divisor == 0:
+                raise DivisionByZero("division by zero in /MOD")
+            if dividend == -(1 << (CELL_BITS - 1)) and divisor == -1:
+                raise DivisionOverflow("signed division overflow in /MOD")
+            quotient = abs(dividend) // abs(divisor)
+            if (dividend < 0) != (divisor < 0):
+                quotient = -quotient
+            remainder = dividend - quotient * divisor
+            self.pop()
+            self.pop()
+            self.push(remainder)
+            self.push(quotient)
             return
 
         if op in (Op.ADD, Op.SUB, Op.MUL, Op.AND, Op.OR, Op.XOR, Op.LESS, Op.EQUAL):

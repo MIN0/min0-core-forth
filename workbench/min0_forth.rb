@@ -9,8 +9,10 @@ MIN0_FORTH_BANNER = "MIN0 CORE FORTH #{MIN0_FORTH_VERSION} - educational and exp
 def make_min0_host
   vm = Min0CoreForth::VM.new
   dictionary = Min0CoreForth::RuntimeDictionary.new(vm)
-  Min0CoreForth.install_core_primitives(dictionary)
-  Min0CoreForth::OuterInterpreter.new(vm, dictionary)
+  Min0CoreForth.install_core_primitives(dictionary, extended: true)
+  outer = Min0CoreForth::OuterInterpreter.new(vm, dictionary)
+  Min0CoreForth.install_core_vocabulary(outer)
+  outer
 end
 
 def write_new_min0_output(outer, start)

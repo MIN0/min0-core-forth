@@ -2,7 +2,7 @@
 
 [英語版はこちらです](WORD_REFERENCE.md)
 
-これはリリース0.1.2の`WORDS`が表示する起動時ワード61個の短いマニュアルです。端末の横に置いて
+これは次期リリース候補の`WORDS`が表示する起動時ワード74個の短いマニュアルです。端末の横に置いて
 使うことを想定しています。詳しい設計理由と制限は、各仕様書に残しています。
 
 ## 最初にここを見る：何ができるのか
@@ -58,9 +58,21 @@ USE-ACTION          \ 20を残す。USE-ACTIONは再compileしていない
 | `DUP` | `( x -- x x )` | 解釈／compile | 最上段を複製します。 |
 | `SWAP` | `( x1 x2 -- x2 x1 )` | 解釈／compile | 上の二つを交換します。 |
 | `OVER` | `( x1 x2 -- x1 x2 x1 )` | 解釈／compile | 二番目を最上段へ複写します。 |
+| `ROT` | `( x1 x2 x3 -- x2 x3 x1 )` | 解釈／compile | 三番目を最上段へ移します。 |
+| `2DUP` | `( x1 x2 -- x1 x2 x1 x2 )` | 解釈／compile | 最上段の二つを複製します。 |
+| `2DROP` | `( x1 x2 -- )` | 解釈／compile | 最上段の二つを捨てます。 |
+| `DEPTH` | `( -- u )` | 解釈／compile | 現在のDATA stackの深さを積みます。 |
 | `+` | `( x1 x2 -- sum )` | 解釈／compile | 32ビットcellとして加算します。 |
 | `-` | `( x1 x2 -- difference )` | 解釈／compile | `x1-x2`を計算します。 |
 | `*` | `( x1 x2 -- product )` | 解釈／compile | 32ビットcellとして乗算します。 |
+| `/MOD` | `( n1 n2 -- rem quot )` | 解釈／compile | 0方向へ丸める符号付き除算を行います。 |
+| `/` | `( n1 n2 -- quot )` | 解釈／compile | 0方向へ丸めた符号付き商を残します。 |
+| `MOD` | `( n1 n2 -- rem )` | 解釈／compile | 被除数と同符号の余りを残します。 |
+| `NEGATE` | `( n -- -n )` | 解釈／compile | 32ビットcellとして符号を反転します。 |
+| `ABS` | `( n -- u )` | 解釈／compile | 32ビットcellとして絶対値を返します。 |
+| `1+` | `( n -- n+1 )` | 解釈／compile | 1を加えます。 |
+| `1-` | `( n -- n-1 )` | 解釈／compile | 1を引きます。 |
+| `0=` | `( x -- flag )` | 解釈／compile | cellが0か調べます。 |
 | `AND` | `( x1 x2 -- x3 )` | 解釈／compile | bit単位ANDです。 |
 | `OR` | `( x1 x2 -- x3 )` | 解釈／compile | bit単位ORです。 |
 | `XOR` | `( x1 x2 -- x3 )` | 解釈／compile | bit単位排他的ORです。 |
@@ -144,6 +156,7 @@ errorになります。
 | ワード | stack effect | 使用場所 | 意味 |
 | --- | --- | --- | --- |
 | `.` | `( n -- )` | 解釈 | 符号付き10進数を表示し、`n`を取り除きます。 |
+| `.S` | `( -- )` | 解釈 | stackを変えず、深さと符号付き内容を表示します。 |
 | `EMIT` | `( x -- )` | 解釈 | 下位1 byteを一文字として出力します。 |
 | `CR` | `( -- )` | 解釈 | 論理的な改行を一つ出力します。 |
 | `TYPE` | `( c-addr u -- )` | 解釈 | `u` byte全体を検査して一括出力します。 |
@@ -151,7 +164,10 @@ errorになります。
 | `." text"` | `( -- )` | 解釈／compile | 引用byte列を出力し、compile時は検証済みSERVICE 1を使います。 |
 
 引用文字列は現在1文字1 byte、U+0000からU+00FFです。移植可能な表示用部分集合はASCIIです。解釈時の
-`.`、`EMIT`、`CR`、`TYPE`はhost wordであり、そのままcolon definitionへcompileできません。
+`.`、`.S`、`EMIT`、`CR`、`TYPE`はhost wordであり、そのままcolon definitionへcompileできません。
+
+`/MOD`、`/`、`MOD`は0除算を拒否します。符号付きoverflowとなる
+`-2147483648 -1 /MOD`も、入力stackを変更せず拒否します。
 
 ## 定義ワード：`CREATE`と`DOES>`
 

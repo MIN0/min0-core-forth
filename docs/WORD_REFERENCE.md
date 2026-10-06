@@ -2,7 +2,7 @@
 
 [Read this page in Japanese](WORD_REFERENCE_JP.md)
 
-This is the short manual for the 61 startup words printed by `WORDS` in release 0.1.2. It is designed
+This is the short manual for the 74 startup words printed by `WORDS` in the next release candidate. It is designed
 for use beside the terminal. Detailed rationale and implementation limits remain in the specification
 documents.
 
@@ -60,9 +60,21 @@ control path.
 | `DUP` | `( x -- x x )` | interpret/compile | Duplicate the top item. |
 | `SWAP` | `( x1 x2 -- x2 x1 )` | interpret/compile | Exchange the top two items. |
 | `OVER` | `( x1 x2 -- x1 x2 x1 )` | interpret/compile | Copy the second item to the top. |
+| `ROT` | `( x1 x2 x3 -- x2 x3 x1 )` | interpret/compile | Move the third item to the top. |
+| `2DUP` | `( x1 x2 -- x1 x2 x1 x2 )` | interpret/compile | Duplicate the top pair. |
+| `2DROP` | `( x1 x2 -- )` | interpret/compile | Remove the top pair. |
+| `DEPTH` | `( -- u )` | interpret/compile | Push the current DATA-stack depth. |
 | `+` | `( x1 x2 -- sum )` | interpret/compile | Add as one wrapping 32-bit cell. |
 | `-` | `( x1 x2 -- difference )` | interpret/compile | Calculate `x1-x2`. |
 | `*` | `( x1 x2 -- product )` | interpret/compile | Multiply as one wrapping 32-bit cell. |
+| `/MOD` | `( n1 n2 -- rem quot )` | interpret/compile | Divide signed values toward zero. |
+| `/` | `( n1 n2 -- quot )` | interpret/compile | Leave the signed quotient rounded toward zero. |
+| `MOD` | `( n1 n2 -- rem )` | interpret/compile | Leave the remainder with the dividend's sign. |
+| `NEGATE` | `( n -- -n )` | interpret/compile | Negate one wrapping 32-bit cell. |
+| `ABS` | `( n -- u )` | interpret/compile | Return the wrapping absolute value. |
+| `1+` | `( n -- n+1 )` | interpret/compile | Add one. |
+| `1-` | `( n -- n-1 )` | interpret/compile | Subtract one. |
+| `0=` | `( x -- flag )` | interpret/compile | Test whether a cell is zero. |
 | `AND` | `( x1 x2 -- x3 )` | interpret/compile | Bitwise AND. |
 | `OR` | `( x1 x2 -- x3 )` | interpret/compile | Bitwise OR. |
 | `XOR` | `( x1 x2 -- x3 )` | interpret/compile | Bitwise exclusive OR. |
@@ -146,6 +158,7 @@ The reference limit is 32 loop frames; the minimum portable guarantee is eight. 
 | Word | Stack effect | Use | Meaning |
 | --- | --- | --- | --- |
 | `.` | `( n -- )` | interpret | Print signed decimal and remove `n`. |
+| `.S` | `( -- )` | interpret | Print stack depth and signed contents without changing the stack. |
 | `EMIT` | `( x -- )` | interpret | Output the low byte as one character. |
 | `CR` | `( -- )` | interpret | Output one logical line feed. |
 | `TYPE` | `( c-addr u -- )` | interpret | Validate and output `u` bytes atomically. |
@@ -153,7 +166,10 @@ The reference limit is 32 loop frames; the minimum portable guarantee is eight. 
 | `." text"` | `( -- )` | interpret/compile | Output a quoted byte string; compiled form uses verified SERVICE 1. |
 
 Quoted text is currently one byte per character, U+0000 through U+00FF. The portable visible teaching
-subset is ASCII. Interpret-state `.`, `EMIT`, `CR`, and `TYPE` are host words and are not compiled directly.
+subset is ASCII. Interpret-state `.`, `.S`, `EMIT`, `CR`, and `TYPE` are host words and are not compiled directly.
+
+`/MOD`, `/`, and `MOD` reject division by zero. The signed overflow case
+`-2147483648 -1 /MOD` is also rejected without changing the input stack.
 
 ## Defining words: `CREATE` and `DOES>`
 

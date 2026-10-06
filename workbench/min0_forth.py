@@ -7,7 +7,11 @@ import sys
 from pathlib import Path
 
 from min0_core_forth_dictionary import RuntimeDictionary
-from min0_core_forth_outer import OuterInterpreter, install_core_primitives
+from min0_core_forth_outer import (
+    OuterInterpreter,
+    install_core_primitives,
+    install_core_vocabulary,
+)
 from min0_core_forth_vm import Min0CoreForthVM
 
 
@@ -17,11 +21,13 @@ VERSION = (PROJECT_ROOT / "VERSION").read_text(encoding="utf-8").strip()
 BANNER = f"MIN0 CORE FORTH {VERSION} - educational and experimental reference"
 
 
-def make_host() -> OuterInterpreter:
+def make_host(*, trace=None) -> OuterInterpreter:
     vm = Min0CoreForthVM()
     dictionary = RuntimeDictionary(vm)
-    install_core_primitives(dictionary)
-    return OuterInterpreter(vm, dictionary)
+    install_core_primitives(dictionary, extended=True)
+    outer = OuterInterpreter(vm, dictionary, trace=trace)
+    install_core_vocabulary(outer)
+    return outer
 
 
 def execute_source(outer: OuterInterpreter, source: str) -> None:

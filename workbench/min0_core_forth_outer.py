@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from min0_core_forth_compiler import PRIMITIVES, QuotedText, parse_number, tokenize
+from min0_core_forth_compiler import (
+    BASE_PRIMITIVES,
+    EXTENDED_PRIMITIVES,
+    PRIMITIVES,
+    QuotedText,
+    parse_number,
+    tokenize,
+)
 from min0_core_forth_dictionary import (
     CONSTRUCTOR_ACTION_ALIGN,
     CONSTRUCTOR_ACTION_ALLOT,
@@ -57,8 +64,22 @@ DATA_WORDS = frozenset(
         "CREATE", "DEFER", "'", "IS", "ACTION-OF",
     }
 )
-HOST_WORDS = frozenset({".", "EMIT", "CR", "TYPE", "WORDS", 'S"', '."'})
+HOST_WORDS = frozenset({".", ".S", "EMIT", "CR", "TYPE", "WORDS", 'S"', '."'})
 WORD_LIST_STARTUP_WORDS = frozenset({":", ";"}) | CONTROL_WORDS | DATA_WORDS | HOST_WORDS
+CORE_DERIVED_SOURCE = """
+: 2DUP OVER OVER ;
+: 2DROP DROP DROP ;
+: NEGATE 0 SWAP - ;
+: ABS DUP 0 < IF NEGATE THEN ;
+: 1+ 1 + ;
+: 1- 1 - ;
+: 0= 0 = ;
+: / /MOD SWAP DROP ;
+: MOD /MOD DROP ;
+"""
+CORE_DERIVED_WORDS = frozenset(
+    {"2DUP", "2DROP", "NEGATE", "ABS", "1+", "1-", "0=", "/", "MOD"}
+)
 WORD_LIST_USER_HEADING = (
     "--- ここから先はユーザーが : で定義したワードなどです ---"
 )
@@ -111,7 +132,15 @@ class OuterInterpreter:
                 "standard-build profile requires a build VM with DEFER store enabled"
             )
         self.source_profile = source_profile
-        primitive_opcodes = tuple(sorted({int(opcode) for opcode in PRIMITIVES.values()}))
+        primitive_opcodes = tuple(
+            sorted(
+                {
+                    int(entry.payload)
+                    for entry in dictionary.entries(include_hidden=False)
+                    if entry.kind == KIND_PRIMITIVE
+                }
+            )
+        )
         operand_opcodes = {
             int(Op.LIT), int(Op.CALL), int(Op.ICALL), int(Op.DSET),
             int(Op.BRANCH), int(Op.ZBRANCH), int(Op.LOOP), int(Op.PLOOP),
@@ -167,6 +196,14 @@ class OuterInterpreter:
         """Return the exact host-side output stream accumulated so far."""
 
         return "".join(self.output)
+
+    def mark_current_words_as_startup(self) -> None:
+        """Move the current visible dictionary boundary into the startup set."""
+
+        self._startup_dictionary_entries = frozenset(
+            entry.header_address
+            for entry in self.dictionary.entries(include_hidden=False)
+        )
 
     def execution_extra_entries(self) -> list[int]:
         """Validate and return fixed dispatch/HALT boundaries outside image CODE."""
@@ -429,6 +466,12 @@ class OuterInterpreter:
             value = self._peek_data(".")
             self.output.append(str(signed(value)))
             self.vm.pop()
+            return
+        if token == ".S":
+            values = " ".join(str(signed(value)) for value in self.vm.data_stack)
+            self.output.append(
+                f"<{len(self.vm.data_stack)}>" + (f" {values}" if values else "")
+            )
             return
         if token == "EMIT":
             value = self._peek_data("EMIT")
@@ -1322,8 +1365,28 @@ class OuterInterpreter:
         return self.vm.data_stack[-1]
 
 
-def install_core_primitives(dictionary: RuntimeDictionary) -> None:
+def install_core_primitives(
+    dictionary: RuntimeDictionary, *, extended: bool = False
+) -> None:
     """Install the v0.1 source primitive vocabulary in stable order."""
 
-    for name, opcode in PRIMITIVES.items():
+    primitives = BASE_PRIMITIVES | (EXTENDED_PRIMITIVES if extended else {})
+    for name, opcode in primitives.items():
         dictionary.add_primitive(name, opcode)
+
+
+def install_core_vocabulary(outer: OuterInterpreter) -> None:
+    """Compile the small derived startup vocabulary using existing CORE words."""
+
+    if outer.dictionary.find("2DUP") is not None:
+        raise OuterInterpreterError("derived CORE vocabulary is already installed")
+    missing = [
+        name for name in EXTENDED_PRIMITIVES
+        if outer.dictionary.find(name) is None
+    ]
+    if missing:
+        raise OuterInterpreterError(
+            "extended CORE primitives are missing: " + ", ".join(missing)
+        )
+    outer.interpret(CORE_DERIVED_SOURCE)
+    outer.mark_current_words_as_startup()

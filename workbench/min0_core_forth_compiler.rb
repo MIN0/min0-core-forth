@@ -5,7 +5,7 @@ require_relative "min0_core_forth_vm"
 module Min0CoreForth
   class CompileError < StandardError; end
 
-  PRIMITIVES = {
+  BASE_PRIMITIVES = {
     "NOP" => Op::NOP,
     "@" => Op::FETCH,
     "!" => Op::STORE,
@@ -32,6 +32,12 @@ module Min0CoreForth
     "CHAR+" => Op::CHAR_PLUS,
     "CHARS" => Op::CHARS
   }.freeze
+  EXTENDED_PRIMITIVES = {
+    "ROT" => Op::ROT,
+    "DEPTH" => Op::DEPTH,
+    "/MOD" => Op::DIVMOD
+  }.freeze
+  PRIMITIVES = BASE_PRIMITIVES.merge(EXTENDED_PRIMITIVES).freeze
 
   Definition = Data.define(:name, :body)
   ParsedSource = Data.define(:definitions, :main)

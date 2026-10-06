@@ -8,7 +8,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 JAPANESE = re.compile(r"[\u3040-\u30ff\u3400-\u9fff]")
 sys.path.insert(0, str(PROJECT_ROOT / "workbench"))
 
-from min0_core_forth_outer import PRIMITIVES, WORD_LIST_STARTUP_WORDS
+from min0_core_forth_outer import CORE_DERIVED_WORDS, PRIMITIVES, WORD_LIST_STARTUP_WORDS
 
 
 def reference_table_words(path: Path) -> set[str]:
@@ -99,8 +99,8 @@ class DocumentationLanguageTests(unittest.TestCase):
                     self.assertTrue((PROJECT_ROOT / target).is_file())
 
     def test_pocket_references_cover_exact_startup_vocabulary(self) -> None:
-        expected = set(WORD_LIST_STARTUP_WORDS) | set(PRIMITIVES)
-        self.assertEqual(len(expected), 61)
+        expected = set(WORD_LIST_STARTUP_WORDS) | set(PRIMITIVES) | set(CORE_DERIVED_WORDS)
+        self.assertEqual(len(expected), 74)
         for relative in ("docs/WORD_REFERENCE.md", "docs/WORD_REFERENCE_JP.md"):
             with self.subTest(relative=relative):
                 self.assertEqual(reference_table_words(PROJECT_ROOT / relative), expected)

@@ -52,6 +52,9 @@ module Min0CoreForth
     ICALL = 0x24
     DSET = 0x25
     SERVICE = 0x26
+    ROT = 0x27
+    DEPTH = 0x28
+    DIVMOD = 0x29
 
     OPERAND_OPS = [LIT, CALL, ICALL, DSET, BRANCH, ZBRANCH, LOOP, PLOOP, QDO, LEAVE, SERVICE].freeze
     ALL = constants(false).filter_map do |name|
@@ -70,6 +73,8 @@ module Min0CoreForth
   class MemoryFault < VMError; end
   class InvalidOpcode < VMError; end
   class StepLimitExceeded < VMError; end
+  class DivisionByZero < VMError; end
+  class DivisionOverflow < VMError; end
   class UnassignedDefer < VMError; end
   class InvalidIndirectCall < VMError; end
   class DeferStoreDenied < VMError; end
@@ -677,6 +682,28 @@ module Min0CoreForth
       when Op::OVER
         require_data(2)
         push(@data_stack[-2])
+      when Op::ROT
+        require_data(3)
+        first = @data_stack[-3]
+        @data_stack[-3] = @data_stack[-2]
+        @data_stack[-2] = @data_stack[-1]
+        @data_stack[-1] = first
+      when Op::DEPTH then push(@data_stack.length)
+      when Op::DIVMOD
+        require_data(2)
+        dividend = Min0CoreForth.signed(@data_stack[-2])
+        divisor = Min0CoreForth.signed(@data_stack[-1])
+        raise DivisionByZero, "division by zero in /MOD" if divisor.zero?
+        if dividend == -(1 << (CELL_BITS - 1)) && divisor == -1
+          raise DivisionOverflow, "signed division overflow in /MOD"
+        end
+        quotient = dividend.abs / divisor.abs
+        quotient = -quotient if dividend.negative? != divisor.negative?
+        remainder = dividend - quotient * divisor
+        pop
+        pop
+        push(remainder)
+        push(quotient)
       when Op::ADD then binary { |left, right| left + right }
       when Op::SUB then binary { |left, right| left - right }
       when Op::MUL then binary { |left, right| left * right }

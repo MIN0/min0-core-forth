@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MIN0 CORE FORTH Live Viewer</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    body { margin: 0 auto; max-width: 1100px; padding: 1rem; background: #101820; color: #edf5f7; }
+    h1 { font-size: clamp(1.45rem, 4vw, 2.1rem); margin: .3rem 0; }
+    .note { color: #b7cbd0; }
+    textarea, pre { box-sizing: border-box; width: 100%; border: 1px solid #51717a; border-radius: .55rem; background: #071116; color: #f4fbfc; padding: .8rem; font: 1rem/1.5 ui-monospace, monospace; }
+    textarea { min-height: 10rem; resize: vertical; }
+    button { margin: .7rem 0; padding: .7rem 1.2rem; border: 0; border-radius: .55rem; background: #ffd166; color: #162027; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: .55; cursor: wait; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: .75rem; }
+    .card { background: #17262d; border-radius: .65rem; padding: .8rem; overflow: auto; }
+    .error { border: 2px solid #ff6b6b; }
+    table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+    th, td { padding: .5rem; text-align: left; border-bottom: 1px solid #36515a; vertical-align: top; }
+    th { position: sticky; top: 0; background: #20343c; }
+    code { white-space: nowrap; }
+    [hidden] { display: none !important; }
+    @media (max-width: 650px) { body { padding: .65rem; } table { font-size: .8rem; } th, td { padding: .35rem; } }
+  </style>
+</head>
+<body>
+  <h1>MIN0 CORE FORTH Live Viewer</h1>
+  <p class="note">このPC内だけで実行します。実行ごとに新しいVMを使用し、入力は4096 UTF-8バイトまでです。</p>
+  <label for="source">FORTHソース</label>
+  <textarea id="source" spellcheck="false">: SQUARE DUP * ;
+2 3 4 * + . CR
+5 SQUARE . CR
+10 3 /MOD .S</textarea>
+  <button id="run" type="button">実行</button>
+  <section id="error" class="card error" hidden><strong>エラー</strong><pre id="errorText"></pre></section>
+  <div class="grid">
+    <section class="card"><h2>端末出力</h2><pre id="terminal">（未実行）</pre></section>
+    <section class="card"><h2>最終状態</h2><pre id="finalState">（未実行）</pre></section>
+  </div>
+  <section class="card">
+    <h2>ワードごとのスタック遷移</h2>
+    <div style="overflow:auto">
+      <table>
+        <thead><tr><th>#</th><th>ワード</th><th>DATA 実行前</th><th>DATA 実行後</th><th>RETURN</th><th>LOOP</th></tr></thead>
+        <tbody id="steps"></tbody>
+      </table>
+    </div>
+  </section>
+  <script>
+    const source = document.getElementById('source');
+    const run = document.getElementById('run');
+    const terminal = document.getElementById('terminal');
+    const finalState = document.getElementById('finalState');
+    const steps = document.getElementById('steps');
+    const errorBox = document.getElementById('error');
+    const errorText = document.getElementById('errorText');
+    const shown = value => JSON.stringify(value);
+    function cell(text) { const td = document.createElement('td'); td.textContent = text; return td; }
+    function render(result) {
+      terminal.textContent = result.terminal || '（出力なし）';
+      finalState.textContent = `DATA   ${shown(result.data_stack)}\nRETURN ${shown(result.return_stack)}\nLOOP   ${shown(result.loop_stack)}\nVM steps: ${result.steps}`;
+      steps.replaceChildren();
+      for (const word of result.words) {
+        const row = document.createElement('tr');
+        row.append(cell(String(word.sequence)), cell([word.token, ...word.operands].join(' ')), cell(shown(word.data_before)), cell(shown(word.data_after)), cell(shown(word.return_stack)), cell(shown(word.loop_stack)));
+        steps.append(row);
+      }
+      errorBox.hidden = !result.error;
+      errorText.textContent = result.error ? `${result.error.name}: ${result.error.message}` : '';
+    }
+    run.addEventListener('click', async () => {
+      run.disabled = true; errorBox.hidden = true;
+      try {
+        const response = await fetch('/api/run', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({source: source.value})});
+        const result = await response.json();
+        if (!response.ok) throw new Error(`${result.error?.name || 'RequestError'}: ${result.error?.message || response.status}`);
+        render(result);
+      } catch (error) {
+        errorBox.hidden = false; errorText.textContent = String(error);
+      } finally { run.disabled = false; }
+    });
+  </script>
+</body>
+</html>

@@ -11,7 +11,7 @@ class CompileError(ValueError):
     pass
 
 
-PRIMITIVES: dict[str, Op] = {
+BASE_PRIMITIVES: dict[str, Op] = {
     "NOP": Op.NOP,
     "@": Op.FETCH,
     "!": Op.STORE,
@@ -38,6 +38,12 @@ PRIMITIVES: dict[str, Op] = {
     "CHAR+": Op.CHAR_PLUS,
     "CHARS": Op.CHARS,
 }
+EXTENDED_PRIMITIVES: dict[str, Op] = {
+    "ROT": Op.ROT,
+    "DEPTH": Op.DEPTH,
+    "/MOD": Op.DIVMOD,
+}
+PRIMITIVES: dict[str, Op] = BASE_PRIMITIVES | EXTENDED_PRIMITIVES
 
 
 @dataclass(frozen=True)
