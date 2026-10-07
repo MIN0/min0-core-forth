@@ -1,6 +1,8 @@
 # MIN0 CORE FORTH Mobile Learning（個人学習用試作版）
 
-`viewer/mobile-forth.html` は、iPhoneなどのブラウザ内だけでFORTHソースを編集・実行するための、1ファイル完結型教材です。通信、PC上のserver、外部ライブラリは使いません。
+`viewer/mobile-forth.html` は、ブラウザ内だけでFORTHソースを編集・実行するための、1ファイル完結型教材です。外部ライブラリは使いません。
+
+重要：iPhoneの「ファイル」プレビューはHTMLを表示してもJavaScriptを停止するため、入力欄は見えても実行ボタンは動きません。iPhoneではHTTPSへ配置したWebアプリ版をSafariで開きます。
 
 ## 位置づけ
 
@@ -25,18 +27,20 @@
 
 ## iPhoneでの使用
 
-1. iPhone用ZIPを「ファイル」アプリへ保存して展開します。
-2. `MIN0_FORTH_MOBILE.html`をタップして開きます。
-3. 例題を選ぶか、ソース欄へFORTHを書きます。
-4. 「実行」を押し、端末出力、最終スタック、スタック遷移を確認します。
-5. 「端末に保存」で下書きを保存します。保存できない表示環境では、ソースを長押ししてコピーしてください。
+1. `tools/build_mobile_pwa.py`で作ったWebアプリZIPの内容をHTTPSの静的Webサーバーへ配置します。
+2. iPhoneのSafariで配置先URLを開きます。
+3. 例題を選ぶか、ソース欄へFORTHを書いて「実行」を押します。
+4. 共有メニューから「ホーム画面に追加」を選び、「Webアプリとして開く」を有効にします。
+5. 初回読込み後は必要ファイルがiPhoneへ保存され、オフラインでも起動できます。
+6. 「端末に保存」で下書きをiPhone内へ保存します。
 
-iOSの「ファイル」プレビューがJavaScriptを止める場合は、共有メニューからSafariなどJavaScriptを実行できる表示先を選びます。HTML自体はオフラインで動作し、外部へ通信しません。
+FORTHソースは外部へ送信せず、ブラウザの`localStorage`へ保存します。Webアプリは更新確認以外の外部API通信を行いません。
 
 ## PC上での再生成と試験
 
 ```powershell
 python tools/build_mobile_forth.py
+python tools/build_mobile_pwa.py --output "出力先\min0-forth-mobile-pwa.zip"
 node workbench/test_mobile_forth.js
-python -m unittest workbench.test_mobile_forth -v
+python -m unittest workbench.test_mobile_forth workbench.test_mobile_pwa -v
 ```
