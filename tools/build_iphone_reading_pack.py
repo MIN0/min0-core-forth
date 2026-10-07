@@ -7,7 +7,6 @@ import hashlib
 import html
 import json
 import subprocess
-import tempfile
 import zipfile
 from pathlib import Path
 
@@ -145,13 +144,12 @@ Git履歴、秘密情報、build生成物、個人pathは収録していませ�
     files["SHA256SUMS.txt"] = checksums.encode("ascii")
 
     output.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory() as _temporary:
-        with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-            for name, data in sorted(files.items()):
-                info = zipfile.ZipInfo(name, FIXED_ZIP_TIME)
-                info.compress_type = zipfile.ZIP_DEFLATED
-                info.external_attr = 0o100644 << 16
-                archive.writestr(info, data)
+    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, data in sorted(files.items()):
+            info = zipfile.ZipInfo(name, FIXED_ZIP_TIME)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o100644 << 16
+            archive.writestr(info, data)
 
     result = {
         "output": str(output),
