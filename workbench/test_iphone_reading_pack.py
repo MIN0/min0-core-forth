@@ -41,6 +41,7 @@ class IPhoneReadingPackTests(unittest.TestCase):
                 self.assertNotIn(personal_uri_marker, combined)
                 mobile = archive.read("MIN0_FORTH_MOBILE.html")
                 self.assertIn(b"class MobileForth", mobile)
+                self.assertIn(b"test-revision", mobile)
                 self.assertNotIn(b"fetch(", mobile)
             self.assertEqual(result["file_count"], len(names))
 

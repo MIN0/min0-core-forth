@@ -94,6 +94,18 @@ a{{color:#ffd166}} code{{font-family:ui-monospace,monospace}}
 </body></html>"""
 
 
+def _mobile_html(revision: str, root: Path = ROOT) -> bytes:
+    template = _read("viewer/mobile-forth-template.html", root)
+    core = _read("viewer/mobile-forth-core.js", root)
+    core_marker = "/*__MIN0_MOBILE_CORE__*/"
+    revision_marker = "__MIN0_REVISION__"
+    if template.count(core_marker) != 1 or template.count(revision_marker) != 1:
+        raise ValueError("mobile template markers are missing or duplicated")
+    return template.replace(core_marker, core).replace(
+        revision_marker, revision
+    ).encode("utf-8")
+
+
 def build_pack(output: Path, *, root: Path = ROOT, revision: str | None = None) -> dict:
     revision = revision or current_revision(root)
     version = _read("VERSION", root).strip()
@@ -114,7 +126,7 @@ def build_pack(output: Path, *, root: Path = ROOT, revision: str | None = None) 
         revision, reader_documents
     ).encode("utf-8")
     files["guided-viewer.html"] = (root / "viewer/value-trace.html").read_bytes()
-    files["MIN0_FORTH_MOBILE.html"] = (root / "viewer/mobile-forth.html").read_bytes()
+    files["MIN0_FORTH_MOBILE.html"] = _mobile_html(revision, root)
     start_text = f"""MIN0 CORE FORTH iPhone閲覧パック
 
 開発候補commit: {revision}
