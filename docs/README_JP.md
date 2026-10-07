@@ -6,6 +6,7 @@
 
 - [ワード・ポケットリファレンス―次期候補の起動時全74ワード](WORD_REFERENCE_JP.md)
 - [localhost Live Viewerの起動と安全境界](LIVE_VIEWER_JP.md)
+- [iPhone用オフライン閲覧パック](IPHONE_READING_PACK_JP.md)
 - [FORTHの設計と学習のための参考資料](REFERENCES_JP.md)
 - [Quick Start](QUICKSTART_JP.md)
 - [プロジェクトの由来](PROJECT_ORIGIN_JP.md)

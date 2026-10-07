@@ -6,6 +6,7 @@
 
 - [Pocket word reference — all 74 next-candidate startup words](WORD_REFERENCE.md)
 - [localhost Live Viewer setup and safety boundary (Japanese)](LIVE_VIEWER_JP.md)
+- [iPhone offline reading pack (Japanese)](IPHONE_READING_PACK_JP.md)
 - [FORTH design and learning references](REFERENCES.md)
 - [Quick Start](QUICKSTART.md)
 - [Project origin](PROJECT_ORIGIN.md)
