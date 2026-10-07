@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>MIN0 CORE FORTH Mobile Learning</title>
+  <style>
+    :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif; --bg:#091319; --panel:#12232b; --line:#31505b; --text:#edf7f8; --muted:#a9c0c7; --accent:#ffd166; --ok:#67d391; --bad:#ff7474; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); line-height:1.5; padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+    main { max-width:900px; margin:auto; padding:16px; }
+    h1 { margin:.2rem 0; font-size:clamp(1.55rem,6vw,2.25rem); line-height:1.15; }
+    h2 { font-size:1.15rem; margin:0 0 10px; }
+    p { margin:.45rem 0; }
+    .meta,.hint { color:var(--muted); font-size:.91rem; }
+    .notice { border-left:4px solid var(--accent); padding:9px 12px; background:#2a291d; border-radius:6px; margin:12px 0; }
+    .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; margin:12px 0; }
+    label { display:block; font-weight:700; margin-bottom:6px; }
+    textarea { width:100%; min-height:250px; resize:vertical; border:1px solid #4b6e79; border-radius:9px; background:#071015; color:#f5fbfc; padding:12px; font:16px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace; }
+    select,button { min-height:44px; border-radius:9px; font-size:16px; }
+    select { width:100%; color:var(--text); background:#0d1c22; border:1px solid #4b6e79; padding:8px; }
+    .buttons { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:10px; }
+    button { border:1px solid #526d76; background:#203842; color:var(--text); padding:9px 12px; font-weight:700; }
+    button.primary { background:var(--accent); border-color:var(--accent); color:#1d1b12; }
+    button:active { transform:translateY(1px); }
+    pre { white-space:pre-wrap; overflow-wrap:anywhere; margin:0; min-height:2.4rem; font:15px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace; }
+    .grid { display:grid; gap:12px; }
+    .ok { color:var(--ok); } .bad { color:var(--bad); }
+    .stack { font:700 1rem/1.55 ui-monospace,SFMono-Regular,Consolas,monospace; }
+    table { width:100%; border-collapse:collapse; font-size:.84rem; }
+    th,td { text-align:left; vertical-align:top; border-bottom:1px solid var(--line); padding:7px 5px; overflow-wrap:anywhere; }
+    th { color:var(--accent); }
+    .table-wrap { overflow-x:auto; }
+    details { margin-top:12px; } summary { cursor:pointer; font-weight:700; }
+    code { color:var(--accent); }
+    @media (min-width:680px) { .grid { grid-template-columns:1fr 1fr; } .buttons { grid-template-columns:repeat(4,1fr); } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>MIN0 CORE FORTH<br>Mobile Learning</h1>
+  <p class="meta">個人学習用・オフライン試作版 / build <span id="revision">__MIN0_REVISION__</span></p>
+  <div class="notice">これは正式COREの代替ではなく、スマホ学習用の小さな互換サブセットです。各「実行」は新しいVMから始まります。</div>
+
+  <section class="panel">
+    <label for="examples">例題</label>
+    <select id="examples">
+      <option value="">選択してください</option>
+      <option value="square">ワードを定義する（SQUARE）</option>
+      <option value="branch">条件分岐（ABS2）</option>
+      <option value="loop">数え上げループ（SUM）</option>
+      <option value="begin">BEGINループ（DOWN）</option>
+      <option value="output">文字と数値を表示</option>
+    </select>
+    <label for="source" style="margin-top:10px">FORTHソース（最大4096 UTF-8バイト）</label>
+    <textarea id="source" spellcheck="false" autocapitalize="none" autocomplete="off" autocorrect="off">: SQUARE DUP * ;
+2 3 4 * + . CR
+5 SQUARE . CR
+10 3 /MOD .S</textarea>
+    <div class="buttons">
+      <button id="run" class="primary">実行</button>
+      <button id="save">端末に保存</button>
+      <button id="copy">結果をコピー</button>
+      <button id="clear">消去</button>
+    </div>
+    <p id="save-status" class="hint" aria-live="polite">ソースは、このブラウザ内だけに保存できます。</p>
+  </section>
+
+  <div class="grid">
+    <section class="panel"><h2>端末出力</h2><pre id="terminal">（未実行）</pre></section>
+    <section class="panel"><h2>最終状態</h2><p id="status">（未実行）</p><p>データスタック</p><div id="stack" class="stack">&lt;0&gt;</div><p class="hint">左が底、右がトップです。</p></section>
+  </div>
+
+  <section class="panel" id="error-panel" hidden><h2>エラー</h2><pre id="error" class="bad"></pre></section>
+  <section class="panel">
+    <h2>ワードごとのスタック遷移</h2>
+    <div class="table-wrap"><table><thead><tr><th>#</th><th>入力</th><th>実行前</th><th>実行後</th></tr></thead><tbody id="trace"><tr><td colspan="4">（未実行）</td></tr></tbody></table></div>
+  </section>
+
+  <details class="panel">
+    <summary>使えるワードと制限</summary>
+    <p><code>DROP DUP SWAP OVER ROT 2DUP 2DROP DEPTH</code></p>
+    <p><code>+ - * / MOD /MOD 1+ 1- NEGATE ABS</code></p>
+    <p><code>= &lt; 0= AND OR XOR</code></p>
+    <p><code>. .S EMIT CR ." ..." WORDS</code></p>
+    <p><code>: name ... ; IF ELSE THEN BEGIN UNTIL AGAIN WHILE REPEAT DO ?DO LOOP +LOOP LEAVE I J UNLOOP</code></p>
+    <p class="hint">32ビットcell、10進数と0x形式に対応します。メモリ語、CREATE/DOES&gt;、DEFER/IS、ファイル、通信は未対応です。無限ループは実行ステップ上限で停止します。</p>
+  </details>
+</main>
+
+<script>
+/*__MIN0_MOBILE_CORE__*/
+</script>
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const storageKey = "min0-core-forth-mobile-source-v1";
+  const examples = {
+    square: ": SQUARE DUP * ;\n7 SQUARE . CR\n5 SQUARE .S",
+    branch: ": ABS2 DUP 0 < IF NEGATE THEN ;\n-12 ABS2 .S",
+    loop: ": SUM 0 SWAP 0 DO I + LOOP ;\n10 SUM . CR",
+    begin: ": DOWN BEGIN 1- DUP . CR DUP 0= UNTIL ;\n5 DOWN DROP",
+    output: '." HELLO FROM iPHONE" CR\n65 EMIT 66 EMIT 67 EMIT CR\n-7 3 /MOD .S'
+  };
+  const formatStack = stack => `<${stack.length}>${stack.length ? " " + stack.join(" ") : ""}`;
+  function setText(node, value) { node.textContent = value; }
+  function loadDraft() {
+    try { const saved = localStorage.getItem(storageKey); if (saved !== null) $("source").value = saved; }
+    catch (_) { setText($("save-status"), "この表示方法では端末内保存を利用できません。ソースをコピーして保管してください。"); }
+  }
+  function run() {
+    const result = new Min0MobileForth.MobileForth().interpret($("source").value);
+    setText($("terminal"), result.terminal || "（出力なし）");
+    setText($("stack"), formatStack(result.dataStack));
+    setText($("status"), result.ok ? `正常終了 / ${result.steps} steps` : `停止 / ${result.steps} steps`);
+    $("status").className = result.ok ? "ok" : "bad";
+    $("error-panel").hidden = result.ok;
+    if (!result.ok) setText($("error"), `${result.error.name}: ${result.error.message}\n入力位置: ${result.error.tokenIndex}`);
+    const body = $("trace"); body.textContent = "";
+    if (!result.words.length) {
+      const row = body.insertRow(); const cell = row.insertCell(); cell.colSpan = 4; cell.textContent = "記録なし";
+    } else result.words.forEach(item => {
+      const row = body.insertRow();
+      [item.sequence, item.token, formatStack(item.dataBefore), formatStack(item.dataAfter)].forEach(value => { const cell = row.insertCell(); cell.textContent = String(value); });
+    });
+  }
+  $("run").addEventListener("click", run);
+  $("save").addEventListener("click", () => {
+    try { localStorage.setItem(storageKey, $("source").value); setText($("save-status"), "この端末内に保存しました。"); }
+    catch (_) { setText($("save-status"), "保存できませんでした。ソースをコピーして保管してください。"); }
+  });
+  $("copy").addEventListener("click", async () => {
+    const report = `SOURCE\n${$("source").value}\n\nOUTPUT\n${$("terminal").textContent}\n\nSTACK\n${$("stack").textContent}`;
+    try { await navigator.clipboard.writeText(report); setText($("save-status"), "ソース・出力・スタックをコピーしました。"); }
+    catch (_) { setText($("save-status"), "自動コピーできません。各欄を長押ししてコピーしてください。"); }
+  });
+  $("clear").addEventListener("click", () => { $("source").value = ""; $("source").focus(); });
+  $("examples").addEventListener("change", event => { if (examples[event.target.value]) $("source").value = examples[event.target.value]; });
+  loadDraft();
+})();
+</script>
+</body>
+</html>

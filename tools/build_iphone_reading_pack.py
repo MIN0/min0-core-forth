@@ -24,6 +24,7 @@ DOCUMENTS = (
     ("07_KNOWN_LIMITATIONS_JP.txt", "docs/KNOWN_LIMITATIONS_0.1_JP.md", "既知の制限"),
     ("08_LICENSE_SECURITY_JP.txt", "docs/LICENSE_AND_SECURITY_JP.md", "ライセンスと安全"),
     ("09_PROJECT_ORIGIN_JP.txt", "docs/PROJECT_ORIGIN_JP.md", "プロジェクトの由来"),
+    ("10_MOBILE_FORTH_JP.txt", "docs/MOBILE_FORTH_JP.md", "スマホ学習版の説明"),
 )
 
 EXAMPLES = (
@@ -113,19 +114,22 @@ def build_pack(output: Path, *, root: Path = ROOT, revision: str | None = None) 
         revision, reader_documents
     ).encode("utf-8")
     files["guided-viewer.html"] = (root / "viewer/value-trace.html").read_bytes()
+    files["MIN0_FORTH_MOBILE.html"] = (root / "viewer/mobile-forth.html").read_bytes()
     start_text = f"""MIN0 CORE FORTH iPhone閲覧パック
 
 開発候補commit: {revision}
 VERSION表記: {version}（正式リリースは保留中）
 
 1. ZIPをiPhoneの「ファイル」へ保存して展開します。
-2. MIN0_CORE_FORTH_READER_JP.htmlを開きます。
-3. HTML表示が利用できない場合はdocuments内の番号付きtxtを開きます。
-4. examplesは学習用FORTH、sourceはPython／Ruby主要ソースの閲覧用です。
-5. guided-viewer.htmlは静的教材ですが、iPhoneのfile previewではJavaScriptが
+2. FORTHを作成・実行する場合はMIN0_FORTH_MOBILE.htmlを開きます。
+3. 資料を読む場合はMIN0_CORE_FORTH_READER_JP.htmlを開きます。
+4. HTML表示が利用できない場合はdocuments内の番号付きtxtを開きます。
+5. examplesは学習用FORTH、sourceはPython／Ruby主要ソースの閲覧用です。
+6. guided-viewer.htmlは静的教材ですが、iPhoneのfile previewではJavaScriptが
    制限される場合があります。
 
-このパックは閲覧専用です。Live ViewerのFORTH実行にはWindows PC上のserverが必要です。
+MIN0_FORTH_MOBILE.htmlは個人学習用の互換サブセットで、PCや通信なしに実行できます。
+正式COREの全機能を動かすLive ViewerにはWindows PC上のserverが必要です。
 Git履歴、秘密情報、build生成物、個人pathは収録していません。
 """
     files["START_HERE_JP.txt"] = start_text.encode("utf-8")

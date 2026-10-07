@@ -16,8 +16,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ALLOWED_DIRECTORIES = {
     "docs": frozenset({".md"}),
     "tools": frozenset({".py"}),
-    "workbench": frozenset({".py", ".rb", ".fth", ".fcb", ".json"}),
-    "viewer": frozenset({".html"}),
+    "workbench": frozenset({".py", ".rb", ".js", ".fth", ".fcb", ".json"}),
+    "viewer": frozenset({".html", ".js"}),
 }
 EXCLUDED_PARTS = frozenset({
     ".git", "__pycache__", "document_work", "release", "release-staging",
@@ -33,7 +33,7 @@ EXPLICIT_TOP_LEVEL = frozenset({
     "LICENSE", "README.md", "README_JP.md", "SECURITY.md", "SECURITY_JP.md", "VERSION",
     "requirements.txt",
 })
-TEXT_SUFFIXES = frozenset({".py", ".rb", ".md", ".txt", ".json", ".fth", ".html"})
+TEXT_SUFFIXES = frozenset({".py", ".rb", ".js", ".md", ".txt", ".json", ".fth", ".html"})
 REQUIRED_PATHS = (
     ".gitattributes",
     ".nojekyll",
@@ -52,6 +52,7 @@ REQUIRED_PATHS = (
     "docs/WORD_REFERENCE_JP.md",
     "docs/LIVE_VIEWER_JP.md",
     "docs/IPHONE_READING_PACK_JP.md",
+    "docs/MOBILE_FORTH_JP.md",
     "docs/REFERENCES.md",
     "docs/REFERENCES_JP.md",
     "docs/README.md",
@@ -75,6 +76,7 @@ REQUIRED_PATHS = (
     "tools/release_tool.py",
     "tools/run_all_checks.py",
     "tools/build_iphone_reading_pack.py",
+    "tools/build_mobile_forth.py",
     "tools/run_live_viewer.py",
     "workbench/min0_core_forth_vm.py",
     "workbench/min0_core_forth_vm.rb",
@@ -86,6 +88,8 @@ REQUIRED_PATHS = (
     "workbench/test_ruby_vm.rb",
     "workbench/test_core_vocabulary.py",
     "workbench/test_iphone_reading_pack.py",
+    "workbench/test_mobile_forth.py",
+    "workbench/test_mobile_forth.js",
     "workbench/test_live_viewer.py",
     "workbench/test_ruby_core_vocabulary.rb",
     "workbench/cross_check.py",
@@ -95,6 +99,9 @@ REQUIRED_PATHS = (
     "workbench/test_vectors/manifest.json",
     "viewer/trace-viewer-template.html",
     "viewer/live-viewer.html",
+    "viewer/mobile-forth-core.js",
+    "viewer/mobile-forth-template.html",
+    "viewer/mobile-forth.html",
     "viewer/value-trace.html",
     "viewer/value-trace-en.html",
 )
@@ -250,6 +257,7 @@ def audit_tree(root: Path = PROJECT_ROOT) -> dict[str, object]:
         issues.extend(_scan_text(relative, text))
         if relative.as_posix() in {
         "viewer/trace-viewer-template.html", "viewer/value-trace.html",
+        "viewer/mobile-forth-template.html", "viewer/mobile-forth.html",
         }:
             for pattern in VIEWER_NETWORK_PATTERNS:
                 if pattern.search(text):

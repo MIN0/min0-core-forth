@@ -26,6 +26,7 @@ class IPhoneReadingPackTests(unittest.TestCase):
                 names = set(archive.namelist())
                 self.assertIn("START_HERE_JP.txt", names)
                 self.assertIn("MIN0_CORE_FORTH_READER_JP.html", names)
+                self.assertIn("MIN0_FORTH_MOBILE.html", names)
                 self.assertIn("guided-viewer.html", names)
                 self.assertIn("documents/04_WORD_REFERENCE_JP.txt", names)
                 self.assertIn("examples/basic.fth.txt", names)
@@ -38,6 +39,9 @@ class IPhoneReadingPackTests(unittest.TestCase):
                 personal_uri_marker = b"file:///" + b"C:/" + b"Users/"
                 self.assertNotIn(personal_path_marker, combined)
                 self.assertNotIn(personal_uri_marker, combined)
+                mobile = archive.read("MIN0_FORTH_MOBILE.html")
+                self.assertIn(b"class MobileForth", mobile)
+                self.assertNotIn(b"fetch(", mobile)
             self.assertEqual(result["file_count"], len(names))
 
     def test_reader_uses_escaped_text_without_network(self) -> None:
