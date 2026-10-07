@@ -49,7 +49,10 @@ def sha256(data: bytes) -> str:
 
 def current_revision(root: Path = ROOT) -> str:
     result = subprocess.run(
-        ["git", "rev-parse", "--short", "HEAD"],
+        [
+            "git", "-c", f"safe.directory={root.resolve().as_posix()}",
+            "rev-parse", "--short", "HEAD",
+        ],
         cwd=root,
         text=True,
         capture_output=True,
