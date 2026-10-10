@@ -96,6 +96,20 @@ min0_frame_commit
 この時点では引数設定とcallを行うout-of-line thunkをまだ生成しないため、relocation slotの`UDF`は
 維持され、fragmentは実行不可のままである。symbol addressを得ただけで安全検査済みと扱ってはならない。
 
+## Helper thunk plan R0
+
+helper relocationごとに、次の監査可能なout-of-line thunk planを生成する。
+
+1. CPU stackへ`r12, lr`の8 byteを保存する。FORTH DATA stackには触れない。
+2. `r0=r8`としてexecution contextを渡す。
+3. capability名を、呼出し側が明示した32-bit numeric IDへ変換する。未知名は拒否する。
+4. ABIに従ってbase、offset、valueを設定し、bind済みhelperを1回だけ呼ぶ。
+5. statusが非0ならCPU stack frameを8 byte戻して`min0_abort_transaction`へ進む。
+6. 成功時は必要な結果を仮想registerへ戻し、8 byteを復元して呼出し元へ戻る。
+
+CPU stackを8 byte単位にするのはhelper call中のalignmentを保つためであり、DATA stack不変規則とは
+別の層である。thunk planはまだmachine byteではないため、fragmentは実行不可のままである。
+
 ### 次段階
 
 1. helper引数を設定するout-of-line thunkを生成し、BL relocationを解決する。
