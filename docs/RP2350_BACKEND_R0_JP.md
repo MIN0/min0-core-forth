@@ -79,10 +79,28 @@ labelはbyteを生成せず、その時点のmachine offsetとしてsymbol table
 relocation解決時に範囲とconditionを検査する。仮想`CMP`の比較結果は後続命令から独立しているため、
 将来のlinkerはCMPと分岐の間でAPSRが変化する場合、比較結果を再生成しなければならない。
 
+## Relocation linker R0
+
+`LIT`から生成された`MOV_IMM32`は、末尾の4-byte aligned literal poolへ32-bit little-endian値を置き、
+予約枠を16-bitの`LDR literal`と`NOP`へ置換する。同じ32-bit値は1個のpool cellを共有する。
+PCからpoolまでが正方向、4-byte単位、Thumb 16-bit literal loadの範囲内でなければ拒否する。
+
+`CHECKED_LD32`、`STAGE_ST32`、`FRAME_COMMIT`は、それぞれ次のprivate ABI symbolへbindする。
+
+```text
+min0_checked_ld32
+min0_stage_st32
+min0_frame_commit
+```
+
+この時点では引数設定とcallを行うout-of-line thunkをまだ生成しないため、relocation slotの`UDF`は
+維持され、fragmentは実行不可のままである。symbol addressを得ただけで安全検査済みと扱ってはならない。
+
 ### 次段階
 
-1. relocation linkerでhelper call、frame操作、定数loadを解決する。
-2. 条件分岐ではvirtual comparisonの寿命を保ったままThumb branchを生成する。
-3. 生成byte列を独立disassemblerで逆解析してplanとの一致を検査する。
-4. 既存のrelocationとW^X publicationへ接続する。
-5. Pico 2 Wでは最初に生成のみを行い、その後限定されたtest CODEから実行を開始する。
+1. helper引数を設定するout-of-line thunkを生成し、BL relocationを解決する。
+2. frame load/result stage/prologue/epilogueをhelperまたは検査済みinline列へ変換する。
+3. 条件分岐ではvirtual comparisonの寿命を保ったままThumb branchを生成する。
+4. 生成byte列を独立disassemblerで逆解析してplanとの一致を検査する。
+5. 既存のrelocationとW^X publicationへ接続する。
+6. Pico 2 Wでは最初に生成のみを行い、その後限定されたtest CODEから実行を開始する。

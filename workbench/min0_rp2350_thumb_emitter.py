@@ -19,6 +19,7 @@ class MachineRelocation:
     kind: str
     opcode: str
     operands: tuple[str | int, ...]
+    symbol: str | None = None
     reserved_size: int = 4
 
 
