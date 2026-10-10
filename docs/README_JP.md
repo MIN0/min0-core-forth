@@ -9,6 +9,7 @@
 - [iPhone用オフライン閲覧パック](IPHONE_READING_PACK_JP.md)
 - [FORTHの設計と学習のための参考資料](REFERENCES_JP.md)
 - [Quick Start](QUICKSTART_JP.md)
+- [Windows開発環境でのPython／Ruby全体試験](WINDOWS_DEVELOPMENT_TEST_JP.md)
 - [プロジェクトの由来](PROJECT_ORIGIN_JP.md)
 - [ライセンスと安全性](LICENSE_AND_SECURITY_JP.md)
 - [既知の制限](KNOWN_LIMITATIONS_0.1_JP.md)
