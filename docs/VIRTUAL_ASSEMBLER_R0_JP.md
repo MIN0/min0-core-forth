@@ -42,6 +42,30 @@ CODE: SUM-XOR ( a b c -- sum mix )
 
 内部表現では`a=S2, b=S1, c=S0`と考えられるが、sourceでは名前を使用する。
 
+## 初めて読む人へ：3種類の名前
+
+次の名前は役割が異なる。
+
+1. `( address -- data io )`内の`address`、`data`、`io`は、作者が自由に付けるstack入出力名である。
+2. `V0`から`V3`は仮想assemblerが予約するregister名である。
+3. `[DATA: V1]`や`[IO: V1]`の`DATA`、`IO`は実行環境が登録するmemory capability名である。
+
+例えばstack名は次のように意味が分かる名前へ変更できる。
+
+```forth
+CODE: READ-BOTH ( pointer -- ram-value device-value )
+  IN V3, pointer
+  LD32 V0, [RAM: V3]
+  LD32 V1, [SENSOR: V3]
+  OUT ram-value, V0
+  OUT device-value, V1
+;CODE
+```
+
+stack名とcapability名は英字で始め、以後に英数字、`-`、`_`を使用できる。stack名はCODE定義内の
+対応を示す名前であり、`address`などの特別な予約語ではない。capability名は自由な綴りだが、
+実行時に同じ名前のwindowが登録されていなければアクセスを拒否する。
+
 ## R0命令
 
 仮想レジスタは`V0`から`V3`までの32-bit cellである。算術結果は32 bitに丸める。
