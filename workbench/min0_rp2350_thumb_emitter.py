@@ -72,6 +72,9 @@ def emit_thumb_fragment(plan: BackendPlan) -> MachineFragment:
                 _mov_general(COMPARISON_REGISTERS[1], str(right)),
             ))
             continue
+        if instruction.opcode in {"ROL", "ROR"}:
+            code.extend(_rotate(instruction.opcode, instruction.operands))
+            continue
         encoder = encoders.get(instruction.opcode)
         if encoder is not None:
             code.extend(struct.pack("<H", encoder(instruction.operands)))
@@ -171,3 +174,16 @@ def _shift(base: int, operands: tuple[str | int, ...]) -> int:
     if count == 0:
         return _mov((f"r{register}", f"r{register}"))
     return base | (count << 6) | (register << 3) | register
+
+
+def _rotate(opcode: str, operands: tuple[str | int, ...]) -> bytes:
+    register = _low_register(str(operands[0]))
+    count = int(operands[1])
+    if not 0 <= count <= 31:
+        raise VerifyError("Thumb rotate count must be 0..31")
+    if count == 0:
+        return struct.pack("<HH", _mov((f"r{register}", f"r{register}")), 0xBF00)
+    right_count = count if opcode == "ROR" else 32 - count
+    movs_r0_count = 0x2000 | right_count
+    rors_register_r0 = 0x41C0 | register
+    return struct.pack("<HH", movs_r0_count, rors_register_r0)

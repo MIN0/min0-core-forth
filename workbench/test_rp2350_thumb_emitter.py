@@ -94,6 +94,42 @@ class ThumbEmitterTests(unittest.TestCase):
         add = (0x1964).to_bytes(2, "little")
         self.assertIn(snapshot + add, fragment.code)
 
+    def test_rotate_immediates_use_r0_without_unresolved_actions(self) -> None:
+        definition = compile_code("""CODE: ROTATE ( x -- left right same )
+        IN V0, x
+        MOV V1, V0
+        MOV V2, V0
+        ROL V0, 8
+        ROR V1, 4
+        ROL V2, 0
+        OUT left, V0
+        OUT right, V1
+        OUT same, V2
+        ;CODE""")
+        fragment = emit_thumb_fragment(lower_rp2350(definition))
+        self.assertIn(bytes.fromhex("1820c441"), fragment.code)  # r0=24; ROR r4,r0
+        self.assertIn(bytes.fromhex("0420c541"), fragment.code)  # r0=4; ROR r5,r0
+        self.assertIn(bytes.fromhex("364600bf"), fragment.code)  # MOV r6,r6; NOP
+        self.assertFalse(any(
+            item.opcode in {"ROL", "ROR"} for item in fragment.relocations
+        ))
+
+    def test_rotate_between_cmp_and_branch_keeps_comparison_snapshot(self) -> None:
+        definition = compile_code("""CODE: ROTATE-LATER ( a b -- result )
+        IN V0, a
+        IN V1, b
+        CMP V0, V1
+        ROR V0, 3
+        BEQ @equal
+        OUT result, V0
+        BRA @done
+@equal:
+        OUT result, V1
+@done:
+        ;CODE""")
+        fragment = emit_thumb_fragment(lower_rp2350(definition))
+        self.assertIn(bytes.fromhex("a146aa460320c441"), fragment.code)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

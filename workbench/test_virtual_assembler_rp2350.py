@@ -82,11 +82,11 @@ class Rp2350LoweringTests(unittest.TestCase):
             plan = BackendPlan(
                 "BAD", ARCHITECTURE, 0, 0,
                 (
-                    BackendInstruction("PROLOGUE_SAVE", ("r4", "r5", "r6", "r7", "r8", "lr")),
+                    BackendInstruction("PROLOGUE_SAVE", FUNCTION_FRAME_REGISTERS),
                     BackendInstruction("CONTEXT_BIND", ("r8", "r0")),
                     BackendInstruction(opcode, ()),
                     BackendInstruction("FRAME_COMMIT", (0, 0)),
-                    BackendInstruction("EPILOGUE_RESTORE", ("r4", "r5", "r6", "r7", "r8", "lr")),
+                    BackendInstruction("EPILOGUE_RESTORE", FUNCTION_FRAME_REGISTERS),
                     BackendInstruction("RETURN", ()),
                 ),
             )
@@ -110,10 +110,10 @@ class Rp2350LoweringTests(unittest.TestCase):
         plan = BackendPlan(
             "BAD-COUNT", ARCHITECTURE, 2, 1,
             (
-                    BackendInstruction("PROLOGUE_SAVE", FUNCTION_FRAME_REGISTERS),
+                BackendInstruction("PROLOGUE_SAVE", FUNCTION_FRAME_REGISTERS),
                 BackendInstruction("CONTEXT_BIND", ("r8", "r0")),
                 BackendInstruction("FRAME_COMMIT", (1, 1)),
-                    BackendInstruction("EPILOGUE_RESTORE", FUNCTION_FRAME_REGISTERS),
+                BackendInstruction("EPILOGUE_RESTORE", FUNCTION_FRAME_REGISTERS),
                 BackendInstruction("RETURN", ()),
             ),
         )

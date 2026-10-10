@@ -294,6 +294,7 @@ class Rp2350LinkerTests(unittest.TestCase):
         IN V0, a
         IN V1, b
         CMP V0, V1
+        ROR V0, 1
         BGE @a-wins
         OUT result, V1
         BRA @done

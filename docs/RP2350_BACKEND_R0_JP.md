@@ -134,10 +134,11 @@ backend verifierは`RAW_LDR`、`RAW_STR`、未知のbackend opcodeを拒否す�
 
 ## Thumb emitter R0
 
-最初のemitterは、低registerだけで確定できる`MOV/ADD/SUB/AND/XOR/OR/MUL/NOT/CMP`と
-`LSL/LSR/ASR`を16-bit little-endian machine halfwordへ変換する。
+最初のemitterは、低registerだけで確定できる`MOV/ADD/SUB/AND/XOR/OR/MUL/NOT`と
+`LSL/LSR/ASR`を16-bit little-endian machine halfwordへ変換する。`CMP`は比較値snapshot、
+`ROL/ROR`は検査済み2命令列へ変換する。
 
-helper、stack frame操作、定数load、分岐、rotateなど未解決の操作には4 byteのrelocation slotを
+helper、stack frame操作、定数load、分岐など未解決の操作には4 byteのrelocation slotを
 確保し、slot全体を2個の`UDF`命令で埋める。この状態のfragmentは`executable=false`であり、
 誤って実行しても未解決箇所で停止する。0やNOPをplaceholderには使用しない。
 
@@ -204,6 +205,28 @@ prologue、frame操作、分岐などには未解決relocationが残るため、
 全relocationを解決できる。これはmachine fragmentのlink完了を意味するだけであり、独立逆解析、runtime
 helper実装、W^X publication、RP2350実機試験が完了するまでは実行を許可しない。
 
+## Rotate emitter R0
+
+Thumbの16-bit `RORS`は回転量をregisterから受け取るため、仮想assemblerの即値`ROL/ROR`を次の
+4-byte命令列へ変換する。
+
+```text
+ROR V0, 4
+  -> MOVS r0,#4
+  -> RORS r4,r0
+
+ROL V0, 8
+  -> MOVS r0,#24
+  -> RORS r4,r0
+```
+
+左rotateは32-bit値を反対方向へ`32-count`だけ回すことで実現する。`r0`はhelper ABIで破壊可能な
+一時registerであり、execution contextは`r8`に保持されている。後続helperは必ず`MOV r0,r8`でcontextを
+渡し直すため、rotateによる`r0`使用はcontextを失わない。
+
+回転量0は`MOV Rd,Rd; NOP`とし、ほかのrotateと同じ4 byteを維持する。`MOVS`と`RORS`はAPSRを変更するが、
+仮想比較は`r9/r10`に保存され、条件分岐直前に`CMP r9,r10`を再実行するため意味は変わらない。
+
 ## Internal branch linker R0
 
 仮想`CMP Va,Vb`は、その時点の左右値を`r9/r10`へ`MOV`して保存する。`ADD`、`SUB`、helper callなどが
@@ -230,7 +253,6 @@ virtual comparisonを使用できる。分岐を含む最小の`MAX` CODEは、�
 
 ### 次段階
 
-1. rotateを検査済みThumb命令列へ変換する。
-2. 生成byte列を独立disassemblerで逆解析してplanとの一致を検査する。
-3. 既存のrelocationとW^X publicationへ接続する。
-4. Pico 2 Wでは最初に生成のみを行い、その後限定されたtest CODEから実行を開始する。
+1. 生成byte列を独立disassemblerで逆解析してplanとの一致を検査する。
+2. 既存のrelocationとW^X publicationへ接続する。
+3. Pico 2 Wでは最初に生成のみを行い、その後限定されたtest CODEから実行を開始する。
