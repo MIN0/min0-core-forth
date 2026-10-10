@@ -66,6 +66,7 @@ CODE: SUM-XOR ( a b c -- sum mix )
 | memory | `LD32 Vd, [Va]` | 検査済み32-bit読出し |
 |  | `LD32 Vd, [Va+4]` | 正の定数offset付き読出し |
 |  | `ST32 [Va-4], Vs` | 負の定数offset付き書込み予約 |
+| capability | `LD32 Vd, [DATA: Va+4]` | 名前付きmemory windowから読出し |
 
 条件分岐の前には、その経路上で必ず`CMP`を実行しなければならない。loopは記述できるが、
 基準実装は命令数上限を持ち、上限超過時にはstackを変更せず失敗する。
@@ -109,6 +110,10 @@ CODE: MAX ( a b -- max )
 予約値を読める。すべての命令とstack contractが成功した時だけ書込みを確定し、errorや命令数超過時は
 stackとmemoryの両方を開始前のまま残す。
 
+複数のwindowを使う場合は`[DATA: V1+4]`、`[IO: V1]`のようにcapability名を付ける。
+同じ数値addressを持つwindow同士でも名前によって完全に分離される。名前なしの`[V1+4]`は、
+呼出し側が明示した既定capabilityだけを使用する。既定がない場合や未知の名前は拒否する。
+
 ## 静的検査
 
 実行前に次を拒否する。
@@ -124,9 +129,8 @@ stackとmemoryの両方を開始前のまま残す。
 ## 今後の拡張
 
 1. R0 reference implementationでPython/Ruby相互一致を確認する。
-2. memory windowを複数region/capabilityへ拡張する。
-3. 仮想命令からPico 2 W向け機械語を生成する。
-4. relocation、W^X publication、実機上のFORTH stack contractを検証する。
+2. 仮想命令からPico 2 W向け機械語を生成する。
+3. relocation、W^X publication、実機上のFORTH stack contractを検証する。
 
 表現力を増やす場合も、6809のaddressing modeのような便利さは仮想命令側へ追加し、
 安全性検査とCPU backendを分離する。

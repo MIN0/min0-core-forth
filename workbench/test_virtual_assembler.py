@@ -3,6 +3,7 @@ import unittest
 from min0_virtual_assembler import (
     ExecutionError,
     MemoryAccessError,
+    MemoryCapabilities,
     MemoryWindow,
     ParseError,
     StackUnderflow,
@@ -201,6 +202,36 @@ class VirtualAssemblerTests(unittest.TestCase):
         ;CODE""")
         self.assertEqual(compact.execute([0x1800], memory=memory), [77])
         self.assertEqual(spaced.execute([0x1800], memory=memory), [77])
+
+    def test_named_capabilities_select_independent_windows(self) -> None:
+        data = MemoryWindow(0, 8)
+        io = MemoryWindow(0, 8)
+        data.write32(0, 11)
+        io.write32(0, 22)
+        capabilities = MemoryCapabilities({"DATA": data, "IO": io}, default="DATA")
+        read_both = compile_code("""CODE: READ-BOTH ( address -- data io default )
+        IN V3, address
+        LD32 V0, [ DATA: V3 ]
+        LD32 V1, [IO:V3]
+        LD32 V2, [V3]
+        OUT data, V0
+        OUT io, V1
+        OUT default, V2
+        ;CODE""")
+        self.assertEqual(read_both.execute([0], memory=capabilities), [11, 22, 11])
+
+    def test_missing_or_wrong_capability_is_rejected(self) -> None:
+        named = compile_code("""CODE: READ-DATA ( address -- value )
+        IN V1, address
+        LD32 V0, [DATA: V1]
+        OUT value, V0
+        ;CODE""")
+        window = MemoryWindow(0, 4)
+        with self.assertRaisesRegex(MemoryAccessError, "requires MemoryCapabilities"):
+            named.execute([0], memory=window)
+        capabilities = MemoryCapabilities({"OTHER": window}, default="OTHER")
+        with self.assertRaisesRegex(MemoryAccessError, "unknown memory capability DATA"):
+            named.execute([0], memory=capabilities)
 
     def test_store_is_committed_only_after_success(self) -> None:
         memory = MemoryWindow(0x2000, 8)

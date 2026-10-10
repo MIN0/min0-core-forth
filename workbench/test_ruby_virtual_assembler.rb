@@ -100,6 +100,26 @@ spaced_load = Min0VirtualAssembler.compile_code(<<~FORTH)
 FORTH
 assert_equal([0x12345678], spaced_load.execute([0x1008], memory: memory), "spaced address")
 
+data_window = Min0VirtualAssembler::MemoryWindow.new(0, 8)
+io_window = Min0VirtualAssembler::MemoryWindow.new(0, 8)
+data_window.write32(0, 11)
+io_window.write32(0, 22)
+capabilities = Min0VirtualAssembler::MemoryCapabilities.new(
+  { "DATA" => data_window, "IO" => io_window }, default: "DATA"
+)
+read_both = Min0VirtualAssembler.compile_code(<<~FORTH)
+  CODE: READ-BOTH ( address -- data io default )
+    IN V3, address
+    LD32 V0, [ DATA: V3 ]
+    LD32 V1, [IO:V3]
+    LD32 V2, [V3]
+    OUT data, V0
+    OUT io, V1
+    OUT default, V2
+  ;CODE
+FORTH
+assert_equal([11, 22, 11], read_both.execute([0], memory: capabilities), "named capabilities")
+
 round_trip = Min0VirtualAssembler.compile_code(<<~FORTH)
   CODE: ROUND-TRIP ( value address -- observed )
     IN V0, value

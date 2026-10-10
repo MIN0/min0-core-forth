@@ -53,6 +53,32 @@ module Min0VirtualAssembler
     end
   end
 
+  class MemoryCapabilities
+    def initialize(windows, default: nil)
+      raise ArgumentError, "at least one named memory window is required" if windows.empty?
+      windows.each_key do |name|
+        unless name.match?(/\A[A-Za-z][A-Za-z0-9_-]*\z/)
+          raise ArgumentError, "invalid memory capability name #{name.inspect}"
+        end
+      end
+      if !default.nil? && !windows.key?(default)
+        raise ArgumentError, "unknown default memory capability #{default}"
+      end
+      @windows = windows.dup
+      @default = default
+    end
+
+    def resolve(name)
+      selected = name.nil? ? @default : name
+      if selected.nil?
+        raise MemoryAccessError, "unnamed memory access has no default capability"
+      end
+      window = @windows[selected]
+      raise MemoryAccessError, "unknown memory capability #{selected}" if window.nil?
+      window
+    end
+  end
+
   Instruction = Struct.new(:opcode, :operands, :line, keyword_init: true)
 
   class CodeDefinition
@@ -157,21 +183,24 @@ module Min0VirtualAssembler
           # No runtime operation.
         when "LD32"
           raise MemoryAccessError, "LD32 requires an explicit memory window" if memory.nil?
-          address = Min0VirtualAssembler.effective_address(args[1], registers, instruction.line)
-          memory.check32(address)
-          registers[args[0]] = staged_writes.key?(address) ? staged_writes[address] : memory.read32(address)
+          capability, address = Min0VirtualAssembler.effective_address(args[1], registers, instruction.line)
+          window = Min0VirtualAssembler.resolve_memory(memory, capability)
+          window.check32(address)
+          key = [window, address]
+          registers[args[0]] = staged_writes.key?(key) ? staged_writes[key] : window.read32(address)
         when "ST32"
           raise MemoryAccessError, "ST32 requires an explicit memory window" if memory.nil?
-          address = Min0VirtualAssembler.effective_address(args[0], registers, instruction.line)
-          memory.check32(address, write: true)
-          staged_writes[address] = registers.fetch(args[1])
+          capability, address = Min0VirtualAssembler.effective_address(args[0], registers, instruction.line)
+          window = Min0VirtualAssembler.resolve_memory(memory, capability)
+          window.check32(address, write: true)
+          staged_writes[[window, address]] = registers.fetch(args[1])
         else
           raise "unreachable opcode #{op}"
         end
         pc += 1
       end
 
-      staged_writes.each { |address, value| memory.write32(address, value) } unless memory.nil?
+      staged_writes.each { |(window, address), value| window.write32(address, value) }
       prefix + outputs.map { |output| staged.fetch(output) }
     end
   end
@@ -352,11 +381,11 @@ module Min0VirtualAssembler
         read_register(args[1], initialized, line)
         next_compared = true
       when "LD32"
-        base_register, = address_operand(args[1], line)
+        _capability, base_register, _offset = address_operand(args[1], line)
         read_register(base_register, initialized, line)
         next_initialized |= [args[0]]
       when "ST32"
-        base_register, = address_operand(args[0], line)
+        _capability, base_register, _offset = address_operand(args[0], line)
         read_register(base_register, initialized, line)
         read_register(args[1], initialized, line)
       when *CONDITIONAL_BRANCHES
@@ -390,26 +419,34 @@ module Min0VirtualAssembler
     value < 0x8000_0000 ? value : value - 0x1_0000_0000
   end
 
-  ADDRESS = /\A\[\s*(V[0-3])\s*(?:([+-])\s*(0[xX][0-9A-Fa-f]+|[0-9]+)\s*)?\]\z/
+  ADDRESS = /\A\[\s*(?:([A-Za-z][A-Za-z0-9_-]*)\s*:\s*)?(V[0-3])\s*(?:([+-])\s*(0[xX][0-9A-Fa-f]+|[0-9]+)\s*)?\]\z/
 
   def address_operand(text, line)
     match = ADDRESS.match(text)
     raise VerifyError, "line #{line}: invalid memory address #{text}" unless match
-    return [match[1], 0] if match[2].nil?
-    magnitude = Integer(match[3], match[3].downcase.start_with?("0x") ? 16 : 10)
+    return [match[1], match[2], 0] if match[3].nil?
+    magnitude = Integer(match[4], match[4].downcase.start_with?("0x") ? 16 : 10)
     if magnitude > 0x7FFF_FFFF
       raise VerifyError, "line #{line}: memory offset outside signed 32-bit range"
     end
-    [match[1], match[2] == "+" ? magnitude : -magnitude]
+    [match[1], match[2], match[3] == "+" ? magnitude : -magnitude]
   end
 
   def effective_address(text, registers, line)
-    register_name, offset = address_operand(text, line)
+    capability, register_name, offset = address_operand(text, line)
     address = registers.fetch(register_name) + offset
     unless (0..CELL_MASK).cover?(address)
       raise MemoryAccessError, "line #{line}: effective address overflow"
     end
-    address
+    [capability, address]
+  end
+
+  def resolve_memory(memory, capability)
+    return memory.resolve(capability) if memory.is_a?(MemoryCapabilities)
+    unless capability.nil?
+      raise MemoryAccessError, "named capability #{capability} requires MemoryCapabilities"
+    end
+    memory
   end
 
   def parse_number(text, line)

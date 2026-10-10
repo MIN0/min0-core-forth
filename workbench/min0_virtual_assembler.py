@@ -76,6 +76,32 @@ class MemoryWindow:
         self.data[offset:offset + 4] = (value & CELL_MASK).to_bytes(4, "little")
 
 
+class MemoryCapabilities:
+    """Named memory windows; the name is part of the access authority."""
+
+    def __init__(
+        self, windows: dict[str, MemoryWindow], *, default: str | None = None,
+    ) -> None:
+        if not windows:
+            raise ValueError("at least one named memory window is required")
+        for name in windows:
+            if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", name):
+                raise ValueError(f"invalid memory capability name {name!r}")
+        if default is not None and default not in windows:
+            raise ValueError(f"unknown default memory capability {default}")
+        self.windows = dict(windows)
+        self.default = default
+
+    def resolve(self, name: str | None) -> MemoryWindow:
+        selected = self.default if name is None else name
+        if selected is None:
+            raise MemoryAccessError("unnamed memory access has no default capability")
+        try:
+            return self.windows[selected]
+        except KeyError as error:
+            raise MemoryAccessError(f"unknown memory capability {selected}") from error
+
+
 @dataclass(frozen=True)
 class Instruction:
     opcode: str
@@ -92,7 +118,7 @@ class CodeDefinition:
 
     def execute(
         self, stack: list[int], *, max_steps: int = 10_000,
-        memory: MemoryWindow | None = None,
+        memory: MemoryWindow | MemoryCapabilities | None = None,
     ) -> list[int]:
         """Return a new stack; never mutate the caller's stack."""
 
@@ -108,7 +134,7 @@ class CodeDefinition:
         }
         registers: dict[str, int] = {}
         staged: dict[str, int] = {}
-        staged_writes: dict[int, int] = {}
+        staged_writes: dict[tuple[MemoryWindow, int], int] = {}
         comparison: tuple[int, int] | None = None
         labels = {
             instruction.operands[0]: index
@@ -193,25 +219,32 @@ class CodeDefinition:
             elif op == "LD32":
                 if memory is None:
                     raise MemoryAccessError("LD32 requires an explicit memory window")
-                address = _effective_address(args[1], registers, instruction.line)
-                memory.check32(address)
+                capability, address = _effective_address(
+                    args[1], registers, instruction.line
+                )
+                window = _resolve_memory(memory, capability)
+                window.check32(address)
+                key = (window, address)
                 registers[args[0]] = (
-                    staged_writes[address]
-                    if address in staged_writes else memory.read32(address)
+                    staged_writes[key]
+                    if key in staged_writes else window.read32(address)
                 )
             elif op == "ST32":
                 if memory is None:
                     raise MemoryAccessError("ST32 requires an explicit memory window")
-                address = _effective_address(args[0], registers, instruction.line)
-                memory.check32(address, write=True)
-                staged_writes[address] = registers[args[1]]
+                capability, address = _effective_address(
+                    args[0], registers, instruction.line
+                )
+                window = _resolve_memory(memory, capability)
+                window.check32(address, write=True)
+                staged_writes[(window, address)] = registers[args[1]]
             else:  # Static verification makes this unreachable.
                 raise AssertionError(op)
             pc += 1
 
         if memory is not None:
-            for address, value in staged_writes.items():
-                memory.write32(address, value)
+            for (window, address), value in staged_writes.items():
+                window.write32(address, value)
         return prefix + [staged[name] for name in self.outputs]
 
 
@@ -394,11 +427,11 @@ def _verify_paths(definition: CodeDefinition) -> None:
             _read_register(args[1], set(initialized), line)
             next_compared = True
         elif op == "LD32":
-            base_register, _ = _address_operand(args[1], line)
+            _, base_register, _ = _address_operand(args[1], line)
             _read_register(base_register, set(initialized), line)
             next_initialized.add(args[0])
         elif op == "ST32":
-            base_register, _ = _address_operand(args[0], line)
+            _, base_register, _ = _address_operand(args[0], line)
             _read_register(base_register, set(initialized), line)
             _read_register(args[1], set(initialized), line)
         elif op in CONDITIONAL_BRANCHES:
@@ -443,33 +476,46 @@ def _signed(value: int) -> int:
 
 
 ADDRESS = re.compile(
-    r"^\[\s*(V[0-3])\s*"
+    r"^\[\s*(?:([A-Za-z][A-Za-z0-9_-]*)\s*:\s*)?(V[0-3])\s*"
     r"(?:([+-])\s*(0[xX][0-9A-Fa-f]+|[0-9]+)\s*)?\]$"
 )
 
 
-def _address_operand(text: str, line: int) -> tuple[str, int]:
+def _address_operand(text: str, line: int) -> tuple[str | None, str, int]:
     match = ADDRESS.fullmatch(text)
     if not match:
         raise VerifyError(f"line {line}: invalid memory address {text}")
-    register = match.group(1)
-    if match.group(2) is None:
-        return register, 0
-    magnitude_text = match.group(3)
+    capability = match.group(1)
+    register = match.group(2)
+    if match.group(3) is None:
+        return capability, register, 0
+    magnitude_text = match.group(4)
     magnitude = int(magnitude_text, 16 if magnitude_text.lower().startswith("0x") else 10)
     if magnitude > 0x7FFF_FFFF:
         raise VerifyError(f"line {line}: memory offset outside signed 32-bit range")
-    return register, magnitude if match.group(2) == "+" else -magnitude
+    return capability, register, magnitude if match.group(3) == "+" else -magnitude
 
 
 def _effective_address(
     text: str, registers: dict[str, int], line: int,
-) -> int:
-    register, offset = _address_operand(text, line)
+) -> tuple[str | None, int]:
+    capability, register, offset = _address_operand(text, line)
     address = registers[register] + offset
     if not 0 <= address <= CELL_MASK:
         raise MemoryAccessError(f"line {line}: effective address overflow")
-    return address
+    return capability, address
+
+
+def _resolve_memory(
+    memory: MemoryWindow | MemoryCapabilities, capability: str | None,
+) -> MemoryWindow:
+    if isinstance(memory, MemoryCapabilities):
+        return memory.resolve(capability)
+    if capability is not None:
+        raise MemoryAccessError(
+            f"named capability {capability} requires MemoryCapabilities"
+        )
+    return memory
 
 
 def _parse_number(text: str, line: int) -> int:
