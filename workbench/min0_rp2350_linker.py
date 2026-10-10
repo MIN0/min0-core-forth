@@ -17,6 +17,8 @@ from min0_virtual_assembler_rp2350 import HELPER_SIGNATURES
 
 
 NOP = 0xBF00
+FUNCTION_PUSH_R4_R8_LR = struct.pack("<HH", 0xE92D, 0x41F0)
+FUNCTION_POP_R4_R8_LR = struct.pack("<HH", 0xE8BD, 0x41F0)
 THUNK_PUSH_R12_LR = struct.pack("<HH", 0xE92D, 0x5000)
 THUNK_POP_R12_LR = struct.pack("<HH", 0xE8BD, 0x5000)
 THUNK_POP_R12_PC = struct.pack("<HH", 0xE8BD, 0x9000)
@@ -109,6 +111,42 @@ def prepare_link(fragment: MachineFragment) -> MachineFragment:
     return bind_helper_symbols(link_literal_constants(fragment))
 
 
+def link_function_frame(fragment: MachineFragment) -> MachineFragment:
+    """Resolve the fixed prologue, context bind, epilogue, and return actions."""
+
+    verify_machine_fragment(fragment)
+    replacements = {
+        "PROLOGUE_SAVE": FUNCTION_PUSH_R4_R8_LR,
+        "CONTEXT_BIND": struct.pack("<HH", _encode_thumb_mov("r8", "r0"), NOP),
+        "EPILOGUE_RESTORE": FUNCTION_POP_R4_R8_LR,
+        "RETURN": struct.pack("<HH", 0x4770, NOP),  # BX lr; NOP
+    }
+    expected_operands = {
+        "PROLOGUE_SAVE": ("r4", "r5", "r6", "r7", "r8", "lr"),
+        "CONTEXT_BIND": ("r8", "r0"),
+        "EPILOGUE_RESTORE": ("r4", "r5", "r6", "r7", "r8", "lr"),
+        "RETURN": (),
+    }
+    code = bytearray(fragment.code)
+    remaining: list[MachineRelocation] = []
+    for relocation in fragment.relocations:
+        replacement = replacements.get(relocation.opcode)
+        if replacement is None:
+            remaining.append(relocation)
+            continue
+        if relocation.kind != "RP2350_BACKEND_ACTION":
+            raise VerifyError(f"unexpected relocation kind for {relocation.opcode}")
+        if relocation.operands != expected_operands[relocation.opcode]:
+            raise VerifyError(f"unexpected operands for {relocation.opcode}")
+        code[relocation.offset:relocation.offset + 4] = replacement
+
+    linked = MachineFragment(
+        fragment.architecture, bytes(code), tuple(remaining), dict(fragment.labels)
+    )
+    verify_machine_fragment(linked)
+    return linked
+
+
 def plan_helper_thunks(
     fragment: MachineFragment, capability_ids: dict[str, int],
 ) -> tuple[HelperThunkPlan, ...]:
@@ -123,7 +161,27 @@ def plan_helper_thunks(
             raise VerifyError("helper thunk relocation has no symbol")
         body = [ThunkInstruction("THUNK_ENTER_8", ("r12", "lr"))]
         body.append(ThunkInstruction("MOV", ("r0", "r8")))
-        if relocation.opcode == "CHECKED_LD32":
+        if relocation.opcode == "FRAME_LOAD":
+            destination, input_index = relocation.operands
+            body.extend((
+                ThunkInstruction("MOV_IMM32", ("r1", int(input_index))),
+                ThunkInstruction("BL", (relocation.symbol,)),
+                ThunkInstruction(
+                    "ABORT_IF_NONZERO", ("r0", "min0_abort_transaction", 8)
+                ),
+                ThunkInstruction("MOV", (destination, "r1")),
+            ))
+        elif relocation.opcode == "RESULT_STAGE":
+            output_index, source = relocation.operands
+            body.extend((
+                ThunkInstruction("MOV_IMM32", ("r1", int(output_index))),
+                ThunkInstruction("MOV", ("r2", source)),
+                ThunkInstruction("BL", (relocation.symbol,)),
+                ThunkInstruction(
+                    "ABORT_IF_NONZERO", ("r0", "min0_abort_transaction", 8)
+                ),
+            ))
+        elif relocation.opcode == "CHECKED_LD32":
             destination, capability, base, offset = relocation.operands
             capability_id = _capability_id(str(capability), capability_ids)
             body.extend((

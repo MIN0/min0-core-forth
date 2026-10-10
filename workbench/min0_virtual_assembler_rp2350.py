@@ -37,6 +37,16 @@ class HelperSignature:
 
 
 HELPER_SIGNATURES = {
+    "FRAME_LOAD": HelperSignature(
+        "min0_frame_load",
+        ("r0=context", "r1=input-index"),
+        ("r0=status", "r1=value"),
+    ),
+    "RESULT_STAGE": HelperSignature(
+        "min0_result_stage",
+        ("r0=context", "r1=output-index", "r2=value"),
+        ("r0=status",),
+    ),
     "CHECKED_LD32": HelperSignature(
         "min0_checked_ld32",
         ("r0=context", "r1=capability", "r2=base", "r3=offset"),

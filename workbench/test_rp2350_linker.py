@@ -1,6 +1,8 @@
 import unittest
 
 from min0_rp2350_linker import (
+    FUNCTION_POP_R4_R8_LR,
+    FUNCTION_PUSH_R4_R8_LR,
     NOP,
     THUNK_PUSH_R12_LR,
     bind_helper_symbols,
@@ -8,6 +10,7 @@ from min0_rp2350_linker import (
     encode_thumb_b_w,
     encode_thumb_bl,
     link_literal_constants,
+    link_function_frame,
     plan_helper_thunks,
     prepare_link,
     resolve_external_branches,
@@ -62,7 +65,30 @@ class Rp2350LinkerTests(unittest.TestCase):
             if item.kind == "RP2350_HELPER_THUNK_CALL"
         }
         self.assertEqual(helpers["CHECKED_LD32"].symbol, "min0_checked_ld32")
+        self.assertEqual(helpers["FRAME_LOAD"].symbol, "min0_frame_load")
+        self.assertEqual(helpers["RESULT_STAGE"].symbol, "min0_result_stage")
         self.assertEqual(helpers["FRAME_COMMIT"].symbol, "min0_frame_commit")
+
+    def test_fixed_function_frame_actions_are_emitted_inline(self) -> None:
+        definition = compile_code("""CODE: COPY ( input -- output )
+        IN V0, input
+        OUT output, V0
+        ;CODE""")
+        fragment = emit_thumb_fragment(lower_rp2350(definition))
+        actions = {item.opcode: item for item in fragment.relocations}
+        linked = link_function_frame(fragment)
+        prologue = actions["PROLOGUE_SAVE"].offset
+        bind = actions["CONTEXT_BIND"].offset
+        epilogue = actions["EPILOGUE_RESTORE"].offset
+        returned = actions["RETURN"].offset
+        self.assertEqual(linked.code[prologue:prologue + 4], FUNCTION_PUSH_R4_R8_LR)
+        self.assertEqual(linked.code[bind:bind + 4], bytes.fromhex("804600bf"))
+        self.assertEqual(linked.code[epilogue:epilogue + 4], FUNCTION_POP_R4_R8_LR)
+        self.assertEqual(linked.code[returned:returned + 4], bytes.fromhex("704700bf"))
+        self.assertFalse(any(
+            item.opcode in {"PROLOGUE_SAVE", "CONTEXT_BIND", "EPILOGUE_RESTORE", "RETURN"}
+            for item in linked.relocations
+        ))
 
     def test_linked_fragment_stays_non_executable_while_relocations_remain(self) -> None:
         definition = compile_code("""CODE: CONST ( -- value )
@@ -90,6 +116,22 @@ class Rp2350LinkerTests(unittest.TestCase):
         self.assertIn(("MOV", ("r4", "r1")), operations)
         self.assertEqual(operations[0], ("THUNK_ENTER_8", ("r12", "lr")))
         self.assertEqual(operations[-1], ("THUNK_RETURN_8", ("r12", "pc")))
+
+    def test_frame_load_and_result_stage_use_checked_helpers(self) -> None:
+        definition = compile_code("""CODE: COPY ( input -- output )
+        IN V2, input
+        OUT output, V2
+        ;CODE""")
+        bound = bind_helper_symbols(emit_thumb_fragment(lower_rp2350(definition)))
+        plans = plan_helper_thunks(bound, {})
+        load = next(plan for plan in plans if plan.helper_symbol == "min0_frame_load")
+        stage = next(plan for plan in plans if plan.helper_symbol == "min0_result_stage")
+        load_ops = [(item.opcode, item.operands) for item in load.instructions]
+        stage_ops = [(item.opcode, item.operands) for item in stage.instructions]
+        self.assertIn(("MOV_IMM32", ("r1", 0)), load_ops)
+        self.assertIn(("MOV", ("r6", "r1")), load_ops)
+        self.assertIn(("MOV_IMM32", ("r1", 0)), stage_ops)
+        self.assertIn(("MOV", ("r2", "r6")), stage_ops)
 
     def test_store_thunk_passes_value_in_r12_and_unwinds_on_error(self) -> None:
         definition = compile_code("""CODE: STORE ( value address -- )
@@ -167,6 +209,8 @@ class Rp2350LinkerTests(unittest.TestCase):
             if item.kind.startswith("RP2350_THUNK_")
         }
         linked = resolve_external_branches(emitted, 0x2000, {
+            "min0_frame_load": 0x2F01,
+            "min0_result_stage": 0x2F81,
             "min0_checked_ld32": 0x3001,
             "min0_frame_commit": 0x3101,
             "min0_abort_transaction": 0x3201,
@@ -188,6 +232,24 @@ class Rp2350LinkerTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(VerifyError, "no address"):
             resolve_external_branches(emitted, 0x2000, {})
+
+    def test_straight_line_copy_reaches_link_complete_machine_fragment(self) -> None:
+        definition = compile_code("""CODE: COPY ( input -- output )
+        IN V0, input
+        OUT output, V0
+        ;CODE""")
+        fragment = emit_thumb_fragment(lower_rp2350(definition))
+        prepared = prepare_link(fragment)
+        framed = link_function_frame(prepared)
+        thunked = emit_helper_thunks(framed, {})
+        linked = resolve_external_branches(thunked, 0x2000, {
+            "min0_frame_load": 0x3001,
+            "min0_result_stage": 0x3101,
+            "min0_frame_commit": 0x3201,
+            "min0_abort_transaction": 0x3301,
+        })
+        self.assertEqual(linked.relocations, ())
+        self.assertTrue(linked.executable)
 
 
 if __name__ == "__main__":
