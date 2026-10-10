@@ -2,8 +2,9 @@
 
 ## 現在の段階
 
-R0は機械語を生成または実行しない。検査済み仮想assemblerを、RP2350 Arm Cortex-M33を対象とする
-監査可能なbackend planへ変換する。次段階のmachine emitterは、このplanだけを入力にする。
+R0は検査済み仮想assemblerをRP2350 Arm Cortex-M33向けbackend planへ変換し、安全に確定できる
+Thumb機械語とrelocationを生成する。runtime helper実装、独立逆解析、W^X publication、実機試験が
+完了するまでは、生成したmachine fragmentの実行を許可しない。
 
 ## Register対応
 
@@ -16,6 +17,56 @@ R0は機械語を生成または実行しない。検査済み仮想assemblerを
 
 planは開始時に`r4`から`r8`と`lr`を保存し、終了時に復元する。仮想assemblerの実行中にFORTH DATA
 stack pointerを移動する命令は生成しない。
+
+## ARMを初めて読む人のための関数入口と復帰
+
+### lrとBL
+
+`lr`はlink register、つまりARMの`r14`である。呼出し元が`BL`（branch with link）で生成関数を
+呼ぶと、CPUは呼出し元へ戻る位置を`lr`へ設定する。生成関数もruntime helperを`BL`で呼ぶため、
+そのたびに`lr`はhelperから戻る位置へ更新される。このため、最初に受け取った本来の戻り先は関数入口で
+CPU stackへ保存する。
+
+### 24 byteの関数frame
+
+`r4-r7`は仮想register `V0-V3`、`r8`はexecution context保持に使用する。呼出し元の値を壊さないよう、
+入口の`STMDB`で`r4,r5,r6,r7,r8,lr`を保存し、出口の`LDMIA`で復元する。32-bit registerが6個なので
+合計は24 byteであり、8-byte alignmentも維持する。
+
+```text
+CPU stack上の関数frame
+  lr   呼出し元への戻り先
+  r8   呼出し元の値
+  r7   V3が使用する前の値
+  r6   V2が使用する前の値
+  r5   V1が使用する前の値
+  r4   V0が使用する前の値
+       合計 6 x 4 = 24 byte
+```
+
+これはCPUの関数呼出し用stackであり、FORTH DATA stackとは別である。この保存と復元によって
+FORTH DATA stack pointerは移動しない。
+
+### execution contextをr8へ置く理由
+
+生成関数は`r0`でexecution contextへのpointerを受け取る。このcontextは、入力／出力frame、memory
+capability、未確定write、statusなど、今回のFORTH処理をruntime helperが扱うための基準点になる。
+`r0-r3`はhelperが破壊できる一時registerなので、関数入口で`MOV r8,r0`を実行し、処理中は保存対象の
+`r8`で同じpointerを保持する。helperを呼ぶ直前には必要に応じて`MOV r0,r8`として渡し直す。
+
+### BX lrによる復帰
+
+関数出口は`r4-r8`と本来の`lr`を復元した後、`BX lr`を実行する。`BX`はregisterに入っているaddressへ
+分岐する命令であり、ここでは`lr`が示す呼出し元へ戻る。全体の順序は次のとおりである。
+
+```text
+BLで生成関数を呼ぶ
+  -> r4-r8,lrを24 byte保存
+  -> MOV r8,r0でcontextを保持
+  -> 仮想assembler本体とruntime helperを実行
+  -> r4-r8,lrを復元
+  -> BX lrで呼出し元へ戻る
+```
 
 ## Helper ABI 0.1
 
