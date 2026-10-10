@@ -66,8 +66,23 @@ backend verifierは`RAW_LDR`、`RAW_STR`、未知のbackend opcodeを拒否す�
 
 ## 次段階
 
-1. backend planをThumb-2 machine instructionへ符号化するemitterを追加する。
-2. helper呼出しのABI、使用register、clobber集合を固定する。
-3. relocation情報を生成し、既存のW^X publicationへ接続する。
-4. 生成byte列を逆解析してplanとの一致を検査する。
+## Thumb emitter R0
+
+最初のemitterは、低registerだけで確定できる`MOV/ADD/SUB/AND/XOR/OR/MUL/NOT/CMP`と
+`LSL/LSR/ASR`を16-bit little-endian machine halfwordへ変換する。
+
+helper、stack frame操作、定数load、分岐、rotateなど未解決の操作には4 byteのrelocation slotを
+確保し、slot全体を2個の`UDF`命令で埋める。この状態のfragmentは`executable=false`であり、
+誤って実行しても未解決箇所で停止する。0やNOPをplaceholderには使用しない。
+
+labelはbyteを生成せず、その時点のmachine offsetとしてsymbol tableへ記録する。分岐linkerは
+relocation解決時に範囲とconditionを検査する。仮想`CMP`の比較結果は後続命令から独立しているため、
+将来のlinkerはCMPと分岐の間でAPSRが変化する場合、比較結果を再生成しなければならない。
+
+### 次段階
+
+1. relocation linkerでhelper call、frame操作、定数loadを解決する。
+2. 条件分岐ではvirtual comparisonの寿命を保ったままThumb branchを生成する。
+3. 生成byte列を独立disassemblerで逆解析してplanとの一致を検査する。
+4. 既存のrelocationとW^X publicationへ接続する。
 5. Pico 2 Wでは最初に生成のみを行い、その後限定されたtest CODEから実行を開始する。
