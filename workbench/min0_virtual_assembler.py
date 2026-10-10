@@ -10,6 +10,7 @@ CELL_MASK = 0xFFFF_FFFF
 REGISTERS = frozenset({"V0", "V1", "V2", "V3"})
 BINARY_OPS = frozenset({"ADD", "SUB", "MUL", "AND", "OR", "XOR"})
 SHIFT_OPS = frozenset({"LSL", "LSR", "ASR", "ROL", "ROR"})
+CONDITIONAL_BRANCHES = frozenset({"BEQ", "BNE", "BLT", "BGE", "BLTU", "BGEU"})
 
 
 class VirtualAssemblerError(Exception):
@@ -28,6 +29,10 @@ class StackUnderflow(VirtualAssemblerError):
     pass
 
 
+class ExecutionError(VirtualAssemblerError):
+    pass
+
+
 @dataclass(frozen=True)
 class Instruction:
     opcode: str
@@ -42,7 +47,7 @@ class CodeDefinition:
     outputs: tuple[str, ...]
     instructions: tuple[Instruction, ...]
 
-    def execute(self, stack: list[int]) -> list[int]:
+    def execute(self, stack: list[int], *, max_steps: int = 10_000) -> list[int]:
         """Return a new stack; never mutate the caller's stack."""
 
         input_count = len(self.inputs)
@@ -57,8 +62,20 @@ class CodeDefinition:
         }
         registers: dict[str, int] = {}
         staged: dict[str, int] = {}
+        comparison: tuple[int, int] | None = None
+        labels = {
+            instruction.operands[0]: index
+            for index, instruction in enumerate(self.instructions)
+            if instruction.opcode == "LABEL"
+        }
 
-        for instruction in self.instructions:
+        pc = 0
+        steps = 0
+        while pc < len(self.instructions):
+            steps += 1
+            if steps > max_steps:
+                raise ExecutionError(f"{self.name} exceeded {max_steps} virtual instructions")
+            instruction = self.instructions[pc]
             op = instruction.opcode
             args = instruction.operands
             if op == "IN":
@@ -103,8 +120,32 @@ class CodeDefinition:
                 else:
                     result = value if count == 0 else (value >> count) | (value << (32 - count))
                 registers[register] = result & CELL_MASK
+            elif op == "CMP":
+                comparison = (registers[args[0]], registers[args[1]])
+            elif op in CONDITIONAL_BRANCHES:
+                assert comparison is not None
+                left, right = comparison
+                signed_left = _signed(left)
+                signed_right = _signed(right)
+                take = {
+                    "BEQ": left == right,
+                    "BNE": left != right,
+                    "BLT": signed_left < signed_right,
+                    "BGE": signed_left >= signed_right,
+                    "BLTU": left < right,
+                    "BGEU": left >= right,
+                }[op]
+                if take:
+                    pc = labels[args[0]]
+                    continue
+            elif op == "BRA":
+                pc = labels[args[0]]
+                continue
+            elif op == "LABEL":
+                pass
             else:  # Static verification makes this unreachable.
                 raise AssertionError(op)
+            pc += 1
 
         return prefix + [staged[name] for name in self.outputs]
 
@@ -165,7 +206,11 @@ def _parse_instruction(text: str, line: int) -> Instruction:
     operands = () if len(parts) == 1 else tuple(
         item.strip() for item in parts[1].split(",")
     )
-    arity = {"NOT": 1, "IN": 2, "OUT": 2, "MOV": 2, "LIT": 2}
+    arity = {
+        "NOT": 1, "IN": 2, "OUT": 2, "MOV": 2, "LIT": 2,
+        "CMP": 2, "BRA": 1, "LABEL": 1,
+        **{opcode: 1 for opcode in CONDITIONAL_BRANCHES},
+    }
     if opcode in BINARY_OPS or opcode in SHIFT_OPS:
         expected = 2
     elif opcode in arity:
@@ -178,46 +223,116 @@ def _parse_instruction(text: str, line: int) -> Instruction:
 
 
 def _verify(definition: CodeDefinition) -> None:
-    initialized: set[str] = set()
-    assigned_outputs: set[str] = set()
+    labels: dict[str, int] = {}
     for instruction in definition.instructions:
         op, args, line = instruction.opcode, instruction.operands, instruction.line
-        if op == "IN":
+        if op == "LABEL":
+            _label(args[0], line)
+            if args[0] in labels:
+                raise VerifyError(f"line {line}: duplicate label {args[0]}")
+            labels[args[0]] = len(labels)
+        elif op in CONDITIONAL_BRANCHES or op == "BRA":
+            _label(args[0], line)
+        elif op == "IN":
             _register(args[0], line)
             if args[1] not in definition.inputs:
                 raise VerifyError(f"line {line}: unknown input {args[1]}")
-            initialized.add(args[0])
         elif op == "OUT":
             if args[0] not in definition.outputs:
                 raise VerifyError(f"line {line}: unknown output {args[0]}")
-            _read_register(args[1], initialized, line)
-            if args[0] in assigned_outputs:
-                raise VerifyError(f"line {line}: output {args[0]} assigned twice")
-            assigned_outputs.add(args[0])
-        elif op == "MOV":
+            _register(args[1], line)
+        elif op in {"MOV", "CMP"} or op in BINARY_OPS:
             _register(args[0], line)
-            _read_register(args[1], initialized, line)
-            initialized.add(args[0])
+            _register(args[1], line)
         elif op == "LIT":
             _register(args[0], line)
             _parse_number(args[1], line)
-            initialized.add(args[0])
-        elif op in BINARY_OPS:
-            _read_register(args[0], initialized, line)
-            _read_register(args[1], initialized, line)
         elif op == "NOT":
-            _read_register(args[0], initialized, line)
+            _register(args[0], line)
         elif op in SHIFT_OPS:
-            _read_register(args[0], initialized, line)
+            _register(args[0], line)
             try:
                 count = int(args[1], 10)
             except ValueError as error:
                 raise VerifyError(f"line {line}: invalid shift count {args[1]}") from error
             if not 0 <= count <= 31:
                 raise VerifyError(f"line {line}: shift count must be 0..31")
-    missing = [name for name in definition.outputs if name not in assigned_outputs]
-    if missing:
-        raise VerifyError(f"output(s) not assigned: {', '.join(missing)}")
+    for instruction in definition.instructions:
+        if instruction.opcode in CONDITIONAL_BRANCHES or instruction.opcode == "BRA":
+            if instruction.operands[0] not in labels:
+                raise VerifyError(
+                    f"line {instruction.line}: unknown label {instruction.operands[0]}"
+                )
+    _verify_paths(definition)
+
+
+def _verify_paths(definition: CodeDefinition) -> None:
+    labels = {
+        instruction.operands[0]: index
+        for index, instruction in enumerate(definition.instructions)
+        if instruction.opcode == "LABEL"
+    }
+    pending = [(0, frozenset(), frozenset(), False)]
+    seen: set[tuple[int, frozenset[str], frozenset[str], bool]] = set()
+    terminal_seen = False
+    while pending:
+        pc, initialized, assigned, compared = pending.pop()
+        state = (pc, initialized, assigned, compared)
+        if state in seen:
+            continue
+        seen.add(state)
+        if pc == len(definition.instructions):
+            terminal_seen = True
+            missing = [name for name in definition.outputs if name not in assigned]
+            if missing:
+                raise VerifyError(f"output(s) not assigned: {', '.join(missing)}")
+            continue
+
+        instruction = definition.instructions[pc]
+        op, args, line = instruction.opcode, instruction.operands, instruction.line
+        next_initialized = set(initialized)
+        next_assigned = set(assigned)
+        next_compared = compared
+        if op == "IN":
+            next_initialized.add(args[0])
+        elif op == "OUT":
+            _read_register(args[1], set(initialized), line)
+            if args[0] in assigned:
+                raise VerifyError(f"line {line}: output {args[0]} assigned twice on one path")
+            next_assigned.add(args[0])
+        elif op == "MOV":
+            _read_register(args[1], set(initialized), line)
+            next_initialized.add(args[0])
+        elif op == "LIT":
+            next_initialized.add(args[0])
+        elif op in BINARY_OPS:
+            _read_register(args[0], set(initialized), line)
+            _read_register(args[1], set(initialized), line)
+        elif op == "NOT" or op in SHIFT_OPS:
+            _read_register(args[0], set(initialized), line)
+        elif op == "CMP":
+            _read_register(args[0], set(initialized), line)
+            _read_register(args[1], set(initialized), line)
+            next_compared = True
+        elif op in CONDITIONAL_BRANCHES:
+            if not compared:
+                raise VerifyError(f"line {line}: {op} requires CMP on every path")
+            branch_state = (
+                labels[args[0]], frozenset(next_initialized),
+                frozenset(next_assigned), next_compared,
+            )
+            pending.append(branch_state)
+        elif op == "BRA":
+            pending.append((
+                labels[args[0]], frozenset(next_initialized),
+                frozenset(next_assigned), next_compared,
+            ))
+            continue
+        pending.append((
+            pc + 1, frozenset(next_initialized), frozenset(next_assigned), next_compared,
+        ))
+    if not terminal_seen:
+        raise VerifyError("CODE definition has no terminating path")
 
 
 def _register(name: str, line: int) -> None:
@@ -229,6 +344,15 @@ def _read_register(name: str, initialized: set[str], line: int) -> None:
     _register(name, line)
     if name not in initialized:
         raise VerifyError(f"line {line}: register {name} is uninitialized")
+
+
+def _label(name: str, line: int) -> None:
+    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", name):
+        raise VerifyError(f"line {line}: invalid label {name}")
+
+
+def _signed(value: int) -> int:
+    return value if value < 0x8000_0000 else value - 0x1_0000_0000
 
 
 def _parse_number(text: str, line: int) -> int:

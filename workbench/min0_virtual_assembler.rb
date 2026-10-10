@@ -6,11 +6,13 @@ module Min0VirtualAssembler
   REGISTERS = %w[V0 V1 V2 V3].freeze
   BINARY_OPS = %w[ADD SUB MUL AND OR XOR].freeze
   SHIFT_OPS = %w[LSL LSR ASR ROL ROR].freeze
+  CONDITIONAL_BRANCHES = %w[BEQ BNE BLT BGE BLTU BGEU].freeze
 
   class Error < StandardError; end
   class ParseError < Error; end
   class VerifyError < Error; end
   class StackUnderflow < Error; end
+  class ExecutionError < Error; end
 
   Instruction = Struct.new(:opcode, :operands, :line, keyword_init: true)
 
@@ -24,7 +26,7 @@ module Min0VirtualAssembler
       @instructions = instructions.freeze
     end
 
-    def execute(stack)
+    def execute(stack, max_steps: 10_000)
       if stack.length < inputs.length
         raise StackUnderflow,
               "#{name} needs #{inputs.length} inputs but stack has #{stack.length}"
@@ -35,8 +37,20 @@ module Min0VirtualAssembler
       entry = inputs.zip(values.map { |value| value & CELL_MASK }).to_h
       registers = {}
       staged = {}
+      comparison = nil
+      labels = {}
+      instructions.each_with_index do |instruction, index|
+        labels[instruction.operands[0]] = index if instruction.opcode == "LABEL"
+      end
 
-      instructions.each do |instruction|
+      pc = 0
+      steps = 0
+      while pc < instructions.length
+        steps += 1
+        if steps > max_steps
+          raise ExecutionError, "#{name} exceeded #{max_steps} virtual instructions"
+        end
+        instruction = instructions[pc]
         op = instruction.opcode
         args = instruction.operands
         case op
@@ -78,9 +92,33 @@ module Min0VirtualAssembler
                      count.zero? ? value : (value >> count) | (value << (32 - count))
                    end
           registers[register] = result & CELL_MASK
+        when "CMP"
+          comparison = [registers.fetch(args[0]), registers.fetch(args[1])]
+        when *CONDITIONAL_BRANCHES
+          left, right = comparison
+          signed_left = Min0VirtualAssembler.signed(left)
+          signed_right = Min0VirtualAssembler.signed(right)
+          take = case op
+                 when "BEQ" then left == right
+                 when "BNE" then left != right
+                 when "BLT" then signed_left < signed_right
+                 when "BGE" then signed_left >= signed_right
+                 when "BLTU" then left < right
+                 else left >= right
+                 end
+          if take
+            pc = labels.fetch(args[0])
+            next
+          end
+        when "BRA"
+          pc = labels.fetch(args[0])
+          next
+        when "LABEL"
+          # No runtime operation.
         else
           raise "unreachable opcode #{op}"
         end
+        pc += 1
       end
 
       prefix + outputs.map { |output| staged.fetch(output) }
@@ -138,7 +176,11 @@ module Min0VirtualAssembler
     expected = if BINARY_OPS.include?(opcode) || SHIFT_OPS.include?(opcode)
                  2
                else
-                 { "NOT" => 1, "IN" => 2, "OUT" => 2, "MOV" => 2, "LIT" => 2 }[opcode]
+                 {
+                   "NOT" => 1, "IN" => 2, "OUT" => 2, "MOV" => 2,
+                   "LIT" => 2, "CMP" => 2, "BRA" => 1, "LABEL" => 1,
+                   **CONDITIONAL_BRANCHES.to_h { |branch| [branch, 1] }
+                 }[opcode]
                end
     raise ParseError, "line #{line}: unknown opcode #{opcode}" if expected.nil?
     if operands.length != expected || operands.any?(&:empty?)
@@ -148,37 +190,34 @@ module Min0VirtualAssembler
   end
 
   def verify(definition)
-    initialized = []
-    assigned_outputs = []
+    labels = {}
     definition.instructions.each do |instruction|
       op = instruction.opcode
       args = instruction.operands
       line = instruction.line
       case op
+      when "LABEL"
+        label(args[0], line)
+        raise VerifyError, "line #{line}: duplicate label #{args[0]}" if labels.key?(args[0])
+        labels[args[0]] = true
+      when *CONDITIONAL_BRANCHES, "BRA"
+        label(args[0], line)
       when "IN"
         register(args[0], line)
         raise VerifyError, "line #{line}: unknown input #{args[1]}" unless definition.inputs.include?(args[1])
-        initialized << args[0] unless initialized.include?(args[0])
       when "OUT"
         raise VerifyError, "line #{line}: unknown output #{args[0]}" unless definition.outputs.include?(args[0])
-        read_register(args[1], initialized, line)
-        raise VerifyError, "line #{line}: output #{args[0]} assigned twice" if assigned_outputs.include?(args[0])
-        assigned_outputs << args[0]
-      when "MOV"
+        register(args[1], line)
+      when "MOV", "CMP", *BINARY_OPS
         register(args[0], line)
-        read_register(args[1], initialized, line)
-        initialized << args[0] unless initialized.include?(args[0])
+        register(args[1], line)
       when "LIT"
         register(args[0], line)
         parse_number(args[1], line)
-        initialized << args[0] unless initialized.include?(args[0])
-      when *BINARY_OPS
-        read_register(args[0], initialized, line)
-        read_register(args[1], initialized, line)
       when "NOT"
-        read_register(args[0], initialized, line)
+        register(args[0], line)
       when *SHIFT_OPS
-        read_register(args[0], initialized, line)
+        register(args[0], line)
         begin
           count = Integer(args[1], 10)
         rescue ArgumentError
@@ -187,8 +226,74 @@ module Min0VirtualAssembler
         raise VerifyError, "line #{line}: shift count must be 0..31" unless (0..31).cover?(count)
       end
     end
-    missing = definition.outputs - assigned_outputs
-    raise VerifyError, "output(s) not assigned: #{missing.join(', ')}" unless missing.empty?
+    definition.instructions.each do |instruction|
+      next unless CONDITIONAL_BRANCHES.include?(instruction.opcode) || instruction.opcode == "BRA"
+      target = instruction.operands[0]
+      raise VerifyError, "line #{instruction.line}: unknown label #{target}" unless labels.key?(target)
+    end
+    verify_paths(definition)
+  end
+
+  def verify_paths(definition)
+    labels = {}
+    definition.instructions.each_with_index do |instruction, index|
+      labels[instruction.operands[0]] = index if instruction.opcode == "LABEL"
+    end
+    pending = [[0, [], [], false]]
+    seen = {}
+    terminal_seen = false
+    until pending.empty?
+      pc, initialized, assigned, compared = pending.pop
+      key = [pc, initialized, assigned, compared]
+      next if seen[key]
+      seen[key] = true
+      if pc == definition.instructions.length
+        terminal_seen = true
+        missing = definition.outputs - assigned
+        raise VerifyError, "output(s) not assigned: #{missing.join(', ')}" unless missing.empty?
+        next
+      end
+
+      instruction = definition.instructions[pc]
+      op = instruction.opcode
+      args = instruction.operands
+      line = instruction.line
+      next_initialized = initialized.dup
+      next_assigned = assigned.dup
+      next_compared = compared
+      case op
+      when "IN"
+        next_initialized |= [args[0]]
+      when "OUT"
+        read_register(args[1], initialized, line)
+        if assigned.include?(args[0])
+          raise VerifyError, "line #{line}: output #{args[0]} assigned twice on one path"
+        end
+        next_assigned |= [args[0]]
+      when "MOV"
+        read_register(args[1], initialized, line)
+        next_initialized |= [args[0]]
+      when "LIT"
+        next_initialized |= [args[0]]
+      when *BINARY_OPS
+        read_register(args[0], initialized, line)
+        read_register(args[1], initialized, line)
+      when "NOT", *SHIFT_OPS
+        read_register(args[0], initialized, line)
+      when "CMP"
+        read_register(args[0], initialized, line)
+        read_register(args[1], initialized, line)
+        next_compared = true
+      when *CONDITIONAL_BRANCHES
+        raise VerifyError, "line #{line}: #{op} requires CMP on every path" unless compared
+        pending << [labels.fetch(args[0]), next_initialized.sort, next_assigned.sort, next_compared]
+      when "BRA"
+        pending << [labels.fetch(args[0]), next_initialized.sort, next_assigned.sort, next_compared]
+        next
+      end
+      pending << [pc + 1, next_initialized.sort, next_assigned.sort, next_compared]
+    end
+    raise VerifyError, "CODE definition has no terminating path" unless terminal_seen
   end
 
   def register(name, line)
@@ -199,6 +304,15 @@ module Min0VirtualAssembler
   def read_register(name, initialized, line)
     register(name, line)
     raise VerifyError, "line #{line}: register #{name} is uninitialized" unless initialized.include?(name)
+  end
+
+  def label(name, line)
+    return if name.match?(/\A[A-Za-z][A-Za-z0-9_-]*\z/)
+    raise VerifyError, "line #{line}: invalid label #{name}"
+  end
+
+  def signed(value)
+    value < 0x8000_0000 ? value : value - 0x1_0000_0000
   end
 
   def parse_number(text, line)

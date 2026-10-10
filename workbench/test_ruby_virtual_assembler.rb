@@ -44,6 +44,40 @@ discard = Min0VirtualAssembler.compile_code("CODE: DISCARD ( value -- )\n ;CODE"
 assert_equal([7, 42], constant.execute([7]), "empty input contract")
 assert_equal([7], discard.execute([7, 42]), "empty output contract")
 
+maximum = Min0VirtualAssembler.compile_code(<<~FORTH)
+  CODE: MAX ( a b -- max )
+    IN V0, a
+    IN V1, b
+    CMP V0, V1
+    BGE a-wins
+    OUT max, V1
+    BRA done
+    LABEL a-wins
+    OUT max, V0
+    LABEL done
+  ;CODE
+FORTH
+assert_equal([20], maximum.execute([10, 20]), "branch chooses b")
+assert_equal([30], maximum.execute([30, 20]), "branch chooses a")
+
+looping = Min0VirtualAssembler.compile_code(<<~FORTH)
+  CODE: LOOP-MAYBE ( flag -- )
+    IN V0, flag
+    LIT V1, 0
+    LABEL again
+    CMP V0, V1
+    BEQ done
+    BRA again
+    LABEL done
+  ;CODE
+FORTH
+begin
+  looping.execute([1], max_steps: 20)
+  raise "instruction budget was ignored"
+rescue Min0VirtualAssembler::ExecutionError
+  # Expected.
+end
+
 begin
   Min0VirtualAssembler.compile_code("CODE: BAD ( x -- y )\n IN V0, x\n ;CODE")
   raise "missing output was accepted"

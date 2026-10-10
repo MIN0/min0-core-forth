@@ -57,8 +57,32 @@ CODE: SUM-XOR ( a b c -- sum mix )
 |  | `NOT Vd` | bit反転 |
 | shift | `LSL/LSR/ASR Vd, n` | 0から31 bitのshift |
 | rotate | `ROL/ROR Vd, n` | 32-bit rotate |
+| 比較 | `CMP Va, Vb` | 以後の分岐用に2値を比較 |
+| 分岐 | `BEQ/BNE label` | equal / not equalで分岐 |
+|  | `BLT/BGE label` | signed比較で分岐 |
+|  | `BLTU/BGEU label` | unsigned比較で分岐 |
+|  | `BRA label` | 無条件分岐 |
+| label | `LABEL name` | 分岐先を定義 |
 
-R0は直線的な命令列だけを扱う。分岐、memory access、call、division、CPU固有命令は後続版とする。
+条件分岐の前には、その経路上で必ず`CMP`を実行しなければならない。loopは記述できるが、
+基準実装は命令数上限を持ち、上限超過時にはstackを変更せず失敗する。
+memory access、call、division、CPU固有命令は後続版とする。
+
+### 分岐例
+
+```forth
+CODE: MAX ( a b -- max )
+  IN V0, a
+  IN V1, b
+  CMP V0, V1
+  BGE a-wins
+  OUT max, V1
+  BRA done
+  LABEL a-wins
+  OUT max, V0
+  LABEL done
+;CODE
+```
 
 ## 静的検査
 
@@ -69,14 +93,15 @@ R0は直線的な命令列だけを扱う。分岐、memory access、call、divi
 3. outputの重複設定または未設定。
 4. 未知の命令、register、operand形式。
 5. 0から31の範囲外のshift/rotate量。
+6. 未定義または重複したlabel、`CMP`を通らず到達できる条件分岐。
+7. ある実行経路だけで欠けるoutput、同じ経路で2回設定されるoutput。
 
 ## 今後の拡張
 
 1. R0 reference implementationでPython/Ruby相互一致を確認する。
-2. 条件分岐と比較を追加する。
-3. 検査付き`LD32/ST32`をruntime helperとして追加する。
-4. 仮想命令からPico 2 W向け機械語を生成する。
-5. relocation、W^X publication、実機上のFORTH stack contractを検証する。
+2. 検査付き`LD32/ST32`をruntime helperとして追加する。
+3. 仮想命令からPico 2 W向け機械語を生成する。
+4. relocation、W^X publication、実機上のFORTH stack contractを検証する。
 
 表現力を増やす場合も、6809のaddressing modeのような便利さは仮想命令側へ追加し、
 安全性検査とCPU backendを分離する。

@@ -1,6 +1,7 @@
 import unittest
 
 from min0_virtual_assembler import (
+    ExecutionError,
     ParseError,
     StackUnderflow,
     VerifyError,
@@ -98,6 +99,66 @@ class VirtualAssemblerTests(unittest.TestCase):
         discard = compile_code("CODE: DISCARD ( value -- )\n ;CODE")
         self.assertEqual(constant.execute([7]), [7, 42])
         self.assertEqual(discard.execute([7, 42]), [7])
+
+    def test_comparison_and_branch_select_one_output_path(self) -> None:
+        maximum = compile_code("""CODE: MAX ( a b -- max )
+        IN V0, a
+        IN V1, b
+        CMP V0, V1
+        BGE a-wins
+        OUT max, V1
+        BRA done
+        LABEL a-wins
+        OUT max, V0
+        LABEL done
+        ;CODE""")
+        self.assertEqual(maximum.execute([10, 20]), [20])
+        self.assertEqual(maximum.execute([30, 20]), [30])
+
+    def test_signed_and_unsigned_comparisons_differ(self) -> None:
+        signed_less = compile_code("""CODE: SIGNED-LESS ( a b -- flag )
+        IN V0, a
+        IN V1, b
+        CMP V0, V1
+        BLT yes
+        LIT V2, 0
+        BRA result
+        LABEL yes
+        LIT V2, 1
+        LABEL result
+        OUT flag, V2
+        ;CODE""")
+        unsigned_less = signed_less.__class__(
+            "UNSIGNED-LESS", signed_less.inputs, signed_less.outputs,
+            tuple(
+                instruction.__class__(
+                    "BLTU" if instruction.opcode == "BLT" else instruction.opcode,
+                    instruction.operands, instruction.line,
+                )
+                for instruction in signed_less.instructions
+            ),
+        )
+        self.assertEqual(signed_less.execute([0xFFFF_FFFF, 1]), [1])
+        self.assertEqual(unsigned_less.execute([0xFFFF_FFFF, 1]), [0])
+
+    def test_branch_contracts_and_execution_budget_are_checked(self) -> None:
+        with self.assertRaisesRegex(VerifyError, "requires CMP"):
+            compile_code("CODE: BAD ( -- )\n BEQ done\n LABEL done\n ;CODE")
+        with self.assertRaisesRegex(VerifyError, "unknown label"):
+            compile_code("CODE: BAD ( -- )\n BRA missing\n ;CODE")
+        looping = compile_code("""CODE: LOOP-MAYBE ( flag -- )
+        IN V0, flag
+        LIT V1, 0
+        LABEL again
+        CMP V0, V1
+        BEQ done
+        BRA again
+        LABEL done
+        ;CODE""")
+        before = [1]
+        with self.assertRaises(ExecutionError):
+            looping.execute(before, max_steps=20)
+        self.assertEqual(before, [1])
 
 
 if __name__ == "__main__":
