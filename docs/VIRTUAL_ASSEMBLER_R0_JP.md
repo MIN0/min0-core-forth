@@ -2,6 +2,8 @@
 
 CPUやFPGAが変わっても維持する上位契約と、backend固有実装を分離する判断基準は、
 [MIN0 CORE FORTH 移植可能backend開発原則](PORTABLE_BACKEND_PRINCIPLES_JP.md)に定める。
+未知のセンサを仮想機器で調べ、失敗からmanifestとcapabilityを学ぶ教材方針は、
+[MIN0 Device Lab 初心者ガイド](DEVICE_LAB_BEGINNER_GUIDE_JP.md)を参照する。
 
 ## 目的
 
