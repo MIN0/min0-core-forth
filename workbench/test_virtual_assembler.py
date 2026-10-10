@@ -2,6 +2,8 @@ import unittest
 
 from min0_virtual_assembler import (
     ExecutionError,
+    MemoryAccessError,
+    MemoryWindow,
     ParseError,
     StackUnderflow,
     VerifyError,
@@ -169,6 +171,67 @@ class VirtualAssemblerTests(unittest.TestCase):
         OUT value, V0
         ;CODE""")
         self.assertEqual(legacy.execute([]), [7])
+
+    def test_checked_load_with_positive_and_negative_offsets(self) -> None:
+        memory = MemoryWindow(0x1000, 16)
+        memory.write32(0x1004, 0x12345678)
+        load = compile_code("""CODE: LOAD-PAIR ( address -- first second )
+        IN V1, address
+        LD32 V0, [V1]
+        LD32 V2, [V1-4]
+        OUT first, V0
+        OUT second, V2
+        ;CODE""")
+        self.assertEqual(
+            load.execute([0x1008], memory=memory), [0, 0x12345678]
+        )
+
+    def test_store_is_committed_only_after_success(self) -> None:
+        memory = MemoryWindow(0x2000, 8)
+        store = compile_code("""CODE: STORE ( value address -- )
+        IN V0, value
+        IN V1, address
+        ST32 [V1+4], V0
+        ;CODE""")
+        self.assertEqual(store.execute([99, 0x2000], memory=memory), [])
+        self.assertEqual(memory.read32(0x2004), 99)
+
+        looping = compile_code("""CODE: STORE-THEN-LOOP ( value address -- )
+        IN V0, value
+        IN V1, address
+        ST32 [V1], V0
+@again:
+        CMP V0, V0
+        BEQ @again
+        ;CODE""")
+        memory.write32(0x2000, 7)
+        with self.assertRaises(ExecutionError):
+            looping.execute([88, 0x2000], memory=memory, max_steps=10)
+        self.assertEqual(memory.read32(0x2000), 7)
+
+    def test_store_forwarding_and_access_checks(self) -> None:
+        memory = MemoryWindow(0x3000, 8)
+        round_trip = compile_code("""CODE: ROUND-TRIP ( value address -- observed )
+        IN V0, value
+        IN V1, address
+        ST32 [V1], V0
+        LD32 V2, [V1]
+        OUT observed, V2
+        ;CODE""")
+        self.assertEqual(round_trip.execute([55, 0x3000], memory=memory), [55])
+        self.assertEqual(memory.read32(0x3000), 55)
+
+        before = list(memory.data)
+        with self.assertRaises(MemoryAccessError):
+            round_trip.execute([66, 0x3001], memory=memory)
+        self.assertEqual(list(memory.data), before)
+        with self.assertRaises(MemoryAccessError):
+            round_trip.execute([66, 0x3008], memory=memory)
+        self.assertEqual(list(memory.data), before)
+
+        read_only = MemoryWindow(0x3000, 8, writable=False)
+        with self.assertRaises(MemoryAccessError):
+            round_trip.execute([66, 0x3000], memory=read_only)
 
 
 if __name__ == "__main__":

@@ -78,6 +78,49 @@ rescue Min0VirtualAssembler::ExecutionError
   # Expected.
 end
 
+memory = Min0VirtualAssembler::MemoryWindow.new(0x1000, 16)
+memory.write32(0x1004, 0x12345678)
+load_pair = Min0VirtualAssembler.compile_code(<<~FORTH)
+  CODE: LOAD-PAIR ( address -- first second )
+    IN V1, address
+    LD32 V0, [V1]
+    LD32 V2, [V1-4]
+    OUT first, V0
+    OUT second, V2
+  ;CODE
+FORTH
+assert_equal([0, 0x12345678], load_pair.execute([0x1008], memory: memory), "checked load")
+
+round_trip = Min0VirtualAssembler.compile_code(<<~FORTH)
+  CODE: ROUND-TRIP ( value address -- observed )
+    IN V0, value
+    IN V1, address
+    ST32 [V1], V0
+    LD32 V2, [V1]
+    OUT observed, V2
+  ;CODE
+FORTH
+assert_equal([55], round_trip.execute([55, 0x1000], memory: memory), "staged store forwarding")
+assert_equal(55, memory.read32(0x1000), "committed store")
+
+store_then_loop = Min0VirtualAssembler.compile_code(<<~FORTH)
+  CODE: STORE-THEN-LOOP ( value address -- )
+    IN V0, value
+    IN V1, address
+    ST32 [V1], V0
+  @again:
+    CMP V0, V0
+    BEQ @again
+  ;CODE
+FORTH
+memory.write32(0x1000, 7)
+begin
+  store_then_loop.execute([88, 0x1000], memory: memory, max_steps: 10)
+  raise "failed store was committed"
+rescue Min0VirtualAssembler::ExecutionError
+  assert_equal(7, memory.read32(0x1000), "failed store remains uncommitted")
+end
+
 begin
   Min0VirtualAssembler.compile_code("CODE: BAD ( x -- y )\n IN V0, x\n ;CODE")
   raise "missing output was accepted"

@@ -63,10 +63,13 @@ CODE: SUM-XOR ( a b c -- sum mix )
 |  | `BLTU/BGEU @label` | unsigned比較で分岐 |
 |  | `BRA @label` | 無条件分岐 |
 | label | `@label:` | 分岐先を定義 |
+| memory | `LD32 Vd, [Va]` | 検査済み32-bit読出し |
+|  | `LD32 Vd, [Va+4]` | 正の定数offset付き読出し |
+|  | `ST32 [Va-4], Vs` | 負の定数offset付き書込み予約 |
 
 条件分岐の前には、その経路上で必ず`CMP`を実行しなければならない。loopは記述できるが、
 基準実装は命令数上限を持ち、上限超過時にはstackを変更せず失敗する。
-memory access、call、division、CPU固有命令は後続版とする。
+call、division、CPU固有命令は後続版とする。
 
 ### 分岐例
 
@@ -90,6 +93,20 @@ CODE: MAX ( a b -- max )
 命令を2文字字下げする。ただし、小さな画面での編集ミスを避けるため、先頭空白は意味に含めない。
 従来の`LABEL name`と`BRA name`形式も移行用互換構文として受理する。
 
+## 検査付きmemory access
+
+`LD32/ST32`がアクセスできるのは、呼出し側が明示的に渡したmemory windowだけである。
+次をすべて満たさないアクセスは、CPUのload/storeを行う前に拒否する。
+
+1. effective addressが32-bit address空間内にあり、加減算で桁あふれしていない。
+2. 4-byte境界に整列している。
+3. 4 byte全体が許可されたwindow内にある。
+4. windowが要求されたread/write権限を持つ。
+
+`ST32`は実行中に物理memoryを書き換えず、transaction内へ予約する。同じCODE内の後続`LD32`は
+予約値を読める。すべての命令とstack contractが成功した時だけ書込みを確定し、errorや命令数超過時は
+stackとmemoryの両方を開始前のまま残す。
+
 ## 静的検査
 
 実行前に次を拒否する。
@@ -105,7 +122,7 @@ CODE: MAX ( a b -- max )
 ## 今後の拡張
 
 1. R0 reference implementationでPython/Ruby相互一致を確認する。
-2. 検査付き`LD32/ST32`をruntime helperとして追加する。
+2. memory windowを複数region/capabilityへ拡張する。
 3. 仮想命令からPico 2 W向け機械語を生成する。
 4. relocation、W^X publication、実機上のFORTH stack contractを検証する。
 

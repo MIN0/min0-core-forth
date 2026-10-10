@@ -13,6 +13,45 @@ module Min0VirtualAssembler
   class VerifyError < Error; end
   class StackUnderflow < Error; end
   class ExecutionError < Error; end
+  class MemoryAccessError < ExecutionError; end
+
+  class MemoryWindow
+    attr_reader :base, :size, :data
+
+    def initialize(base, size, readable: true, writable: true, initial: [])
+      unless base >= 0 && size >= 0 && base + size <= 0x1_0000_0000
+        raise ArgumentError, "memory window must fit in the 32-bit address space"
+      end
+      raise ArgumentError, "initial data is larger than memory window" if initial.length > size
+      @base = base
+      @size = size
+      @readable = readable
+      @writable = writable
+      @data = Array.new(size, 0)
+      initial.each_with_index { |byte, index| @data[index] = byte }
+    end
+
+    def check32(address, write: false)
+      raise MemoryAccessError, format("unaligned 32-bit address 0x%08X", address) unless (address % 4).zero?
+      if address < base || address + 4 > base + size
+        raise MemoryAccessError, format("address 0x%08X is outside memory window", address)
+      end
+      raise MemoryAccessError, "memory window is not writable" if write && !@writable
+      raise MemoryAccessError, "memory window is not readable" if !write && !@readable
+    end
+
+    def read32(address)
+      check32(address)
+      offset = address - base
+      @data[offset, 4].pack("C*").unpack1("V")
+    end
+
+    def write32(address, value)
+      check32(address, write: true)
+      offset = address - base
+      @data[offset, 4] = [value & CELL_MASK].pack("V").unpack("C*")
+    end
+  end
 
   Instruction = Struct.new(:opcode, :operands, :line, keyword_init: true)
 
@@ -26,7 +65,7 @@ module Min0VirtualAssembler
       @instructions = instructions.freeze
     end
 
-    def execute(stack, max_steps: 10_000)
+    def execute(stack, max_steps: 10_000, memory: nil)
       if stack.length < inputs.length
         raise StackUnderflow,
               "#{name} needs #{inputs.length} inputs but stack has #{stack.length}"
@@ -37,6 +76,7 @@ module Min0VirtualAssembler
       entry = inputs.zip(values.map { |value| value & CELL_MASK }).to_h
       registers = {}
       staged = {}
+      staged_writes = {}
       comparison = nil
       labels = {}
       instructions.each_with_index do |instruction, index|
@@ -115,12 +155,23 @@ module Min0VirtualAssembler
           next
         when "LABEL"
           # No runtime operation.
+        when "LD32"
+          raise MemoryAccessError, "LD32 requires an explicit memory window" if memory.nil?
+          address = Min0VirtualAssembler.effective_address(args[1], registers, instruction.line)
+          memory.check32(address)
+          registers[args[0]] = staged_writes.key?(address) ? staged_writes[address] : memory.read32(address)
+        when "ST32"
+          raise MemoryAccessError, "ST32 requires an explicit memory window" if memory.nil?
+          address = Min0VirtualAssembler.effective_address(args[0], registers, instruction.line)
+          memory.check32(address, write: true)
+          staged_writes[address] = registers.fetch(args[1])
         else
           raise "unreachable opcode #{op}"
         end
         pc += 1
       end
 
+      staged_writes.each { |address, value| memory.write32(address, value) } unless memory.nil?
       prefix + outputs.map { |output| staged.fetch(output) }
     end
   end
@@ -183,6 +234,7 @@ module Min0VirtualAssembler
                  {
                    "NOT" => 1, "IN" => 2, "OUT" => 2, "MOV" => 2,
                    "LIT" => 2, "CMP" => 2, "BRA" => 1, "LABEL" => 1,
+                   "LD32" => 2, "ST32" => 2,
                    **CONDITIONAL_BRANCHES.to_h { |branch| [branch, 1] }
                  }[opcode]
                end
@@ -225,6 +277,12 @@ module Min0VirtualAssembler
         parse_number(args[1], line)
       when "NOT"
         register(args[0], line)
+      when "LD32"
+        register(args[0], line)
+        address_operand(args[1], line)
+      when "ST32"
+        address_operand(args[0], line)
+        register(args[1], line)
       when *SHIFT_OPS
         register(args[0], line)
         begin
@@ -293,6 +351,14 @@ module Min0VirtualAssembler
         read_register(args[0], initialized, line)
         read_register(args[1], initialized, line)
         next_compared = true
+      when "LD32"
+        base_register, = address_operand(args[1], line)
+        read_register(base_register, initialized, line)
+        next_initialized |= [args[0]]
+      when "ST32"
+        base_register, = address_operand(args[0], line)
+        read_register(base_register, initialized, line)
+        read_register(args[1], initialized, line)
       when *CONDITIONAL_BRANCHES
         raise VerifyError, "line #{line}: #{op} requires CMP on every path" unless compared
         pending << [labels.fetch(args[0]), next_initialized.sort, next_assigned.sort, next_compared]
@@ -322,6 +388,28 @@ module Min0VirtualAssembler
 
   def signed(value)
     value < 0x8000_0000 ? value : value - 0x1_0000_0000
+  end
+
+  ADDRESS = /\A\[(V[0-3])(?:([+-])(0[xX][0-9A-Fa-f]+|[0-9]+))?\]\z/
+
+  def address_operand(text, line)
+    match = ADDRESS.match(text)
+    raise VerifyError, "line #{line}: invalid memory address #{text}" unless match
+    return [match[1], 0] if match[2].nil?
+    magnitude = Integer(match[3], match[3].downcase.start_with?("0x") ? 16 : 10)
+    if magnitude > 0x7FFF_FFFF
+      raise VerifyError, "line #{line}: memory offset outside signed 32-bit range"
+    end
+    [match[1], match[2] == "+" ? magnitude : -magnitude]
+  end
+
+  def effective_address(text, registers, line)
+    register_name, offset = address_operand(text, line)
+    address = registers.fetch(register_name) + offset
+    unless (0..CELL_MASK).cover?(address)
+      raise MemoryAccessError, "line #{line}: effective address overflow"
+    end
+    address
   end
 
   def parse_number(text, line)

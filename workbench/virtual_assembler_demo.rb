@@ -32,6 +32,17 @@ maximum = Min0VirtualAssembler.compile_code(<<~FORTH)
   @done:
   ;CODE
 FORTH
+memory = Min0VirtualAssembler::MemoryWindow.new(0x1000, 4)
+round_trip = Min0VirtualAssembler.compile_code(<<~FORTH)
+  CODE: ROUND-TRIP ( value address -- observed )
+    IN V0, value
+    IN V1, address
+    ST32 [V1], V0
+    LD32 V2, [V1]
+    OUT observed, V2
+  ;CODE
+FORTH
+memory_result = round_trip.execute([55, 0x1000], memory: memory)
 before = [10, 20, 30]
 puts JSON.generate({
   format: "min0-virtual-assembler/0.1",
@@ -42,5 +53,7 @@ puts JSON.generate({
   before: before,
   after: definition.execute(before),
   instruction_count: definition.instructions.length,
-  branch_results: [maximum.execute([10, 20]), maximum.execute([30, 20])]
+  branch_results: [maximum.execute([10, 20]), maximum.execute([30, 20])],
+  memory_result: memory_result,
+  committed_memory: memory.read32(0x1000)
 })

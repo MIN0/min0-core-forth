@@ -33,6 +33,49 @@ class ExecutionError(VirtualAssemblerError):
     pass
 
 
+class MemoryAccessError(ExecutionError):
+    pass
+
+
+class MemoryWindow:
+    """One explicit, bounds-checked little-endian memory capability."""
+
+    def __init__(
+        self, base: int, size: int, *, readable: bool = True,
+        writable: bool = True, initial: bytes = b"",
+    ) -> None:
+        if base < 0 or size < 0 or base + size > 0x1_0000_0000:
+            raise ValueError("memory window must fit in the 32-bit address space")
+        if len(initial) > size:
+            raise ValueError("initial data is larger than memory window")
+        self.base = base
+        self.size = size
+        self.readable = readable
+        self.writable = writable
+        self.data = bytearray(size)
+        self.data[:len(initial)] = initial
+
+    def check32(self, address: int, *, write: bool = False) -> None:
+        if address % 4:
+            raise MemoryAccessError(f"unaligned 32-bit address 0x{address:08X}")
+        if address < self.base or address + 4 > self.base + self.size:
+            raise MemoryAccessError(f"address 0x{address:08X} is outside memory window")
+        if write and not self.writable:
+            raise MemoryAccessError("memory window is not writable")
+        if not write and not self.readable:
+            raise MemoryAccessError("memory window is not readable")
+
+    def read32(self, address: int) -> int:
+        self.check32(address)
+        offset = address - self.base
+        return int.from_bytes(self.data[offset:offset + 4], "little")
+
+    def write32(self, address: int, value: int) -> None:
+        self.check32(address, write=True)
+        offset = address - self.base
+        self.data[offset:offset + 4] = (value & CELL_MASK).to_bytes(4, "little")
+
+
 @dataclass(frozen=True)
 class Instruction:
     opcode: str
@@ -47,7 +90,10 @@ class CodeDefinition:
     outputs: tuple[str, ...]
     instructions: tuple[Instruction, ...]
 
-    def execute(self, stack: list[int], *, max_steps: int = 10_000) -> list[int]:
+    def execute(
+        self, stack: list[int], *, max_steps: int = 10_000,
+        memory: MemoryWindow | None = None,
+    ) -> list[int]:
         """Return a new stack; never mutate the caller's stack."""
 
         input_count = len(self.inputs)
@@ -62,6 +108,7 @@ class CodeDefinition:
         }
         registers: dict[str, int] = {}
         staged: dict[str, int] = {}
+        staged_writes: dict[int, int] = {}
         comparison: tuple[int, int] | None = None
         labels = {
             instruction.operands[0]: index
@@ -143,10 +190,28 @@ class CodeDefinition:
                 continue
             elif op == "LABEL":
                 pass
+            elif op == "LD32":
+                if memory is None:
+                    raise MemoryAccessError("LD32 requires an explicit memory window")
+                address = _effective_address(args[1], registers, instruction.line)
+                memory.check32(address)
+                registers[args[0]] = (
+                    staged_writes[address]
+                    if address in staged_writes else memory.read32(address)
+                )
+            elif op == "ST32":
+                if memory is None:
+                    raise MemoryAccessError("ST32 requires an explicit memory window")
+                address = _effective_address(args[0], registers, instruction.line)
+                memory.check32(address, write=True)
+                staged_writes[address] = registers[args[1]]
             else:  # Static verification makes this unreachable.
                 raise AssertionError(op)
             pc += 1
 
+        if memory is not None:
+            for address, value in staged_writes.items():
+                memory.write32(address, value)
         return prefix + [staged[name] for name in self.outputs]
 
 
@@ -211,7 +276,7 @@ def _parse_instruction(text: str, line: int) -> Instruction:
     )
     arity = {
         "NOT": 1, "IN": 2, "OUT": 2, "MOV": 2, "LIT": 2,
-        "CMP": 2, "BRA": 1, "LABEL": 1,
+        "CMP": 2, "BRA": 1, "LABEL": 1, "LD32": 2, "ST32": 2,
         **{opcode: 1 for opcode in CONDITIONAL_BRANCHES},
     }
     if opcode in BINARY_OPS or opcode in SHIFT_OPS:
@@ -257,6 +322,12 @@ def _verify(definition: CodeDefinition) -> None:
             _parse_number(args[1], line)
         elif op == "NOT":
             _register(args[0], line)
+        elif op == "LD32":
+            _register(args[0], line)
+            _address_operand(args[1], line)
+        elif op == "ST32":
+            _address_operand(args[0], line)
+            _register(args[1], line)
         elif op in SHIFT_OPS:
             _register(args[0], line)
             try:
@@ -322,6 +393,14 @@ def _verify_paths(definition: CodeDefinition) -> None:
             _read_register(args[0], set(initialized), line)
             _read_register(args[1], set(initialized), line)
             next_compared = True
+        elif op == "LD32":
+            base_register, _ = _address_operand(args[1], line)
+            _read_register(base_register, set(initialized), line)
+            next_initialized.add(args[0])
+        elif op == "ST32":
+            base_register, _ = _address_operand(args[0], line)
+            _read_register(base_register, set(initialized), line)
+            _read_register(args[1], set(initialized), line)
         elif op in CONDITIONAL_BRANCHES:
             if not compared:
                 raise VerifyError(f"line {line}: {op} requires CMP on every path")
@@ -361,6 +440,35 @@ def _label(name: str, line: int) -> None:
 
 def _signed(value: int) -> int:
     return value if value < 0x8000_0000 else value - 0x1_0000_0000
+
+
+ADDRESS = re.compile(
+    r"^\[(V[0-3])(?:([+-])(0[xX][0-9A-Fa-f]+|[0-9]+))?\]$"
+)
+
+
+def _address_operand(text: str, line: int) -> tuple[str, int]:
+    match = ADDRESS.fullmatch(text)
+    if not match:
+        raise VerifyError(f"line {line}: invalid memory address {text}")
+    register = match.group(1)
+    if match.group(2) is None:
+        return register, 0
+    magnitude_text = match.group(3)
+    magnitude = int(magnitude_text, 16 if magnitude_text.lower().startswith("0x") else 10)
+    if magnitude > 0x7FFF_FFFF:
+        raise VerifyError(f"line {line}: memory offset outside signed 32-bit range")
+    return register, magnitude if match.group(2) == "+" else -magnitude
+
+
+def _effective_address(
+    text: str, registers: dict[str, int], line: int,
+) -> int:
+    register, offset = _address_operand(text, line)
+    address = registers[register] + offset
+    if not 0 <= address <= CELL_MASK:
+        raise MemoryAccessError(f"line {line}: effective address overflow")
+    return address
 
 
 def _parse_number(text: str, line: int) -> int:
