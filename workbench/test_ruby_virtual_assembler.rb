@@ -49,12 +49,12 @@ maximum = Min0VirtualAssembler.compile_code(<<~FORTH)
     IN V0, a
     IN V1, b
     CMP V0, V1
-    BGE a-wins
+    BGE @a-wins
     OUT max, V1
-    BRA done
-    LABEL a-wins
+    BRA @done
+  @a-wins:
     OUT max, V0
-    LABEL done
+  @done:
   ;CODE
 FORTH
 assert_equal([20], maximum.execute([10, 20]), "branch chooses b")
@@ -64,11 +64,11 @@ looping = Min0VirtualAssembler.compile_code(<<~FORTH)
   CODE: LOOP-MAYBE ( flag -- )
     IN V0, flag
     LIT V1, 0
-    LABEL again
+  @again:
     CMP V0, V1
-    BEQ done
-    BRA again
-    LABEL done
+    BEQ @done
+    BRA @again
+  @done:
   ;CODE
 FORTH
 begin

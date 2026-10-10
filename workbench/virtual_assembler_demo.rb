@@ -24,12 +24,12 @@ maximum = Min0VirtualAssembler.compile_code(<<~FORTH)
     IN V0, a
     IN V1, b
     CMP V0, V1
-    BGE a-wins
+    BGE @a-wins
     OUT max, V1
-    BRA done
-    LABEL a-wins
+    BRA @done
+  @a-wins:
     OUT max, V0
-    LABEL done
+  @done:
   ;CODE
 FORTH
 before = [10, 20, 30]

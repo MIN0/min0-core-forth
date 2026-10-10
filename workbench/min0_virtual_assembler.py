@@ -201,6 +201,9 @@ def _names(text: str, role: str, line: int) -> tuple[str, ...]:
 
 
 def _parse_instruction(text: str, line: int) -> Instruction:
+    label_match = re.fullmatch(r"@([A-Za-z][A-Za-z0-9_-]*):", text)
+    if label_match:
+        return Instruction("LABEL", (label_match.group(1),), line)
     parts = text.split(None, 1)
     opcode = parts[0].upper()
     operands = () if len(parts) == 1 else tuple(
@@ -219,6 +222,11 @@ def _parse_instruction(text: str, line: int) -> Instruction:
         raise ParseError(f"line {line}: unknown opcode {opcode}")
     if len(operands) != expected or any(not operand for operand in operands):
         raise ParseError(f"line {line}: {opcode} expects {expected} operand(s)")
+    if opcode in CONDITIONAL_BRANCHES or opcode == "BRA":
+        target = operands[0]
+        if target.startswith("@"):
+            target = target[1:]
+        operands = (target,)
     return Instruction(opcode, operands, line)
 
 

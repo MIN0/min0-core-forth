@@ -105,12 +105,12 @@ class VirtualAssemblerTests(unittest.TestCase):
         IN V0, a
         IN V1, b
         CMP V0, V1
-        BGE a-wins
+        BGE @a-wins
         OUT max, V1
-        BRA done
-        LABEL a-wins
+        BRA @done
+@a-wins:
         OUT max, V0
-        LABEL done
+@done:
         ;CODE""")
         self.assertEqual(maximum.execute([10, 20]), [20])
         self.assertEqual(maximum.execute([30, 20]), [30])
@@ -120,12 +120,12 @@ class VirtualAssemblerTests(unittest.TestCase):
         IN V0, a
         IN V1, b
         CMP V0, V1
-        BLT yes
+        BLT @yes
         LIT V2, 0
-        BRA result
-        LABEL yes
+        BRA @result
+@yes:
         LIT V2, 1
-        LABEL result
+@result:
         OUT flag, V2
         ;CODE""")
         unsigned_less = signed_less.__class__(
@@ -149,16 +149,26 @@ class VirtualAssemblerTests(unittest.TestCase):
         looping = compile_code("""CODE: LOOP-MAYBE ( flag -- )
         IN V0, flag
         LIT V1, 0
-        LABEL again
+@again:
         CMP V0, V1
-        BEQ done
-        BRA again
-        LABEL done
+        BEQ @done
+        BRA @again
+@done:
         ;CODE""")
         before = [1]
         with self.assertRaises(ExecutionError):
             looping.execute(before, max_steps=20)
         self.assertEqual(before, [1])
+
+    def test_legacy_label_instruction_remains_compatible(self) -> None:
+        legacy = compile_code("""CODE: LEGACY ( -- value )
+        BRA old
+        LIT V0, 0
+        LABEL old
+        LIT V0, 7
+        OUT value, V0
+        ;CODE""")
+        self.assertEqual(legacy.execute([]), [7])
 
 
 if __name__ == "__main__":

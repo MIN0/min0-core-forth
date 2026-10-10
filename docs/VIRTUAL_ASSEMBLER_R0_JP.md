@@ -58,11 +58,11 @@ CODE: SUM-XOR ( a b c -- sum mix )
 | shift | `LSL/LSR/ASR Vd, n` | 0から31 bitのshift |
 | rotate | `ROL/ROR Vd, n` | 32-bit rotate |
 | 比較 | `CMP Va, Vb` | 以後の分岐用に2値を比較 |
-| 分岐 | `BEQ/BNE label` | equal / not equalで分岐 |
-|  | `BLT/BGE label` | signed比較で分岐 |
-|  | `BLTU/BGEU label` | unsigned比較で分岐 |
-|  | `BRA label` | 無条件分岐 |
-| label | `LABEL name` | 分岐先を定義 |
+| 分岐 | `BEQ/BNE @label` | equal / not equalで分岐 |
+|  | `BLT/BGE @label` | signed比較で分岐 |
+|  | `BLTU/BGEU @label` | unsigned比較で分岐 |
+|  | `BRA @label` | 無条件分岐 |
+| label | `@label:` | 分岐先を定義 |
 
 条件分岐の前には、その経路上で必ず`CMP`を実行しなければならない。loopは記述できるが、
 基準実装は命令数上限を持ち、上限超過時にはstackを変更せず失敗する。
@@ -75,14 +75,20 @@ CODE: MAX ( a b -- max )
   IN V0, a
   IN V1, b
   CMP V0, V1
-  BGE a-wins
+  BGE @a-wins
   OUT max, V1
-  BRA done
-  LABEL a-wins
+  BRA @done
+
+@a-wins:
   OUT max, V0
-  LABEL done
+
+@done:
 ;CODE
 ```
+
+`@`は「この位置」を表すMIN0仮想アセンブラの印である。推奨表示ではlabel定義を左端、
+命令を2文字字下げする。ただし、小さな画面での編集ミスを避けるため、先頭空白は意味に含めない。
+従来の`LABEL name`と`BRA name`形式も移行用互換構文として受理する。
 
 ## 静的検査
 

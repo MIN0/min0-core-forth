@@ -170,6 +170,10 @@ module Min0VirtualAssembler
   end
 
   def parse_instruction(text, line)
+    label_match = /\A@([A-Za-z][A-Za-z0-9_-]*):\z/.match(text)
+    if label_match
+      return Instruction.new(opcode: "LABEL", operands: [label_match[1]], line: line)
+    end
     opcode, operand_text = text.split(/\s+/, 2)
     opcode = opcode.upcase
     operands = operand_text.nil? ? [] : operand_text.split(",").map(&:strip)
@@ -185,6 +189,11 @@ module Min0VirtualAssembler
     raise ParseError, "line #{line}: unknown opcode #{opcode}" if expected.nil?
     if operands.length != expected || operands.any?(&:empty?)
       raise ParseError, "line #{line}: #{opcode} expects #{expected} operand(s)"
+    end
+    if CONDITIONAL_BRANCHES.include?(opcode) || opcode == "BRA"
+      target = operands[0]
+      target = target[1..] if target.start_with?("@")
+      operands = [target]
     end
     Instruction.new(opcode: opcode, operands: operands, line: line)
   end
