@@ -1,5 +1,8 @@
 # MIN0 CORE FORTH 仮想アセンブラ R0
 
+CPUやFPGAが変わっても維持する上位契約と、backend固有実装を分離する判断基準は、
+[MIN0 CORE FORTH 移植可能backend開発原則](PORTABLE_BACKEND_PRINCIPLES_JP.md)に定める。
+
 ## 目的
 
 MIN0 CORE FORTH のワード内部へ、対象CPUに依存しない小さなアセンブラを記述する。

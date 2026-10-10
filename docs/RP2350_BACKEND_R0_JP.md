@@ -1,5 +1,9 @@
 # MIN0仮想assembler RP2350 backend R0
 
+この文書のregister、function frame、ARM命令、ABIはRP2350固有の実装profileである。CPUやFPGAに
+共通して維持する契約と変更判断は、[MIN0 CORE FORTH 移植可能backend開発原則](PORTABLE_BACKEND_PRINCIPLES_JP.md)
+を参照する。
+
 ## 現在の段階
 
 R0は検査済み仮想assemblerをRP2350 Arm Cortex-M33向けbackend planへ変換し、安全に確定できる

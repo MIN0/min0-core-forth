@@ -10,6 +10,7 @@
 - [FORTHの設計と学習のための参考資料](REFERENCES_JP.md)
 - [Quick Start](QUICKSTART_JP.md)
 - [Windows開発環境でのPython／Ruby全体試験](WINDOWS_DEVELOPMENT_TEST_JP.md)
+- [CPU・FPGAへ共通する移植可能backend開発原則](PORTABLE_BACKEND_PRINCIPLES_JP.md)
 - [プロジェクトの由来](PROJECT_ORIGIN_JP.md)
 - [ライセンスと安全性](LICENSE_AND_SECURITY_JP.md)
 - [既知の制限](KNOWN_LIMITATIONS_0.1_JP.md)
@@ -25,6 +26,7 @@
 実機移植から正確に参照できるよう、ファイル名を安定させています。
 
 - VMと言語：bytecode、source、辞書、対話compiler、条件分岐、loop、data、文字列
+- 仮想assembler：CPU・FPGA共通契約、対象別backend profile、適合試験
 - 定義ワード：`DOES>` descriptor、source `DOES>`、constructor plan
 - メモリと配置：memory profile、split dictionary、relocation、linker、image envelope
 - 実行時境界：出力service、実行profile、verifier、sealed execution、W^X、capability
