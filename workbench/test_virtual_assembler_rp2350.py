@@ -3,6 +3,10 @@ import unittest
 from min0_virtual_assembler import VerifyError, compile_code
 from min0_virtual_assembler_rp2350 import (
     ARCHITECTURE,
+    CONTEXT_REGISTER,
+    HELPER_ABI_VERSION,
+    HELPER_CLOBBERS,
+    HELPER_SIGNATURES,
     BackendInstruction,
     BackendPlan,
     lower_rp2350,
@@ -26,6 +30,8 @@ class Rp2350LoweringTests(unittest.TestCase):
         self.assertNotIn("PUSH_DATA", opcodes)
         self.assertNotIn("POP_DATA", opcodes)
         self.assertEqual(plan.instructions[-3].operands, (2, 1))
+        self.assertEqual(plan.instructions[0].operands, ("r4", "r5", "r6", "r7", "r8", "lr"))
+        self.assertEqual(plan.instructions[1].operands, ("r8", "r0"))
 
     def test_virtual_register_mapping_is_stable(self) -> None:
         definition = compile_code("""CODE: COPY ( x -- y )
@@ -74,15 +80,41 @@ class Rp2350LoweringTests(unittest.TestCase):
             plan = BackendPlan(
                 "BAD", ARCHITECTURE, 0, 0,
                 (
-                    BackendInstruction("PROLOGUE_SAVE", ("r4", "r5", "r6", "r7")),
+                    BackendInstruction("PROLOGUE_SAVE", ("r4", "r5", "r6", "r7", "r8", "lr")),
+                    BackendInstruction("CONTEXT_BIND", ("r8", "r0")),
                     BackendInstruction(opcode, ()),
                     BackendInstruction("FRAME_COMMIT", (0, 0)),
-                    BackendInstruction("EPILOGUE_RESTORE", ("r4", "r5", "r6", "r7")),
+                    BackendInstruction("EPILOGUE_RESTORE", ("r4", "r5", "r6", "r7", "r8", "lr")),
                     BackendInstruction("RETURN", ()),
                 ),
             )
             with self.assertRaises(VerifyError):
                 verify_backend_plan(plan)
+
+    def test_helper_abi_keeps_virtual_and_context_registers_safe(self) -> None:
+        self.assertEqual(HELPER_ABI_VERSION, "min0-rp2350-helper-abi/0.1")
+        self.assertEqual(CONTEXT_REGISTER, "r8")
+        self.assertTrue({"r0", "r1", "r2", "r3", "r12"} <= HELPER_CLOBBERS)
+        self.assertFalse({"r4", "r5", "r6", "r7", "r8"} & HELPER_CLOBBERS)
+        self.assertEqual(
+            HELPER_SIGNATURES["CHECKED_LD32"].results,
+            ("r0=status", "r1=value"),
+        )
+        self.assertIn("r12=value", HELPER_SIGNATURES["STAGE_ST32"].arguments)
+
+    def test_commit_counts_are_bound_to_stack_contract(self) -> None:
+        plan = BackendPlan(
+            "BAD-COUNT", ARCHITECTURE, 2, 1,
+            (
+                BackendInstruction("PROLOGUE_SAVE", ("r4", "r5", "r6", "r7", "r8", "lr")),
+                BackendInstruction("CONTEXT_BIND", ("r8", "r0")),
+                BackendInstruction("FRAME_COMMIT", (1, 1)),
+                BackendInstruction("EPILOGUE_RESTORE", ("r4", "r5", "r6", "r7", "r8", "lr")),
+                BackendInstruction("RETURN", ()),
+            ),
+        )
+        with self.assertRaisesRegex(VerifyError, "counts"):
+            verify_backend_plan(plan)
 
 
 if __name__ == "__main__":

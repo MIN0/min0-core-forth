@@ -14,8 +14,28 @@ R0は機械語を生成または実行しない。検査済み仮想assemblerを
 | `V2` | `r6` |
 | `V3` | `r7` |
 
-planは開始時に`r4`から`r7`を保存し、終了時に復元する。仮想assemblerの実行中にFORTH DATA
+planは開始時に`r4`から`r8`と`lr`を保存し、終了時に復元する。仮想assemblerの実行中にFORTH DATA
 stack pointerを移動する命令は生成しない。
+
+## Helper ABI 0.1
+
+生成関数は`r0`でexecution context pointerを受け取り、prologueでcallee-savedの`r8`へ保存する。
+`r4`から`r7`は仮想register専用、`r8`はcontext専用であり、helperはこれらを保存する。
+
+helperが破壊できるのは`r0`から`r3`、`r12`、APSR condition flagsである。
+
+| helper | 入力 | 出力 |
+|---|---|---|
+| `min0_checked_ld32` | `r0=context, r1=capability, r2=base, r3=offset` | `r0=status, r1=value` |
+| `min0_stage_st32` | 上記に加え`r12=value` | `r0=status` |
+| `min0_frame_commit` | `r0=context, r1=input-count, r2=output-count` | `r0=status` |
+
+statusは0が成功、0以外が失敗である。失敗時には生成CODEを終了し、stackと未確定memory writeを
+破棄する。`r12`を第5引数に使う規則はMIN0内部helperだけのprivate ABIであり、通常のC関数を
+この形式で呼び出してはならない。
+
+prologueは`r4-r8`と`lr`を保存して`CONTEXT_BIND r8, r0`を行い、epilogueで復元する。
+backend verifierはこの並びとclobber分離を検査する。
 
 ## Stack contractのlowering
 
