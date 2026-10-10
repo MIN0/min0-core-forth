@@ -91,6 +91,15 @@ load_pair = Min0VirtualAssembler.compile_code(<<~FORTH)
 FORTH
 assert_equal([0, 0x12345678], load_pair.execute([0x1008], memory: memory), "checked load")
 
+spaced_load = Min0VirtualAssembler.compile_code(<<~FORTH)
+  CODE: SPACED-LOAD ( address -- value )
+    IN V1, address
+    LD32 V0, [ V1 - 4 ]
+    OUT value, V0
+  ;CODE
+FORTH
+assert_equal([0x12345678], spaced_load.execute([0x1008], memory: memory), "spaced address")
+
 round_trip = Min0VirtualAssembler.compile_code(<<~FORTH)
   CODE: ROUND-TRIP ( value address -- observed )
     IN V0, value

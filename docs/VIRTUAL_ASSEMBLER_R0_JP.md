@@ -96,6 +96,8 @@ CODE: MAX ( a b -- max )
 ## 検査付きmemory access
 
 `LD32/ST32`がアクセスできるのは、呼出し側が明示的に渡したmemory windowだけである。
+角括弧内の空白は意味を持たないため、`[V1+4]`、`[ V1+4 ]`、`[V1 + 4]`、
+`[ V1 + 4 ]`はすべて同じaddressingとして扱う。
 次をすべて満たさないアクセスは、CPUのload/storeを行う前に拒否する。
 
 1. effective addressが32-bit address空間内にあり、加減算で桁あふれしていない。

@@ -390,7 +390,7 @@ module Min0VirtualAssembler
     value < 0x8000_0000 ? value : value - 0x1_0000_0000
   end
 
-  ADDRESS = /\A\[(V[0-3])(?:([+-])(0[xX][0-9A-Fa-f]+|[0-9]+))?\]\z/
+  ADDRESS = /\A\[\s*(V[0-3])\s*(?:([+-])\s*(0[xX][0-9A-Fa-f]+|[0-9]+)\s*)?\]\z/
 
   def address_operand(text, line)
     match = ADDRESS.match(text)

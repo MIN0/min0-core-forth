@@ -186,6 +186,22 @@ class VirtualAssemblerTests(unittest.TestCase):
             load.execute([0x1008], memory=memory), [0, 0x12345678]
         )
 
+    def test_memory_address_whitespace_has_no_semantic_effect(self) -> None:
+        memory = MemoryWindow(0x1800, 8)
+        memory.write32(0x1804, 77)
+        compact = compile_code("""CODE: READ ( address -- value )
+        IN V1, address
+        LD32 V0, [V1+4]
+        OUT value, V0
+        ;CODE""")
+        spaced = compile_code("""CODE: READ ( address -- value )
+        IN V1, address
+        LD32 V0, [ V1 + 4 ]
+        OUT value, V0
+        ;CODE""")
+        self.assertEqual(compact.execute([0x1800], memory=memory), [77])
+        self.assertEqual(spaced.execute([0x1800], memory=memory), [77])
+
     def test_store_is_committed_only_after_success(self) -> None:
         memory = MemoryWindow(0x2000, 8)
         store = compile_code("""CODE: STORE ( value address -- )
