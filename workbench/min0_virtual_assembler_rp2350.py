@@ -23,8 +23,12 @@ from min0_virtual_assembler import (
 ARCHITECTURE = "rp2350-arm-s/cortex-m33"
 REGISTER_MAP = {"V0": "r4", "V1": "r5", "V2": "r6", "V3": "r7"}
 SAFE_MEMORY_OPS = frozenset({"CHECKED_LD32", "STAGE_ST32"})
-HELPER_ABI_VERSION = "min0-rp2350-helper-abi/0.1"
+HELPER_ABI_VERSION = "min0-rp2350-helper-abi/0.2"
 CONTEXT_REGISTER = "r8"
+COMPARISON_REGISTERS = ("r9", "r10")
+FUNCTION_FRAME_REGISTERS = (
+    "r4", "r5", "r6", "r7", "r8", "r9", "r10", "lr",
+)
 HELPER_CLOBBERS = frozenset({"r0", "r1", "r2", "r3", "r12", "APSR"})
 HELPER_PRESERVES = frozenset({"r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"})
 
@@ -98,7 +102,7 @@ def lower_rp2350(definition: CodeDefinition) -> BackendPlan:
     """Lower a verified CODE definition to an auditable RP2350 plan."""
 
     lowered: list[BackendInstruction] = [
-        BackendInstruction("PROLOGUE_SAVE", ("r4", "r5", "r6", "r7", "r8", "lr")),
+        BackendInstruction("PROLOGUE_SAVE", FUNCTION_FRAME_REGISTERS),
         BackendInstruction("CONTEXT_BIND", (CONTEXT_REGISTER, "r0")),
     ]
     input_indexes = {name: index for index, name in enumerate(definition.inputs)}
@@ -157,7 +161,7 @@ def lower_rp2350(definition: CodeDefinition) -> BackendPlan:
             "FRAME_COMMIT", (len(definition.inputs), len(definition.outputs))
         ),
         BackendInstruction(
-            "EPILOGUE_RESTORE", ("r4", "r5", "r6", "r7", "r8", "lr")
+            "EPILOGUE_RESTORE", FUNCTION_FRAME_REGISTERS
         ),
         BackendInstruction("RETURN", ()),
     ))
@@ -173,7 +177,7 @@ def verify_backend_plan(plan: BackendPlan) -> None:
     """Reject plans that could bypass the runtime stack or memory gates."""
 
     if not plan.instructions or plan.instructions[0] != BackendInstruction(
-        "PROLOGUE_SAVE", ("r4", "r5", "r6", "r7", "r8", "lr")
+        "PROLOGUE_SAVE", FUNCTION_FRAME_REGISTERS
     ):
         raise VerifyError("backend plan must begin with PROLOGUE_SAVE")
     if len(plan.instructions) < 2 or plan.instructions[1] != BackendInstruction(
@@ -185,7 +189,7 @@ def verify_backend_plan(plan: BackendPlan) -> None:
         raise VerifyError("backend plan must end with commit, restore, return")
     if plan.instructions[-3].operands != (plan.input_count, plan.output_count):
         raise VerifyError("FRAME_COMMIT counts do not match backend plan contract")
-    if plan.instructions[-2].operands != ("r4", "r5", "r6", "r7", "r8", "lr"):
+    if plan.instructions[-2].operands != FUNCTION_FRAME_REGISTERS:
         raise VerifyError("backend epilogue restore set does not match helper ABI")
     if plan.instructions[-1].operands:
         raise VerifyError("RETURN must not have operands")
@@ -204,6 +208,8 @@ def verify_backend_plan(plan: BackendPlan) -> None:
         raise VerifyError("virtual register mapping overlaps helper clobbers")
     if CONTEXT_REGISTER in HELPER_CLOBBERS:
         raise VerifyError("context register is clobbered by helper ABI")
+    if set(COMPARISON_REGISTERS) & HELPER_CLOBBERS:
+        raise VerifyError("comparison snapshot registers are clobbered by helper ABI")
     labels = {
         instruction.operands[0]
         for instruction in plan.instructions

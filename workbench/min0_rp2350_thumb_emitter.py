@@ -6,7 +6,11 @@ from dataclasses import dataclass
 import struct
 
 from min0_virtual_assembler import VerifyError
-from min0_virtual_assembler_rp2350 import BackendPlan, verify_backend_plan
+from min0_virtual_assembler_rp2350 import (
+    BackendPlan,
+    COMPARISON_REGISTERS,
+    verify_backend_plan,
+)
 
 
 UDF_RELOCATION_SLOT = b"\x00\xDE\x01\xDE"
@@ -51,7 +55,6 @@ def emit_thumb_fragment(plan: BackendPlan) -> MachineFragment:
         "OR": lambda operands: _data_processing(0x4300, operands),
         "MUL": lambda operands: _data_processing(0x4340, operands),
         "MVN": _mvn,
-        "CMP": lambda operands: _data_processing(0x4280, operands),
         "LSL": lambda operands: _shift(0x0000, operands),
         "LSR": lambda operands: _shift(0x0800, operands),
         "ASR": lambda operands: _shift(0x1000, operands),
@@ -60,6 +63,14 @@ def emit_thumb_fragment(plan: BackendPlan) -> MachineFragment:
     for instruction in plan.instructions:
         if instruction.opcode == "LABEL":
             labels[str(instruction.operands[0])] = len(code)
+            continue
+        if instruction.opcode == "CMP":
+            left, right = instruction.operands
+            code.extend(struct.pack(
+                "<HH",
+                _mov_general(COMPARISON_REGISTERS[0], str(left)),
+                _mov_general(COMPARISON_REGISTERS[1], str(right)),
+            ))
             continue
         encoder = encoders.get(instruction.opcode)
         if encoder is not None:
@@ -112,6 +123,22 @@ def _mov(operands: tuple[str | int, ...]) -> int:
     destination = _low_register(str(operands[0]))
     source = _low_register(str(operands[1]))
     return 0x4600 | (source << 3) | destination
+
+
+def _mov_general(destination_name: str, source_name: str) -> int:
+    try:
+        destination = REGISTER_NUMBER[destination_name]
+        source = REGISTER_NUMBER[source_name]
+    except KeyError as error:
+        raise VerifyError("unknown register in comparison snapshot") from error
+    if destination > 12 or source > 12:
+        raise VerifyError("comparison snapshot requires general registers r0..r12")
+    return (
+        0x4600
+        | ((destination & 8) << 4)
+        | (source << 3)
+        | (destination & 7)
+    )
 
 
 def _add(operands: tuple[str | int, ...]) -> int:

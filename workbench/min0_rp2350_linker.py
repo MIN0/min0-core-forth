@@ -13,12 +13,16 @@ from min0_rp2350_thumb_emitter import (
     verify_machine_fragment,
 )
 from min0_virtual_assembler import VerifyError
-from min0_virtual_assembler_rp2350 import HELPER_SIGNATURES
+from min0_virtual_assembler_rp2350 import (
+    COMPARISON_REGISTERS,
+    FUNCTION_FRAME_REGISTERS,
+    HELPER_SIGNATURES,
+)
 
 
 NOP = 0xBF00
-FUNCTION_PUSH_R4_R8_LR = struct.pack("<HH", 0xE92D, 0x41F0)
-FUNCTION_POP_R4_R8_LR = struct.pack("<HH", 0xE8BD, 0x41F0)
+FUNCTION_PUSH_R4_R10_LR = struct.pack("<HH", 0xE92D, 0x47F0)
+FUNCTION_POP_R4_R10_LR = struct.pack("<HH", 0xE8BD, 0x47F0)
 THUNK_PUSH_R12_LR = struct.pack("<HH", 0xE92D, 0x5000)
 THUNK_POP_R12_LR = struct.pack("<HH", 0xE8BD, 0x5000)
 THUNK_POP_R12_PC = struct.pack("<HH", 0xE8BD, 0x9000)
@@ -116,15 +120,15 @@ def link_function_frame(fragment: MachineFragment) -> MachineFragment:
 
     verify_machine_fragment(fragment)
     replacements = {
-        "PROLOGUE_SAVE": FUNCTION_PUSH_R4_R8_LR,
+        "PROLOGUE_SAVE": FUNCTION_PUSH_R4_R10_LR,
         "CONTEXT_BIND": struct.pack("<HH", _encode_thumb_mov("r8", "r0"), NOP),
-        "EPILOGUE_RESTORE": FUNCTION_POP_R4_R8_LR,
+        "EPILOGUE_RESTORE": FUNCTION_POP_R4_R10_LR,
         "RETURN": struct.pack("<HH", 0x4770, NOP),  # BX lr; NOP
     }
     expected_operands = {
-        "PROLOGUE_SAVE": ("r4", "r5", "r6", "r7", "r8", "lr"),
+        "PROLOGUE_SAVE": FUNCTION_FRAME_REGISTERS,
         "CONTEXT_BIND": ("r8", "r0"),
-        "EPILOGUE_RESTORE": ("r4", "r5", "r6", "r7", "r8", "lr"),
+        "EPILOGUE_RESTORE": FUNCTION_FRAME_REGISTERS,
         "RETURN": (),
     }
     code = bytearray(fragment.code)
@@ -138,6 +142,51 @@ def link_function_frame(fragment: MachineFragment) -> MachineFragment:
             raise VerifyError(f"unexpected relocation kind for {relocation.opcode}")
         if relocation.operands != expected_operands[relocation.opcode]:
             raise VerifyError(f"unexpected operands for {relocation.opcode}")
+        code[relocation.offset:relocation.offset + 4] = replacement
+
+    linked = MachineFragment(
+        fragment.architecture, bytes(code), tuple(remaining), dict(fragment.labels)
+    )
+    verify_machine_fragment(linked)
+    return linked
+
+
+def link_internal_branches(fragment: MachineFragment) -> MachineFragment:
+    """Resolve R0 branches while restoring the captured virtual comparison."""
+
+    verify_machine_fragment(fragment)
+    conditions = {
+        "BEQ": 0x0,
+        "BNE": 0x1,
+        "BLTU": 0x3,
+        "BGEU": 0x2,
+        "BLT": 0xB,
+        "BGE": 0xA,
+    }
+    code = bytearray(fragment.code)
+    remaining: list[MachineRelocation] = []
+    for relocation in fragment.relocations:
+        if relocation.opcode not in conditions and relocation.opcode != "BRA":
+            remaining.append(relocation)
+            continue
+        if relocation.kind != "RP2350_BACKEND_ACTION":
+            raise VerifyError(f"unexpected relocation kind for {relocation.opcode}")
+        if len(relocation.operands) != 1:
+            raise VerifyError(f"unexpected operands for {relocation.opcode}")
+        label = str(relocation.operands[0])
+        try:
+            target = fragment.labels[label]
+        except KeyError as error:
+            raise VerifyError(f"unknown machine label {label}") from error
+        if relocation.opcode == "BRA":
+            branch = _encode_thumb_b_n(relocation.offset, target)
+            replacement = struct.pack("<HH", branch, NOP)
+        else:
+            compare = _encode_thumb_cmp_general(*COMPARISON_REGISTERS)
+            branch = _encode_thumb_b_cond(
+                relocation.offset + 2, target, conditions[relocation.opcode]
+            )
+            replacement = struct.pack("<HH", compare, branch)
         code[relocation.offset:relocation.offset + 4] = replacement
 
     linked = MachineFragment(
@@ -381,6 +430,33 @@ def _encode_thumb_mov(destination: str | int, source: str | int) -> int:
         | (source_number << 3)
         | (destination_number & 7)
     )
+
+
+def _encode_thumb_cmp_general(left: str, right: str) -> int:
+    left_number = _general_register(left)
+    right_number = _general_register(right)
+    return (
+        0x4500
+        | ((left_number & 8) << 4)
+        | (right_number << 3)
+        | (left_number & 7)
+    )
+
+
+def _encode_thumb_b_cond(source_offset: int, target_offset: int, condition: int) -> int:
+    displacement = target_offset - (source_offset + 4)
+    if not 0 <= condition <= 0xD:
+        raise VerifyError("invalid Thumb conditional branch condition")
+    if displacement % 2 or not -256 <= displacement <= 254:
+        raise VerifyError("Thumb conditional branch target is outside R0 range")
+    return 0xD000 | (condition << 8) | ((displacement >> 1) & 0xFF)
+
+
+def _encode_thumb_b_n(source_offset: int, target_offset: int) -> int:
+    displacement = target_offset - (source_offset + 4)
+    if displacement % 2 or not -2048 <= displacement <= 2046:
+        raise VerifyError("Thumb branch target is outside R0 range")
+    return 0xE000 | ((displacement >> 1) & 0x7FF)
 
 
 def _general_register(name: str) -> int:

@@ -19,7 +19,8 @@ Thumb機械語とrelocationを生成する。runtime helper実装、独立逆解
 | `V2` | `r6` |
 | `V3` | `r7` |
 
-planは開始時に`r4`から`r8`と`lr`を保存し、終了時に復元する。仮想assemblerの実行中にFORTH DATA
+`r8`はexecution context、`r9/r10`は最後に実行した仮想`CMP`の左右値を保持する。planは開始時に
+`r4`から`r10`と`lr`を保存し、終了時に復元する。仮想assemblerの実行中にFORTH DATA
 stack pointerを移動する命令は生成しない。
 
 ## ARMを初めて読む人のための関数入口と復帰
@@ -31,21 +32,23 @@ stack pointerを移動する命令は生成しない。
 そのたびに`lr`はhelperから戻る位置へ更新される。このため、最初に受け取った本来の戻り先は関数入口で
 CPU stackへ保存する。
 
-### 24 byteの関数frame
+### 32 byteの関数frame
 
-`r4-r7`は仮想register `V0-V3`、`r8`はexecution context保持に使用する。呼出し元の値を壊さないよう、
-入口の`STMDB`で`r4,r5,r6,r7,r8,lr`を保存し、出口の`LDMIA`で復元する。32-bit registerが6個なので
-合計は24 byteであり、8-byte alignmentも維持する。
+`r4-r7`は仮想register `V0-V3`、`r8`はexecution context、`r9/r10`は比較値のsnapshotに使用する。
+呼出し元の値を壊さないよう、入口の`STMDB`で`r4-r10,lr`を保存し、出口の`LDMIA`で復元する。
+32-bit registerが8個なので合計は32 byteであり、8-byte alignmentも維持する。
 
 ```text
 CPU stack上の関数frame
   lr   呼出し元への戻り先
+  r10  CMP右値を保持する前の値
+  r9   CMP左値を保持する前の値
   r8   呼出し元の値
   r7   V3が使用する前の値
   r6   V2が使用する前の値
   r5   V1が使用する前の値
   r4   V0が使用する前の値
-       合計 6 x 4 = 24 byte
+       合計 8 x 4 = 32 byte
 ```
 
 これはCPUの関数呼出し用stackであり、FORTH DATA stackとは別である。この保存と復元によって
@@ -60,22 +63,23 @@ capability、未確定write、statusなど、今回のFORTH処理をruntime help
 
 ### BX lrによる復帰
 
-関数出口は`r4-r8`と本来の`lr`を復元した後、`BX lr`を実行する。`BX`はregisterに入っているaddressへ
+関数出口は`r4-r10`と本来の`lr`を復元した後、`BX lr`を実行する。`BX`はregisterに入っているaddressへ
 分岐する命令であり、ここでは`lr`が示す呼出し元へ戻る。全体の順序は次のとおりである。
 
 ```text
 BLで生成関数を呼ぶ
-  -> r4-r8,lrを24 byte保存
+  -> r4-r10,lrを32 byte保存
   -> MOV r8,r0でcontextを保持
   -> 仮想assembler本体とruntime helperを実行
-  -> r4-r8,lrを復元
+  -> r4-r10,lrを復元
   -> BX lrで呼出し元へ戻る
 ```
 
-## Helper ABI 0.1
+## Helper ABI 0.2
 
 生成関数は`r0`でexecution context pointerを受け取り、prologueでcallee-savedの`r8`へ保存する。
-`r4`から`r7`は仮想register専用、`r8`はcontext専用であり、helperはこれらを保存する。
+`r4`から`r7`は仮想register専用、`r8`はcontext専用、`r9/r10`は比較snapshot専用であり、helperは
+これらを保存する。ABI 0.2では異常終了時に復元するfunction frameを32 byteへ拡張した。
 
 helperが破壊できるのは`r0`から`r3`、`r12`、APSR condition flagsである。
 
@@ -91,12 +95,12 @@ statusは0が成功、0以外が失敗である。失敗時には生成CODEを�
 破棄する。`r12`を第5引数に使う規則はMIN0内部helperだけのprivate ABIであり、通常のC関数を
 この形式で呼び出してはならない。
 
-prologueは`r4-r8`と`lr`を保存して`CONTEXT_BIND r8, r0`を行い、epilogueで復元する。
+prologueは`r4-r10`と`lr`を保存して`CONTEXT_BIND r8, r0`を行い、epilogueで復元する。
 backend verifierはこの並びとclobber分離を検査する。
 
 `min0_abort_transaction`は通常のC helperではなく、生成関数から異常終了するprivate tail ABIである。
-入口では`r0=status`、`r8=context`、CPU stack先頭には生成関数が保存した`r4-r8,lr`の24 byteがある。
-このtail helperは未確定writeを破棄し、その24 byteを復元して生成関数の呼出し元へ戻る責任を持つ。
+入口では`r0=status`、`r8=context`、CPU stack先頭には生成関数が保存した`r4-r10,lr`の32 byteがある。
+このtail helperは未確定writeを破棄し、その32 byteを復元して生成関数の呼出し元へ戻る責任を持つ。
 したがってhelper thunkは自分自身の8 byteだけを復元してから、この入口へ`B.W`する。
 
 ## Stack contractのlowering
@@ -138,8 +142,7 @@ helper、stack frame操作、定数load、分岐、rotateなど未解決の操�
 誤って実行しても未解決箇所で停止する。0やNOPをplaceholderには使用しない。
 
 labelはbyteを生成せず、その時点のmachine offsetとしてsymbol tableへ記録する。分岐linkerは
-relocation解決時に範囲とconditionを検査する。仮想`CMP`の比較結果は後続命令から独立しているため、
-将来のlinkerはCMPと分岐の間でAPSRが変化する場合、比較結果を再生成しなければならない。
+relocation解決時に範囲とconditionを検査する。仮想`CMP`の比較結果は後続命令から独立している。
 
 ## Relocation linker R0
 
@@ -189,8 +192,8 @@ prologue、frame操作、分岐などには未解決relocationが残るため、
 
 ## Function frame linker R0
 
-`PROLOGUE_SAVE`は`r4-r8,lr`をCPU stackへ24 byte保存する`STMDB`、`CONTEXT_BIND`は`MOV r8,r0`、
-`EPILOGUE_RESTORE`は同じ24 byteを復元する`LDMIA`、`RETURN`は`BX lr`へ変換する。24は8の倍数なので、
+`PROLOGUE_SAVE`は`r4-r10,lr`をCPU stackへ32 byte保存する`STMDB`、`CONTEXT_BIND`は`MOV r8,r0`、
+`EPILOGUE_RESTORE`は同じ32 byteを復元する`LDMIA`、`RETURN`は`BX lr`へ変換する。32は8の倍数なので、
 関数内およびhelper call時のCPU stack alignmentを維持する。ここでもFORTH DATA stack pointerは変更しない。
 
 `FRAME_LOAD`と`RESULT_STAGE`は生のcontext memory accessへ変換せず、それぞれ`min0_frame_load`と
@@ -201,10 +204,33 @@ prologue、frame操作、分岐などには未解決relocationが残るため、
 全relocationを解決できる。これはmachine fragmentのlink完了を意味するだけであり、独立逆解析、runtime
 helper実装、W^X publication、RP2350実機試験が完了するまでは実行を許可しない。
 
+## Internal branch linker R0
+
+仮想`CMP Va,Vb`は、その時点の左右値を`r9/r10`へ`MOV`して保存する。`ADD`、`SUB`、helper callなどが
+その後にAPSR condition flagsを変更しても、仮想比較の意味は変わらない。条件分岐slotでは
+`CMP r9,r10`を再実行してから、対応する16-bit Thumb条件分岐を行う。次の仮想`CMP`を実行するとsnapshotを
+更新する。
+
+| 仮想分岐 | Thumb condition |
+|---|---|
+| `BEQ` | EQ |
+| `BNE` | NE |
+| `BLT` | LT、signed |
+| `BGE` | GE、signed |
+| `BLTU` | CC／LO、unsigned |
+| `BGEU` | CS／HS、unsigned |
+
+`BRA`は16-bit無条件分岐と`NOP`へ変換する。R0の4-byte relocation slot内で比較再生成と分岐を完結させる
+ため、条件分岐targetはbranch命令から-256..254 byte、無条件分岐targetは-2048..2046 byteの範囲に
+制限する。範囲外を切り詰めずlink errorとして拒否し、将来はwide branchまたはveneerで拡張する。
+
+この方式により、`CMP`と条件分岐の間に算術命令や検査付きhelperがあっても、reference VMと同じ
+virtual comparisonを使用できる。分岐を含む最小の`MAX` CODEは、明示的なhelper address表を与えると
+全relocationを解決できる段階に達した。ただし、これは実機実行を許可するものではない。
+
 ### 次段階
 
-1. 条件分岐ではvirtual comparisonの寿命を保ったままThumb branchを生成する。
-2. rotateを検査済みThumb命令列へ変換する。
-3. 生成byte列を独立disassemblerで逆解析してplanとの一致を検査する。
-4. 既存のrelocationとW^X publicationへ接続する。
-5. Pico 2 Wでは最初に生成のみを行い、その後限定されたtest CODEから実行を開始する。
+1. rotateを検査済みThumb命令列へ変換する。
+2. 生成byte列を独立disassemblerで逆解析してplanとの一致を検査する。
+3. 既存のrelocationとW^X publicationへ接続する。
+4. Pico 2 Wでは最初に生成のみを行い、その後限定されたtest CODEから実行を開始する。

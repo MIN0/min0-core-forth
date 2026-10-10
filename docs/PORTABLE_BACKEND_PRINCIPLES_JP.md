@@ -50,7 +50,8 @@ FPGA実装へ移植するときにも維持する基本原則を定める。個�
 - machine code、microcode、hardware state machineの配置と公開方法
 - instruction cache、data cache、W^Xなど対象固有の実行準備
 
-RP2350 backend R0の`V0-V3 = r4-r7`、contextを保持する`r8`、`lr`、`BL`、`BX lr`、24-byte
+RP2350 backend R0の`V0-V3 = r4-r7`、contextを保持する`r8`、比較値を保持する`r9/r10`、`lr`、
+`BL`、`BX lr`、32-byte
 function frameは、この実装profileに属する。これらはARMを理解する重要な具体例だが、MIN0全体の
 固定仕様ではない。
 
@@ -86,7 +87,7 @@ CPU命令列ではなくhardware state machineで実現しても、外部から�
 ### backend開発者と監査者
 
 ABI、register割当、frame、machine encoding、relocation、helper、W^X、逆解析、実機試験など、対象固有の
-詳細を記録する。RP2350の`r4-r8`、`lr`、24-byte frame、`BL`、`BX lr`の説明はこの層の具体例である。
+詳細を記録する。RP2350の`r4-r10`、`lr`、32-byte frame、`BL`、`BX lr`の説明はこの層の具体例である。
 
 初学者向け説明と専門的な詳細は分離するが、相互に参照できるようにする。簡単な説明のために保証を
 曖昧にせず、専門資料だけに重要な安全条件を隠さない。

@@ -1,8 +1,8 @@
 import unittest
 
 from min0_rp2350_linker import (
-    FUNCTION_POP_R4_R8_LR,
-    FUNCTION_PUSH_R4_R8_LR,
+    FUNCTION_POP_R4_R10_LR,
+    FUNCTION_PUSH_R4_R10_LR,
     NOP,
     THUNK_PUSH_R12_LR,
     bind_helper_symbols,
@@ -11,6 +11,7 @@ from min0_rp2350_linker import (
     encode_thumb_bl,
     link_literal_constants,
     link_function_frame,
+    link_internal_branches,
     plan_helper_thunks,
     prepare_link,
     resolve_external_branches,
@@ -81,9 +82,9 @@ class Rp2350LinkerTests(unittest.TestCase):
         bind = actions["CONTEXT_BIND"].offset
         epilogue = actions["EPILOGUE_RESTORE"].offset
         returned = actions["RETURN"].offset
-        self.assertEqual(linked.code[prologue:prologue + 4], FUNCTION_PUSH_R4_R8_LR)
+        self.assertEqual(linked.code[prologue:prologue + 4], FUNCTION_PUSH_R4_R10_LR)
         self.assertEqual(linked.code[bind:bind + 4], bytes.fromhex("804600bf"))
-        self.assertEqual(linked.code[epilogue:epilogue + 4], FUNCTION_POP_R4_R8_LR)
+        self.assertEqual(linked.code[epilogue:epilogue + 4], FUNCTION_POP_R4_R10_LR)
         self.assertEqual(linked.code[returned:returned + 4], bytes.fromhex("704700bf"))
         self.assertFalse(any(
             item.opcode in {"PROLOGUE_SAVE", "CONTEXT_BIND", "EPILOGUE_RESTORE", "RETURN"}
@@ -250,6 +251,86 @@ class Rp2350LinkerTests(unittest.TestCase):
         })
         self.assertEqual(linked.relocations, ())
         self.assertTrue(linked.executable)
+
+    def test_internal_linker_restores_comparison_and_resolves_all_conditions(self) -> None:
+        conditions = {
+            "BEQ": 0x0, "BNE": 0x1, "BLTU": 0x3,
+            "BGEU": 0x2, "BLT": 0xB, "BGE": 0xA,
+        }
+        for opcode, condition in conditions.items():
+            with self.subTest(opcode=opcode):
+                definition = compile_code(f"""CODE: CHOOSE ( a b -- result )
+                IN V0, a
+                IN V1, b
+                CMP V0, V1
+                ADD V0, V1
+                {opcode} @yes
+                OUT result, V0
+                BRA @done
+@yes:
+                OUT result, V1
+@done:
+                ;CODE""")
+                fragment = emit_thumb_fragment(lower_rp2350(definition))
+                branch_site = next(
+                    item.offset for item in fragment.relocations if item.opcode == opcode
+                )
+                linked = link_internal_branches(fragment)
+                compare = int.from_bytes(
+                    linked.code[branch_site:branch_site + 2], "little"
+                )
+                branch = int.from_bytes(
+                    linked.code[branch_site + 2:branch_site + 4], "little"
+                )
+                self.assertEqual(compare, 0x45D1)  # CMP r9,r10
+                self.assertEqual((branch >> 8) & 0xF, condition)
+                self.assertFalse(any(
+                    item.opcode in conditions or item.opcode == "BRA"
+                    for item in linked.relocations
+                ))
+
+    def test_branched_word_reaches_link_complete_machine_fragment(self) -> None:
+        definition = compile_code("""CODE: MAX ( a b -- result )
+        IN V0, a
+        IN V1, b
+        CMP V0, V1
+        BGE @a-wins
+        OUT result, V1
+        BRA @done
+@a-wins:
+        OUT result, V0
+@done:
+        ;CODE""")
+        fragment = emit_thumb_fragment(lower_rp2350(definition))
+        prepared = prepare_link(fragment)
+        framed = link_function_frame(prepared)
+        branched = link_internal_branches(framed)
+        thunked = emit_helper_thunks(branched, {})
+        linked = resolve_external_branches(thunked, 0x2000, {
+            "min0_frame_load": 0x3001,
+            "min0_result_stage": 0x3101,
+            "min0_frame_commit": 0x3201,
+            "min0_abort_transaction": 0x3301,
+        })
+        self.assertEqual(linked.relocations, ())
+        self.assertTrue(linked.executable)
+
+    def test_out_of_range_conditional_branch_is_rejected(self) -> None:
+        padding = "\n".join("MOV V0, V0" for _ in range(130))
+        definition = compile_code(f"""CODE: LONG-BRANCH ( value -- result )
+        IN V0, value
+        CMP V0, V0
+        BEQ @far
+        {padding}
+        OUT result, V0
+        BRA @done
+@far:
+        OUT result, V0
+@done:
+        ;CODE""")
+        fragment = emit_thumb_fragment(lower_rp2350(definition))
+        with self.assertRaisesRegex(VerifyError, "outside R0 range"):
+            link_internal_branches(fragment)
 
 
 if __name__ == "__main__":
