@@ -8,7 +8,8 @@
 
 R0は検査済み仮想assemblerをRP2350 Arm Cortex-M33向けbackend planへ変換し、安全に確定できる
 Thumb機械語とrelocationを生成する。runtime helper実装、独立逆解析、W^X publication、実機試験が
-完了するまでは、生成したmachine fragmentの実行を許可しない。
+完了するまでは、生成したmachine fragmentの実行を許可しない。encoderと実装を共有しない内部decoderに
+よる逆解析は完了したが、外部ARM disassemblerによるsecond opinionはまだ行っていない。
 
 ## Register対応
 
@@ -202,8 +203,8 @@ prologue、frame操作、分岐などには未解決relocationが残るため、
 値は仮想register `r4-r7`との間で受け渡す。status非0は他のhelperと同じ異常終了経路へ進む。
 
 分岐、rotate、memory accessを含まない最小の`IN`／`OUT` CODEは、明示的なhelper address表を与えると
-全relocationを解決できる。これはmachine fragmentのlink完了を意味するだけであり、独立逆解析、runtime
-helper実装、W^X publication、RP2350実機試験が完了するまでは実行を許可しない。
+全relocationを解決できる。これはmachine fragmentのlink完了を意味するだけであり、runtime helper実装、
+外部ARM disassembler、W^X publication、RP2350実機試験が完了するまでは実行を許可しない。
 
 ## Rotate emitter R0
 
@@ -251,8 +252,32 @@ ROL V0, 8
 virtual comparisonを使用できる。分岐を含む最小の`MAX` CODEは、明示的なhelper address表を与えると
 全relocationを解決できる段階に達した。ただし、これは実機実行を許可するものではない。
 
+## Independent disassembly audit R0
+
+`min0_rp2350_disassembler.py`はemitter／linkerのencoding関数をimportせず、生成byte列を逆方向から
+Thumb命令へ戻す検査専用moduleである。link済みmain bodyをbackend planと順番に照合し、次を確認する。
+
+- `STMDB/LDMIA`の保存・復元registerと32-byte frame
+- execution contextの`MOV r8,r0`
+- ALU、shift、rotate、比較snapshotのregisterと即値
+- literal load先の32-bit値
+- label offsetと条件／無条件分岐target
+- mainから各helper thunkへの`BL` target
+- epilogueの`BX lr`
+
+out-of-line helper thunkについても、8-byte CPU stack frame、引数設定、private helperへの`BL`、status比較、
+正常経路、`min0_abort_transaction`への`B.W`をthunk planと照合する。memory helperではcapability ID、base、
+offset、`r12`のwrite値受渡しも逆解析対象になる。
+
+検査用testは、ALU、literal、rotate、分岐を含むCODEと、`LD32/ST32`を含むCODEのmain／thunk全体を照合する。
+生成byte列のfunction prologueを`NOP`へ改変したtestでは、plan不一致として拒否することも確認した。
+
+これはencoderと同じ誤りをそのまま見逃さないための別実装だが、同じrepository内のPython decoderである。
+実行許可前にはARM対応の外部disassemblerでもbyte列を確認し、さらにRP2350実機で限定testを行う。
+
 ### 次段階
 
-1. 生成byte列を独立disassemblerで逆解析してplanとの一致を検査する。
+1. 独立disassembly auditをpublication gateへ接続する。
 2. 既存のrelocationとW^X publicationへ接続する。
-3. Pico 2 Wでは最初に生成のみを行い、その後限定されたtest CODEから実行を開始する。
+3. ARM対応の外部disassemblerでsecond opinionを取得する。
+4. Pico 2 Wでは最初に生成のみを行い、その後限定されたtest CODEから実行を開始する。
