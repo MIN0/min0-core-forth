@@ -31,6 +31,20 @@
         while (index < source.length && !"\r\n".includes(source[index])) index += 1;
         continue;
       }
+      if (source[index] === "(") {
+        const start = index;
+        index += 1;
+        while (index < source.length && source[index] !== ")") index += 1;
+        if (index >= source.length) {
+          const before = source.slice(0, start);
+          const line = before.split(/\r\n|\r|\n/).length;
+          const lastBreak = Math.max(before.lastIndexOf("\n"), before.lastIndexOf("\r"));
+          const column = start - lastBreak;
+          throw new CompileError(`comment at line ${line}, column ${column} is missing closing )`);
+        }
+        index += 1;
+        continue;
+      }
       if (source.slice(index, index + 2) === '."') {
         index += 2;
         if (source[index] === " " || source[index] === "\t") index += 1;
@@ -121,6 +135,8 @@
         code.push({ op: token, target: mark.start });
         code[mark.index].target = code.length;
         for (const leave of mark.leaves) code[leave].target = code.length;
+      } else if (token === "RECURSE") {
+        code.push({ op: "RECURSE" });
       } else if (["IF", "ELSE", "THEN", "BEGIN", "UNTIL", "AGAIN", "WHILE", "REPEAT", "DO", "?DO", "LOOP", "+LOOP", "LEAVE"].includes(token)) {
         throw new CompileError(`unsupported structure ${token}`);
       } else {
@@ -160,6 +176,10 @@
       if (builtin) { builtin(); return; }
       const code = this.dictionary.get(name);
       if (!code) throw new UnknownWord(`unknown word ${name}`);
+      this.executeDefinition(name, code);
+    }
+
+    executeDefinition(name, code) {
       if (this.returnStack.length >= MAX_CALL_DEPTH) throw new CallDepthExceeded(`call depth ${MAX_CALL_DEPTH} exceeded`);
       this.returnStack.push(name);
       try { this.runCode(code); } finally { this.returnStack.pop(); }
@@ -173,6 +193,11 @@
         if (instruction.op === "LIT") this.push(instruction.value);
         else if (instruction.op === "PRINT") this.output += instruction.text;
         else if (instruction.op === "WORD") this.executeWord(instruction.name);
+        else if (instruction.op === "RECURSE") {
+          const name = this.returnStack[this.returnStack.length - 1];
+          if (!name) throw new CompileError("RECURSE requires a colon definition");
+          this.executeDefinition(name, code);
+        }
         else if (instruction.op === "JUMP") { ip = instruction.target; continue; }
         else if (instruction.op === "JZ") { if (this.pop("branch") === 0) { ip = instruction.target; continue; } }
         else if (instruction.op === "DO" || instruction.op === "?DO") {
@@ -239,10 +264,11 @@
 
     interpret(source) {
       this.reset();
-      if (new TextEncoder().encode(source).length > MAX_SOURCE_BYTES) throw new CompileError(`source exceeds ${MAX_SOURCE_BYTES} UTF-8 bytes`);
-      const tokens = tokenize(source);
+      let tokens = [];
       let index = 0;
       try {
+        if (new TextEncoder().encode(source).length > MAX_SOURCE_BYTES) throw new CompileError(`source exceeds ${MAX_SOURCE_BYTES} UTF-8 bytes`);
+        tokens = tokenize(source);
         while (index < tokens.length) {
           const before = this.stack.map(signed);
           const token = tokens[index];
@@ -262,7 +288,7 @@
             const number = parseNumber(token);
             if (number !== null) { this.step(); this.push(number); }
             else {
-              if ([";", "IF", "ELSE", "THEN", "BEGIN", "UNTIL", "AGAIN", "WHILE", "REPEAT", "DO", "?DO", "LOOP", "+LOOP", "LEAVE"].includes(token)) throw new CompileError(`${token} is compile-only`);
+              if ([";", "IF", "ELSE", "THEN", "BEGIN", "UNTIL", "AGAIN", "WHILE", "REPEAT", "DO", "?DO", "LOOP", "+LOOP", "LEAVE", "RECURSE"].includes(token)) throw new CompileError(`${token} is compile-only`);
               this.executeWord(token);
             }
             label = token;

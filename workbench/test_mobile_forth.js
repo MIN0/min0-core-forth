@@ -33,6 +33,9 @@ ok(": SUM 0 SWAP 0 DO I + LOOP ; 5 SUM", [10]);
 ok(": EMPTY 99 SWAP DUP ?DO 1 + LOOP ; 3 EMPTY", [99]);
 ok(": TWOS 0 SWAP 0 DO I + 2 +LOOP ; 6 TWOS", [6]);
 ok(": FIRST 0 SWAP 0 DO I + LEAVE LOOP ; 9 FIRST", [0]);
+ok("( stack effect comment ) 1 ( across\nlines ) 2 +", [3]);
+ok('." (this is text)"', [], "(this is text)");
+ok(": HEX-DIGIT ( n -- ) DUP 10 < IF 48 + ELSE 10 - 65 + THEN EMIT ; : HEX-PRT ( u -- ) DUP 16 < IF HEX-DIGIT ELSE 16 /MOD RECURSE HEX-DIGIT THEN ; 255 HEX-PRT CR", [], "FF\n");
 
 const atomic = run("7 0 /MOD");
 assert.equal(atomic.ok, false);
@@ -50,5 +53,18 @@ assert.equal(runaway.error.name, "StepLimitExceeded");
 assert.deepEqual(tokenize("1 \\ comment\n2"), ["1", "2"]);
 assert.equal(run(": BAD IF ;").error.name, "CompileError");
 assert.equal(run("DUP").error.name, "StackUnderflow");
+
+const openComment = run("1 ( missing close");
+assert.equal(openComment.ok, false);
+assert.equal(openComment.error.name, "CompileError");
+assert.match(openComment.error.message, /line 1, column 3/);
+
+const topLevelRecurse = run("RECURSE");
+assert.equal(topLevelRecurse.ok, false);
+assert.equal(topLevelRecurse.error.name, "CompileError");
+
+const deepRecursion = run(": DIVE 1+ RECURSE ; 0 DIVE");
+assert.equal(deepRecursion.ok, false);
+assert.equal(deepRecursion.error.name, "CallDepthExceeded");
 
 console.log("mobile forth tests: PASS");

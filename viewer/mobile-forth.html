@@ -41,7 +41,7 @@
 <main>
   <noscript><div class="notice">この表示方法ではJavaScriptが停止しているため、実行ボタンは動作しません。Safariで開けるWebアプリ版を使用してください。</div></noscript>
   <h1>MIN0 CORE FORTH<br>Mobile Learning</h1>
-  <p class="meta">個人学習用・オフライン試作版 / build <span id="revision">edca87f</span></p>
+  <p class="meta">個人学習用・オフライン試作版 / build <span id="revision">ed91a2b</span></p>
   <div class="notice">これは正式COREの代替ではなく、スマホ学習用の小さな互換サブセットです。各「実行」は新しいVMから始まります。</div>
 
   <section class="panel">
@@ -53,6 +53,7 @@
       <option value="loop">数え上げループ（SUM）</option>
       <option value="begin">BEGINループ（DOWN）</option>
       <option value="output">文字と数値を表示</option>
+      <option value="recursiveHex">再帰で16進表示（RECURSE）</option>
     </select>
     <label for="source" style="margin-top:10px">FORTHソース（最大4096 UTF-8バイト）</label>
     <textarea id="source" spellcheck="false" autocapitalize="none" autocomplete="off" autocorrect="off">: SQUARE DUP * ;
@@ -85,7 +86,8 @@
     <p><code>+ - * / MOD /MOD 1+ 1- NEGATE ABS</code></p>
     <p><code>= &lt; 0= AND OR XOR</code></p>
     <p><code>. .S EMIT CR ." ..." WORDS</code></p>
-    <p><code>: name ... ; IF ELSE THEN BEGIN UNTIL AGAIN WHILE REPEAT DO ?DO LOOP +LOOP LEAVE I J UNLOOP</code></p>
+    <p><code>: name ... ; RECURSE IF ELSE THEN BEGIN UNTIL AGAIN WHILE REPEAT DO ?DO LOOP +LOOP LEAVE I J UNLOOP</code></p>
+    <p><code>( stack effectや説明 )</code>をコメントとして使用できます。</p>
     <p class="hint">32ビットcell、10進数と0x形式に対応します。メモリ語、CREATE/DOES&gt;、DEFER/IS、ファイル、通信は未対応です。無限ループは実行ステップ上限で停止します。</p>
   </details>
 </main>
@@ -122,6 +124,20 @@
       if (/\s/.test(source[index])) { index += 1; continue; }
       if (source[index] === "\\") {
         while (index < source.length && !"\r\n".includes(source[index])) index += 1;
+        continue;
+      }
+      if (source[index] === "(") {
+        const start = index;
+        index += 1;
+        while (index < source.length && source[index] !== ")") index += 1;
+        if (index >= source.length) {
+          const before = source.slice(0, start);
+          const line = before.split(/\r\n|\r|\n/).length;
+          const lastBreak = Math.max(before.lastIndexOf("\n"), before.lastIndexOf("\r"));
+          const column = start - lastBreak;
+          throw new CompileError(`comment at line ${line}, column ${column} is missing closing )`);
+        }
+        index += 1;
         continue;
       }
       if (source.slice(index, index + 2) === '."') {
@@ -214,6 +230,8 @@
         code.push({ op: token, target: mark.start });
         code[mark.index].target = code.length;
         for (const leave of mark.leaves) code[leave].target = code.length;
+      } else if (token === "RECURSE") {
+        code.push({ op: "RECURSE" });
       } else if (["IF", "ELSE", "THEN", "BEGIN", "UNTIL", "AGAIN", "WHILE", "REPEAT", "DO", "?DO", "LOOP", "+LOOP", "LEAVE"].includes(token)) {
         throw new CompileError(`unsupported structure ${token}`);
       } else {
@@ -253,6 +271,10 @@
       if (builtin) { builtin(); return; }
       const code = this.dictionary.get(name);
       if (!code) throw new UnknownWord(`unknown word ${name}`);
+      this.executeDefinition(name, code);
+    }
+
+    executeDefinition(name, code) {
       if (this.returnStack.length >= MAX_CALL_DEPTH) throw new CallDepthExceeded(`call depth ${MAX_CALL_DEPTH} exceeded`);
       this.returnStack.push(name);
       try { this.runCode(code); } finally { this.returnStack.pop(); }
@@ -266,6 +288,11 @@
         if (instruction.op === "LIT") this.push(instruction.value);
         else if (instruction.op === "PRINT") this.output += instruction.text;
         else if (instruction.op === "WORD") this.executeWord(instruction.name);
+        else if (instruction.op === "RECURSE") {
+          const name = this.returnStack[this.returnStack.length - 1];
+          if (!name) throw new CompileError("RECURSE requires a colon definition");
+          this.executeDefinition(name, code);
+        }
         else if (instruction.op === "JUMP") { ip = instruction.target; continue; }
         else if (instruction.op === "JZ") { if (this.pop("branch") === 0) { ip = instruction.target; continue; } }
         else if (instruction.op === "DO" || instruction.op === "?DO") {
@@ -332,10 +359,11 @@
 
     interpret(source) {
       this.reset();
-      if (new TextEncoder().encode(source).length > MAX_SOURCE_BYTES) throw new CompileError(`source exceeds ${MAX_SOURCE_BYTES} UTF-8 bytes`);
-      const tokens = tokenize(source);
+      let tokens = [];
       let index = 0;
       try {
+        if (new TextEncoder().encode(source).length > MAX_SOURCE_BYTES) throw new CompileError(`source exceeds ${MAX_SOURCE_BYTES} UTF-8 bytes`);
+        tokens = tokenize(source);
         while (index < tokens.length) {
           const before = this.stack.map(signed);
           const token = tokens[index];
@@ -355,7 +383,7 @@
             const number = parseNumber(token);
             if (number !== null) { this.step(); this.push(number); }
             else {
-              if ([";", "IF", "ELSE", "THEN", "BEGIN", "UNTIL", "AGAIN", "WHILE", "REPEAT", "DO", "?DO", "LOOP", "+LOOP", "LEAVE"].includes(token)) throw new CompileError(`${token} is compile-only`);
+              if ([";", "IF", "ELSE", "THEN", "BEGIN", "UNTIL", "AGAIN", "WHILE", "REPEAT", "DO", "?DO", "LOOP", "+LOOP", "LEAVE", "RECURSE"].includes(token)) throw new CompileError(`${token} is compile-only`);
               this.executeWord(token);
             }
             label = token;
@@ -388,7 +416,8 @@
     branch: ": ABS2 DUP 0 < IF NEGATE THEN ;\n-12 ABS2 .S",
     loop: ": SUM 0 SWAP 0 DO I + LOOP ;\n10 SUM . CR",
     begin: ": DOWN BEGIN 1- DUP . CR DUP 0= UNTIL ;\n5 DOWN DROP",
-    output: '." HELLO FROM iPHONE" CR\n65 EMIT 66 EMIT 67 EMIT CR\n-7 3 /MOD .S'
+    output: '." HELLO FROM iPHONE" CR\n65 EMIT 66 EMIT 67 EMIT CR\n-7 3 /MOD .S',
+    recursiveHex: ': HEX-DIGIT ( n -- )\n  DUP 10 < IF 48 + ELSE 10 - 65 + THEN EMIT\n;\n\n: HEX-PRT ( u -- )\n  DUP 16 < IF\n    HEX-DIGIT\n  ELSE\n    16 /MOD RECURSE HEX-DIGIT\n  THEN\n;\n\n255 HEX-PRT CR'
   };
   const formatStack = stack => `<${stack.length}>${stack.length ? " " + stack.join(" ") : ""}`;
   function setText(node, value) { node.textContent = value; }

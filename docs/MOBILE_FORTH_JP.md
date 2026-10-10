@@ -14,7 +14,8 @@
 ## できること
 
 - 数値、スタック操作、算術、比較、論理演算
-- `: name ... ;`によるcolon word定義
+- `: name ... ;`によるcolon word定義と`RECURSE`による再帰
+- `( ... )`形式のコメントとstack effect表記
 - `IF ELSE THEN`、`BEGIN`系、`DO`系の制御構造
 - `.`, `.S`, `EMIT`, `CR`, `." ..."`による表示
 - 実行後のデータスタックと、ワードごとのスタック遷移の確認
@@ -23,7 +24,7 @@
 
 ## 未対応
 
-メモリ語、`CREATE DOES>`、`DEFER IS`、ファイル、通信、正式なimage／seal／Monitor機構には対応しません。
+メモリ語、`CREATE DOES>`、`DEFER IS`、ファイル、通信、正式なimage／seal／Monitor機構には対応しません。再帰は呼出し深さ64、全体は100,000実行stepで安全停止します。
 
 ## iPhoneでの使用
 
