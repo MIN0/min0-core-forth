@@ -2,10 +2,17 @@ import unittest
 
 from min0_rp2350_linker import (
     NOP,
+    THUNK_PUSH_R12_LR,
     bind_helper_symbols,
+    emit_helper_thunks,
+    encode_thumb_b_w,
+    encode_thumb_bl,
     link_literal_constants,
     plan_helper_thunks,
+    prepare_link,
+    resolve_external_branches,
 )
+from min0_rp2350_thumb_emitter import UDF_RELOCATION_SLOT
 from min0_rp2350_thumb_emitter import emit_thumb_fragment
 from min0_virtual_assembler import VerifyError, compile_code
 from min0_virtual_assembler_rp2350 import lower_rp2350
@@ -109,6 +116,78 @@ class Rp2350LinkerTests(unittest.TestCase):
         bound = bind_helper_symbols(emit_thumb_fragment(lower_rp2350(definition)))
         with self.assertRaisesRegex(VerifyError, "no numeric ID"):
             plan_helper_thunks(bound, {})
+
+    def test_thumb_wide_branch_known_zero_displacement_encodings(self) -> None:
+        self.assertEqual(encode_thumb_bl(0x100, 0x104), bytes.fromhex("00f000f8"))
+        self.assertEqual(encode_thumb_b_w(0x100, 0x104), bytes.fromhex("00f000b8"))
+        self.assertEqual(
+            encode_thumb_bl(0x080001A6, 0x08000DB8), bytes.fromhex("00f007fe")
+        )
+
+    def test_helper_thunks_are_four_byte_aligned_and_call_sites_are_linked(self) -> None:
+        definition = compile_code("""CODE: LOAD ( address -- value )
+        IN V1, address
+        LD32 V0, [DATA: V1+4]
+        OUT value, V0
+        ;CODE""")
+        original = emit_thumb_fragment(lower_rp2350(definition))
+        prepared = prepare_link(original)
+        helper_site = next(
+            item.offset for item in prepared.relocations
+            if item.kind == "RP2350_HELPER_THUNK_CALL" and item.opcode == "CHECKED_LD32"
+        )
+        emitted = emit_helper_thunks(prepared, {"DATA": 3})
+        thunk_offset = emitted.labels[f"@helper-thunk-{helper_site:08x}"]
+        self.assertEqual(thunk_offset % 4, 0)
+        self.assertEqual(emitted.code[thunk_offset:thunk_offset + 4], THUNK_PUSH_R12_LR)
+        self.assertNotEqual(emitted.code[helper_site:helper_site + 4], UDF_RELOCATION_SLOT)
+        self.assertFalse(any(item.offset == helper_site for item in emitted.relocations))
+        self.assertTrue(any(
+            item.kind == "RP2350_THUNK_HELPER_CALL"
+            and item.symbol == "min0_checked_ld32"
+            for item in emitted.relocations
+        ))
+        self.assertTrue(any(
+            item.kind == "RP2350_THUNK_ABORT_BRANCH"
+            and item.symbol == "min0_abort_transaction"
+            for item in emitted.relocations
+        ))
+
+    def test_external_symbol_linker_resolves_thunk_calls_and_abort_paths(self) -> None:
+        definition = compile_code("""CODE: LOAD ( address -- value )
+        IN V1, address
+        LD32 V0, [DATA: V1]
+        OUT value, V0
+        ;CODE""")
+        emitted = emit_helper_thunks(
+            prepare_link(emit_thumb_fragment(lower_rp2350(definition))), {"DATA": 3}
+        )
+        external_offsets = {
+            item.offset for item in emitted.relocations
+            if item.kind.startswith("RP2350_THUNK_")
+        }
+        linked = resolve_external_branches(emitted, 0x2000, {
+            "min0_checked_ld32": 0x3001,
+            "min0_frame_commit": 0x3101,
+            "min0_abort_transaction": 0x3201,
+        })
+        self.assertFalse(any(
+            item.kind.startswith("RP2350_THUNK_") for item in linked.relocations
+        ))
+        for offset in external_offsets:
+            self.assertNotEqual(linked.code[offset:offset + 4], UDF_RELOCATION_SLOT)
+
+    def test_external_symbol_linker_rejects_missing_address(self) -> None:
+        definition = compile_code("""CODE: LOAD ( address -- value )
+        IN V1, address
+        LD32 V0, [DATA: V1]
+        OUT value, V0
+        ;CODE""")
+        emitted = emit_helper_thunks(
+            prepare_link(emit_thumb_fragment(lower_rp2350(definition))), {"DATA": 3}
+        )
+        with self.assertRaisesRegex(VerifyError, "no address"):
+            resolve_external_branches(emitted, 0x2000, {})
 
 
 if __name__ == "__main__":

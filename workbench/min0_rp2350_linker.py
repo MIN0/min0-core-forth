@@ -17,6 +17,9 @@ from min0_virtual_assembler_rp2350 import HELPER_SIGNATURES
 
 
 NOP = 0xBF00
+THUNK_PUSH_R12_LR = struct.pack("<HH", 0xE92D, 0x5000)
+THUNK_POP_R12_LR = struct.pack("<HH", 0xE8BD, 0x5000)
+THUNK_POP_R12_PC = struct.pack("<HH", 0xE8BD, 0x9000)
 
 
 @dataclass(frozen=True)
@@ -165,6 +168,93 @@ def plan_helper_thunks(
     return tuple(plans)
 
 
+def emit_helper_thunks(
+    fragment: MachineFragment, capability_ids: dict[str, int],
+) -> MachineFragment:
+    """Append guarded helper thunks and connect each original helper call site."""
+
+    verify_machine_fragment(fragment)
+    plans = plan_helper_thunks(fragment, capability_ids)
+    if not plans:
+        return fragment
+
+    code = bytearray(fragment.code)
+    labels = dict(fragment.labels)
+    helper_sites = {plan.call_site_offset for plan in plans}
+    relocations = [
+        item for item in fragment.relocations if item.offset not in helper_sites
+    ]
+    for plan in plans:
+        while len(code) % 4:
+            code.extend(struct.pack("<H", NOP))
+        thunk_offset = len(code)
+        label = f"@helper-thunk-{plan.call_site_offset:08x}"
+        if label in labels:
+            raise VerifyError(f"duplicate helper thunk label {label}")
+        labels[label] = thunk_offset
+        code[plan.call_site_offset:plan.call_site_offset + 4] = encode_thumb_bl(
+            plan.call_site_offset, thunk_offset
+        )
+        _emit_helper_thunk_body(code, relocations, plan)
+
+    emitted = MachineFragment(
+        fragment.architecture, bytes(code), tuple(sorted(relocations, key=lambda item: item.offset)),
+        labels,
+    )
+    verify_machine_fragment(emitted)
+    return link_literal_constants(emitted)
+
+
+def resolve_external_branches(
+    fragment: MachineFragment,
+    image_base: int,
+    symbol_addresses: dict[str, int],
+) -> MachineFragment:
+    """Resolve helper calls and abort branches once final image addresses exist."""
+
+    verify_machine_fragment(fragment)
+    if image_base < 0 or image_base > 0xFFFF_FFFF or image_base % 2:
+        raise VerifyError("RP2350 image base must be an aligned 32-bit address")
+    code = bytearray(fragment.code)
+    remaining: list[MachineRelocation] = []
+    branch_kinds = {
+        "RP2350_THUNK_HELPER_CALL": encode_thumb_bl,
+        "RP2350_THUNK_ABORT_BRANCH": encode_thumb_b_w,
+    }
+    for relocation in fragment.relocations:
+        encoder = branch_kinds.get(relocation.kind)
+        if encoder is None:
+            remaining.append(relocation)
+            continue
+        if relocation.symbol is None:
+            raise VerifyError("external branch relocation has no symbol")
+        try:
+            target = symbol_addresses[relocation.symbol]
+        except KeyError as error:
+            raise VerifyError(f"no address for RP2350 symbol {relocation.symbol}") from error
+        if not 0 <= target <= 0xFFFF_FFFF:
+            raise VerifyError(f"RP2350 symbol address outside 32-bit range: {relocation.symbol}")
+        target &= ~1  # Function pointers may carry the Thumb-state bit.
+        source = image_base + relocation.offset
+        if source > 0xFFFF_FFFF:
+            raise VerifyError("RP2350 branch source crosses the 32-bit address space")
+        code[relocation.offset:relocation.offset + 4] = encoder(source, target)
+
+    linked = MachineFragment(
+        fragment.architecture, bytes(code), tuple(remaining), dict(fragment.labels)
+    )
+    verify_machine_fragment(linked)
+    return linked
+
+
+def encode_thumb_bl(source_address: int, target_address: int) -> bytes:
+    return _encode_thumb_branch(source_address, target_address, link=True)
+
+
+def encode_thumb_b_w(source_address: int, target_address: int) -> bytes:
+    return _encode_thumb_branch(source_address, target_address, link=False)
+
+
 def verify_helper_thunk(plan: HelperThunkPlan) -> None:
     if not plan.instructions:
         raise VerifyError("empty helper thunk")
@@ -181,6 +271,88 @@ def verify_helper_thunk(plan: HelperThunkPlan) -> None:
     aborts = [item for item in plan.instructions if item.opcode == "ABORT_IF_NONZERO"]
     if len(aborts) != 1 or aborts[0].operands[2] != 8:
         raise VerifyError("helper failure path must unwind the 8-byte CPU stack frame")
+
+
+def _emit_helper_thunk_body(
+    code: bytearray,
+    relocations: list[MachineRelocation],
+    plan: HelperThunkPlan,
+) -> None:
+    for instruction in plan.instructions:
+        if instruction.opcode == "THUNK_ENTER_8":
+            code.extend(THUNK_PUSH_R12_LR)
+        elif instruction.opcode == "THUNK_RETURN_8":
+            code.extend(THUNK_POP_R12_PC)
+        elif instruction.opcode == "MOV":
+            code.extend(struct.pack("<H", _encode_thumb_mov(*instruction.operands)))
+        elif instruction.opcode == "MOV_IMM32":
+            offset = len(code)
+            relocations.append(MachineRelocation(
+                offset, "RP2350_BACKEND_ACTION", "MOV_IMM32", instruction.operands
+            ))
+            code.extend(UDF_RELOCATION_SLOT)
+        elif instruction.opcode == "BL":
+            offset = len(code)
+            relocations.append(MachineRelocation(
+                offset, "RP2350_THUNK_HELPER_CALL", "BL", instruction.operands,
+                symbol=str(instruction.operands[0]),
+            ))
+            code.extend(UDF_RELOCATION_SLOT)
+        elif instruction.opcode == "ABORT_IF_NONZERO":
+            status, symbol, unwind = instruction.operands
+            if status != "r0" or unwind != 8:
+                raise VerifyError("unsupported helper abort sequence")
+            code.extend(struct.pack("<HH", 0x2800, 0xD003))  # CMP r0,#0; BEQ success
+            code.extend(THUNK_POP_R12_LR)
+            offset = len(code)
+            relocations.append(MachineRelocation(
+                offset, "RP2350_THUNK_ABORT_BRANCH", "B.W", (symbol,),
+                symbol=str(symbol),
+            ))
+            code.extend(UDF_RELOCATION_SLOT)
+        else:
+            raise VerifyError(f"cannot emit helper thunk opcode {instruction.opcode}")
+
+
+def _encode_thumb_mov(destination: str | int, source: str | int) -> int:
+    destination_number = _general_register(str(destination))
+    source_number = _general_register(str(source))
+    return (
+        0x4600
+        | ((destination_number & 8) << 4)
+        | (source_number << 3)
+        | (destination_number & 7)
+    )
+
+
+def _general_register(name: str) -> int:
+    try:
+        number = REGISTER_NUMBER[name]
+    except KeyError as error:
+        raise VerifyError(f"unknown machine register {name}") from error
+    if number > 12:
+        raise VerifyError(f"helper thunk MOV does not accept {name}")
+    return number
+
+
+def _encode_thumb_branch(
+    source_address: int, target_address: int, *, link: bool,
+) -> bytes:
+    if source_address % 2 or target_address % 2:
+        raise VerifyError("Thumb branch addresses must be halfword aligned")
+    displacement = target_address - (source_address + 4)
+    if displacement % 2 or not -(1 << 24) <= displacement < (1 << 24):
+        raise VerifyError("Thumb wide branch target is outside signed 25-bit range")
+    encoded = displacement & 0x01FF_FFFE
+    sign = (encoded >> 24) & 1
+    i1 = (encoded >> 23) & 1
+    i2 = (encoded >> 22) & 1
+    j1 = ((~i1) & 1) ^ sign
+    j2 = ((~i2) & 1) ^ sign
+    first = 0xF000 | (sign << 10) | ((encoded >> 12) & 0x03FF)
+    second_base = 0xD000 if link else 0x9000
+    second = second_base | (j1 << 13) | (j2 << 11) | ((encoded >> 1) & 0x07FF)
+    return struct.pack("<HH", first, second)
 
 
 def _capability_id(name: str, capability_ids: dict[str, int]) -> int:

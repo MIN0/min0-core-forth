@@ -108,13 +108,27 @@ helper relocationごとに、次の監査可能なout-of-line thunk planを生�
 6. 成功時は必要な結果を仮想registerへ戻し、8 byteを復元して呼出し元へ戻る。
 
 CPU stackを8 byte単位にするのはhelper call中のalignmentを保つためであり、DATA stack不変規則とは
-別の層である。thunk planはまだmachine byteではないため、fragmentは実行不可のままである。
+別の層である。
+
+## Helper thunk emitter R0
+
+planからout-of-line Thumb thunkを生成し、各thunkの開始位置を4-byte境界へ揃える。命令自体をすべて
+4-byte境界へ揃えるわけではなく、16-bit命令は2-byte境界に連続して配置する。元の4-byte `UDF`
+slotはthunkへの`BL`へ置換される。
+
+thunkは`r12, lr`をCPU stackへ8 byte保存し、引数設定、helper call、status検査を行う。失敗経路は
+8 byteを復元してから`min0_abort_transaction`へ`B.W`し、成功経路は`r12, pc`を復元する。
+32-bit即値は既存literal linkerを再利用する。
+
+helperとabort先の最終addressが未指定の間、対応する4-byte slotは2個の`UDF`のままである。
+最終image baseと明示的なsymbol address表を受け取ったときだけ、signed 25-bit範囲を検査して
+`BL`または`B.W`へ置換する。関数pointerのbit 0はThumb-state bitとして除外して分岐距離を計算する。
+prologue、frame操作、分岐などには未解決relocationが残るため、この段階でもfragment全体は実行不可である。
 
 ### 次段階
 
-1. helper引数を設定するout-of-line thunkを生成し、BL relocationを解決する。
-2. frame load/result stage/prologue/epilogueをhelperまたは検査済みinline列へ変換する。
-3. 条件分岐ではvirtual comparisonの寿命を保ったままThumb branchを生成する。
-4. 生成byte列を独立disassemblerで逆解析してplanとの一致を検査する。
-5. 既存のrelocationとW^X publicationへ接続する。
-6. Pico 2 Wでは最初に生成のみを行い、その後限定されたtest CODEから実行を開始する。
+1. frame load/result stage/prologue/epilogueをhelperまたは検査済みinline列へ変換する。
+2. 条件分岐ではvirtual comparisonの寿命を保ったままThumb branchを生成する。
+3. 生成byte列を独立disassemblerで逆解析してplanとの一致を検査する。
+4. 既存のrelocationとW^X publicationへ接続する。
+5. Pico 2 Wでは最初に生成のみを行い、その後限定されたtest CODEから実行を開始する。
