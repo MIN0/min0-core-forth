@@ -34,6 +34,49 @@ CODE: SUM-XOR ( a b c -- sum mix )
 
 `10 20 30 SUM-XOR`の結果は`60 0`である。
 
+### 参考：この例題のcycle数を考える
+
+次の値は命令速度を意識するための学習用概算であり、MIN0が保証する実行時間ではない。ここでは
+Pico 2 WのRP2350 Arm Cortex-M33を150 MHzで動かし、命令fetch待ち、割込み、bus競合、cache missがない
+理想条件を仮定する。1 cycleの時間は次のように計算できる。
+
+```text
+1 / 150,000,000秒 = 約6.67 ns
+```
+
+| 例題のsource | RP2350 backendで行う主な処理 | 学習用の参考cycle数 |
+|---|---|---:|
+| `IN V0, a` | 検査付き`min0_frame_load` helper | 固定できないため実測する |
+| `IN V1, b` | 検査付き`min0_frame_load` helper | 固定できないため実測する |
+| `IN V2, c` | 検査付き`min0_frame_load` helper | 固定できないため実測する |
+| `MOV V3, V0` | register間のThumb `MOV` | 理想条件で約1 cycle |
+| `ADD V0, V1` | register間のThumb `ADD` | 理想条件で約1 cycle |
+| `ADD V0, V2` | register間のThumb `ADD` | 理想条件で約1 cycle |
+| `XOR V3, V1` | register間のThumb `EOR` | 理想条件で約1 cycle |
+| `XOR V3, V2` | register間のThumb `EOR` | 理想条件で約1 cycle |
+| `OUT sum, V0` | 検査付き`min0_result_stage` helper | 固定できないため実測する |
+| `OUT mix, V3` | 検査付き`min0_result_stage` helper | 固定できないため実測する |
+| `;CODE`の正常終了 | `min0_frame_commit`、register復元、復帰 | 固定できないため実測する |
+
+単純に1命令1 cycleと仮定すると、中央の`MOV`、`ADD`、`XOR`の5命令は約5 cycle、約33.3 nsとなる。
+しかし、ワード全体には関数入口、3回の入力検査、2回の出力staging、commit、関数復帰が含まれるため、
+`SUM-XOR`全体を5 cycleとは数えない。Cortex-M33には一部の16-bit命令を同時に処理するlimited dual-issueが
+あり、反対にFlash XIP、cache、memory access、分岐、helper、割込みによる追加cycleもある。したがって、
+最終的な値はlink後の機械語と実機測定で確認する。
+
+実機測定を導入する段階では、Cortex-M33のDWT `CYCCNT`でワード開始前後のcycle差を測り、空の測定処理に
+必要なoverheadを差し引く。同時に、clock設定、コードを置いたmemory、cache状態、割込み条件、入力値を
+探索記録へ残す。RP2350はsystem clockを変更できるため、clockが150 MHzでなければ`1 / 実際のHz`で
+1 cycleの時間を計算し直す。
+
+このcycle表示はこの例題だけの入口である。命令の組合せ、対象CPU、memory配置によって結果は変わる。
+興味のある方は、生成されたdisassembly、対象CPUのTechnical Reference Manual、RP2350のdata sheetを
+自分で調べ、予想値と実測値が異なる理由も観察してみてください。
+
+- [Arm Cortex-M33 Processor Technical Reference Manual](https://documentation-service.arm.com/static/641b2edcde84571cc27f3caa)
+- [RP2350 data sheet](https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf)
+- [Raspberry Pi Pico 2 data sheet](https://datasheets.raspberrypi.com/pico/pico-2-datasheet.pdf)
+
 ## Stack contract
 
 `( a b c -- sum mix )`は機械可読な契約であり、単なるコメントではない。
