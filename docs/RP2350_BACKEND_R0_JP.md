@@ -12,8 +12,9 @@ Thumb機械語とrelocationを生成する。独立逆解析をpublication gate�
 出力staging、memory capability、未確定write、commit／abortを扱うhost runtime referenceとrollback試験を
 追加した。同じ契約をheap allocationなしで実装するportable C transaction coreも追加し、RasPi 5のGCCで
 Python referenceと同じ正常・abort・拒否vectorを確認した。private register／tail ABI veneerをThumb bytesへ
-変換して独立decoderで監査し、ARM GNU objdumpでもveneer全72 byteを確認した。veneerを含むW^X publication、
-main／helper thunk全体の外部逆解析、target固有のcache／MPU処理、実機試験が完了するまでは、生成したmachine
+変換して独立decoderで監査し、ARM GNU objdumpでもveneer全72 byteを確認した。さらにmain、helper thunk、
+private veneerを一つの連続imageとSHA-256 receiptへ統合し、344 byteの検査用image全体を内部監査と
+ARM GNU objdumpで確認した。target固有のcache／MPU処理と実機試験が完了するまでは、生成したmachine
 fragmentの実行を許可しない。
 
 ## Register対応
@@ -361,9 +362,34 @@ policyはarchitecture、image base／limit、承認済みhelper symbol address�
 `execution_authorized=false`を維持し、`execute`操作を持たない。ここでのpublicationは監査済みbytesを
 変更不能な候補へ進める境界であり、RP2350実機で呼び出す許可ではない。
 
+## 統合publication receipt R0.2
+
+`min0_rp2350_integrated_publication.py`は、従来別々に監査していたmain／helper thunkとprivate ABI veneerを
+一つの連続imageへ配置する。最初にmain／thunkの長さを確定し、その直後の4-byte境界へveneerを置いた後、
+実際のveneer addressを使用してmain／thunkを再linkする。これにより仮のaddressを最終imageへ残さない。
+
+統合policyはarchitecture、image base／limit、portable C coreのruntime symbol表を固定する。監査時には次を
+一つのreceiptへ記録する。
+
+- main、helper thunk、alignment、private veneerのoffset、size、個別SHA-256
+- main／thunk監査receiptのSHA-256
+- 統合image全体と配置metadataのSHA-256
+- main、thunk、veneerの命令数と全byte coverage
+- `execution_authorized=false`
+
+`rw,nx` stagingの1 byte、内部component、runtime symbol、image limit、policyのいずれかが変わると公開を拒否する。
+攻撃側が統合bytesと内部componentの両方を同時に変更して整合して見せても、main／thunkまたはveneerの独立decoder
+が元のplanとの不一致を拒否する。公開結果は連続した`rx` snapshotだが、引き続き`execute`操作を持たない。
+
+検査用`SAFE-MIX`の統合imageは344 byteであり、内訳はmain 44 byte、helper thunkとliteral pool 228 byte、
+private veneer 72 byteだった。RasPi 5の`arm-none-eabi-objdump`で`0x2000`から`0x2157`まで確認し、mainから
+thunk、thunkからveneer、veneerから`0x6000`台のportable C coreへ進む全branch targetが内部監査と一致した。
+raw binaryの外部逆解析では`0x2100`からのliteral poolが`MOVS`命令のように表示されるが、内部監査はこの16 byteを
+4個の32-bit data cellとして識別し、命令とは別にcoverageへ含める。
+
 ### 次段階
 
-1. main、helper thunk、private veneerを一つのaudit receiptとW^X publication境界へ結合する。
-2. ARM対応の外部disassemblerで結合image全体のsecond opinionを取得する。
-3. RP2350向けcache同期、MPUまたは実行領域切替をtarget adapterで定義する。
-4. Pico 2 Wでは最初に生成と監査receiptの表示だけを行い、その後限定されたtest CODEから実行を開始する。
+1. RP2350向けcache同期、MPUまたは実行領域切替をtarget publication adapterとして定義する。
+2. target adapterのhost modelで、書込み中は`rw,nx`、確定後は`rx`、再書込み禁止を拒否試験する。
+3. Pico 2 Wでは最初に生成imageと監査receiptの表示だけを行う。
+4. target側のreceipt照合まで成功した後、限定されたtest CODEから実行を開始する。
