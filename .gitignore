@@ -4,6 +4,7 @@ __pycache__/
 document_work/
 release/
 release-staging/
+work/
 .coverage
 .pytest_cache/
 .DS_Store

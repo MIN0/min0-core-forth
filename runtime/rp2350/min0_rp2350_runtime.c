@@ -141,24 +141,25 @@ min0_helper_status min0_runtime_context_init(
     return MIN0_HELPER_OK;
 }
 
-min0_helper_load_result min0_runtime_frame_load(
-    min0_rp2350_execution_context *context, uint32_t input_index
+min0_helper_status min0_runtime_frame_load(
+    min0_rp2350_execution_context *context,
+    uint32_t input_index,
+    uint32_t *value_out
 ) {
-    min0_helper_load_result result = {MIN0_HELPER_INVALID_STATE, 0u};
     min0_helper_status status = active_status(context);
     if (status != MIN0_HELPER_OK) {
-        result.status = status;
-        return result;
+        return status;
+    }
+    if (value_out == NULL) {
+        return fail(context, MIN0_HELPER_INVALID_STATE);
     }
     if ((size_t)input_index >= context->input_count) {
-        result.status = fail(context, MIN0_HELPER_INPUT_INDEX);
-        return result;
+        return fail(context, MIN0_HELPER_INPUT_INDEX);
     }
-    result.status = MIN0_HELPER_OK;
-    result.value = context->data_stack[
+    *value_out = context->data_stack[
         context->original_depth - context->input_count + input_index
     ];
-    return result;
+    return MIN0_HELPER_OK;
 }
 
 min0_helper_status min0_runtime_result_stage(
@@ -181,41 +182,40 @@ min0_helper_status min0_runtime_result_stage(
     return MIN0_HELPER_OK;
 }
 
-min0_helper_load_result min0_runtime_checked_ld32(
+min0_helper_status min0_runtime_checked_ld32(
     min0_rp2350_execution_context *context,
     uint32_t capability_id,
     uint32_t base,
-    int32_t offset
+    int32_t offset,
+    uint32_t *value_out
 ) {
-    min0_helper_load_result result = {MIN0_HELPER_INVALID_STATE, 0u};
     checked_address checked;
     min0_helper_status status = active_status(context);
     size_t index;
     size_t byte_offset;
     if (status != MIN0_HELPER_OK) {
-        result.status = status;
-        return result;
+        return status;
+    }
+    if (value_out == NULL) {
+        return fail(context, MIN0_HELPER_INVALID_STATE);
     }
     status = check_address(
         context, capability_id, base, offset, MIN0_CAPABILITY_READ, &checked
     );
     if (status != MIN0_HELPER_OK) {
-        result.status = status;
-        return result;
+        return status;
     }
     for (index = context->pending_count; index > 0u; --index) {
         const min0_pending_write *pending = &context->pending_writes[index - 1u];
         if (pending->capability_id == capability_id &&
             pending->address == checked.address) {
-            result.status = MIN0_HELPER_OK;
-            result.value = pending->value;
-            return result;
+            *value_out = pending->value;
+            return MIN0_HELPER_OK;
         }
     }
     byte_offset = (size_t)(checked.address - checked.capability->logical_base);
-    memcpy(&result.value, checked.capability->bytes + byte_offset, 4u);
-    result.status = MIN0_HELPER_OK;
-    return result;
+    memcpy(value_out, checked.capability->bytes + byte_offset, 4u);
+    return MIN0_HELPER_OK;
 }
 
 min0_helper_status min0_runtime_stage_st32(

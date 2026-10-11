@@ -159,7 +159,7 @@ class Rp2350RuntimeCTests(unittest.TestCase):
         compiler = next(_compiler_candidates(), None)
         if compiler is None:
             self.skipTest("no host C compiler is available")
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as directory:
             executable = Path(directory) / (
                 "rp2350-runtime-fixture.exe" if os.name == "nt"
                 else "rp2350-runtime-fixture"

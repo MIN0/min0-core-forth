@@ -50,11 +50,6 @@ typedef struct {
 } min0_pending_write;
 
 typedef struct {
-    uint32_t status;
-    uint32_t value;
-} min0_helper_load_result;
-
-typedef struct {
     uint32_t *data_stack;
     size_t stack_capacity;
     size_t stack_depth;
@@ -87,19 +82,22 @@ min0_helper_status min0_runtime_context_init(
     size_t pending_capacity
 );
 
-min0_helper_load_result min0_runtime_frame_load(
-    min0_rp2350_execution_context *context, uint32_t input_index
+min0_helper_status min0_runtime_frame_load(
+    min0_rp2350_execution_context *context,
+    uint32_t input_index,
+    uint32_t *value_out
 );
 min0_helper_status min0_runtime_result_stage(
     min0_rp2350_execution_context *context,
     uint32_t output_index,
     uint32_t value
 );
-min0_helper_load_result min0_runtime_checked_ld32(
+min0_helper_status min0_runtime_checked_ld32(
     min0_rp2350_execution_context *context,
     uint32_t capability_id,
     uint32_t base,
-    int32_t offset
+    int32_t offset,
+    uint32_t *value_out
 );
 min0_helper_status min0_runtime_stage_st32(
     min0_rp2350_execution_context *context,

@@ -11,11 +11,10 @@ Thumb機械語とrelocationを生成する。独立逆解析をpublication gate�
 封印済み`rx` snapshotを作るhost reference実装まで完了した。private helper ABI 0.2についても、入力frame、
 出力staging、memory capability、未確定write、commit／abortを扱うhost runtime referenceとrollback試験を
 追加した。同じ契約をheap allocationなしで実装するportable C transaction coreも追加し、RasPi 5のGCCで
-Python referenceと同じ正常・abort・拒否vectorを確認した。private register／tail ABI veneer、外部ARM
-disassembler、target固有のcache／MPU処理、実機試験が完了するまでは、生成したmachine fragmentの実行を
-許可しない。
-encoderと実装を共有しない内部decoderによる逆解析は完了したが、外部ARM disassemblerによるsecond opinionは
-まだ行っていない。
+Python referenceと同じ正常・abort・拒否vectorを確認した。private register／tail ABI veneerをThumb bytesへ
+変換して独立decoderで監査し、ARM GNU objdumpでもveneer全72 byteを確認した。veneerを含むW^X publication、
+main／helper thunk全体の外部逆解析、target固有のcache／MPU処理、実機試験が完了するまでは、生成したmachine
+fragmentの実行を許可しない。
 
 ## Register対応
 
@@ -141,10 +140,35 @@ RasPi 5のaarch64 GCC 14でC11、`-Wall -Wextra -Werror -pedantic`を使用し�
 - index、出力不足、契約不一致、capability、overflow、整列、範囲、権限、pending容量のstatusが
   Python referenceの番号と一致する。
 
-このC codeはtransaction本体であり、生成machine codeが直接呼ぶ最終symbolではない。特に
-`min0_stage_st32`の第5引数を`r12`からC引数へ移す処理と、`min0_abort_transaction`が32-byte function
-frameを復元して呼出し元へ戻る処理は、RP2350固有assembly veneerで実装する必要がある。このveneerが
-完成して逆解析監査へ含まれるまで、C test合格をmachine実行許可とは扱わない。
+読出しhelperはCの小構造体戻り値へ依存せず、statusをC戻り値、読出し値を明示的な出力pointerで受け渡す。
+これによりAAPCS32の構造体戻り規則へ暗黙に依存せず、veneerが`r1=value`へ戻す位置を監査できる。
+
+### Private ABI veneer R0
+
+`min0_rp2350_veneer.py`は、生成machine codeが呼ぶ6個のprivate symbolをportable C coreへ接続する。
+未link時の全branch slotは2個の`UDF`であり、runtime symbol addressを与えた後も
+`execution_authorized=false`を維持する。
+
+| private symbol | veneerの役割 |
+|---|---|
+| `min0_frame_load` | 8-byte local frameへ出力slotを作り、C成功値を`r1`へ移す |
+| `min0_result_stage` | 同一引数配置のC coreへ`B.W`し、元の`lr`でhelper thunkへ戻す |
+| `min0_checked_ld32` | 24-byte aligned frameで第5引数の出力pointerを渡し、値を`r1`へ移す |
+| `min0_stage_st32` | `r12=value`を8-byte frameの先頭へ置き、通常C ABIの第5引数にする |
+| `min0_frame_commit` | 同一引数配置のC coreへ`B.W`する |
+| `min0_abort_transaction` | `r0=status, r8=context`をC引数へ並べ、C abort後に`r4-r10,lr`を復元する |
+
+`CHECKED_LD32`は`r1-r3,lr`を16 byte保存し、8 byteのlocal領域を加えた合計24 byteを使用する。Cから
+戻った値を`r1`へloadした後は、保存済みの古い`r1`だけを読み飛ばし、`r2,r3,pc`を復元する。開発中、古い
+`r1`までPOPして結果を上書きする初期planを試験が検出し、実行前に修正した。
+
+内部decoderはPUSH／POP、SP相対LDR／STR、SP調整、runtime branch、abort frame復元をplanと照合する。
+veneer byte改変、symbol不足、未link public symbol使用を拒否する。監査済みveneer addressだけをmain CODEの
+helper symbol表へ渡し、既存publication gateが全byteを確認できることも試験した。
+
+RasPi 5の`arm-none-eabi-objdump`によるsecond opinionでは、72 byteのveneerが内部監査と同じ
+PUSH／POP、SP操作、`BL`／`B.W` target、`r12`保存、32-byte abort復元として逆解析された。これはveneer
+限定の外部確認であり、mainとout-of-line helper thunkを含む最終image全体の外部確認はまだ残る。
 
 ## Stack contractのlowering
 
@@ -172,8 +196,6 @@ STAGE_ST32 IO, r6, 0, r4
 生の`LDR/STR`は生成しない。`CHECKED_LD32`はcapability、境界、整列、read権限を検査する。
 `STAGE_ST32`はwrite権限を検査してtransactionへ保存し、`FRAME_COMMIT`成功時だけ反映する。
 backend verifierは`RAW_LDR`、`RAW_STR`、未知のbackend opcodeを拒否する。
-
-## 次段階
 
 ## Thumb emitter R0
 
@@ -341,7 +363,7 @@ policyはarchitecture、image base／limit、承認済みhelper symbol address�
 
 ### 次段階
 
-1. portable C transaction coreへ接続するRP2350 private ABI veneerを実装し、逆解析監査へ含める。
-2. ARM対応の外部disassemblerでsecond opinionを取得する。
+1. main、helper thunk、private veneerを一つのaudit receiptとW^X publication境界へ結合する。
+2. ARM対応の外部disassemblerで結合image全体のsecond opinionを取得する。
 3. RP2350向けcache同期、MPUまたは実行領域切替をtarget adapterで定義する。
 4. Pico 2 Wでは最初に生成と監査receiptの表示だけを行い、その後限定されたtest CODEから実行を開始する。

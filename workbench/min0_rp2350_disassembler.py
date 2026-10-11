@@ -79,6 +79,31 @@ def decode_thumb_instruction(
         right = (halfword >> 3) & 0xF
         return _decoded(code, offset, 2, "CMP", (_register(left), _register(right)))
 
+    if halfword & 0xFE00 in {0xB400, 0xBC00}:
+        pop = halfword & 0xFE00 == 0xBC00
+        mask = halfword & 0xFF
+        if halfword & 0x100:
+            mask |= 1 << (15 if pop else 14)
+        return _decoded(
+            code, offset, 2, "POP" if pop else "PUSH", _register_list(mask)
+        )
+    if halfword & 0xFF80 in {0xB000, 0xB080}:
+        mnemonic = "SUB_SP" if halfword & 0xFF80 == 0xB080 else "ADD_SP"
+        return _decoded(code, offset, 2, mnemonic, ((halfword & 0x7F) * 4,))
+    if halfword & 0xF800 == 0xA800:
+        destination = (halfword >> 8) & 7
+        return _decoded(
+            code, offset, 2, "ADD_FROM_SP",
+            (_register(destination), (halfword & 0xFF) * 4),
+        )
+    if halfword & 0xF000 == 0x9000:
+        load = bool(halfword & 0x0800)
+        register = (halfword >> 8) & 7
+        return _decoded(
+            code, offset, 2, "LDR_SP" if load else "STR_SP",
+            (_register(register), (halfword & 0xFF) * 4),
+        )
+
     data_processing = {
         0x4000: "AND", 0x4040: "XOR", 0x41C0: "ROR",
         0x4280: "CMP", 0x4300: "OR", 0x4340: "MUL", 0x43C0: "MVN",
@@ -355,6 +380,64 @@ def audit_linked_helper_thunks(
             else:
                 raise MachineAuditError(f"no independent thunk audit rule for {opcode}")
         reports[plan.call_site_offset] = tuple(decoded)
+    return reports
+
+
+def audit_private_abi_veneers(
+    plans: tuple[Any, ...],
+    image: Any,
+    runtime_symbols: dict[str, int],
+) -> dict[str, tuple[DecodedInstruction, ...]]:
+    """Independently decode each private-ABI veneer and its alignment bytes."""
+
+    if image.relocations or not image.link_complete or image.execution_authorized:
+        raise MachineAuditError("private ABI veneer image is not sealed for audit")
+    ordered = sorted(
+        ((int(image.labels[plan.public_symbol]), plan) for plan in plans),
+        key=lambda item: item[0],
+    )
+    reports: dict[str, tuple[DecodedInstruction, ...]] = {}
+    for index, (start, plan) in enumerate(ordered):
+        if start % 4:
+            raise MachineAuditError("private ABI veneer symbol is not 4-byte aligned")
+        end = ordered[index + 1][0] if index + 1 < len(ordered) else len(image.code)
+        cursor = start
+        decoded: list[DecodedInstruction] = []
+        for planned in plan.instructions:
+            opcode = planned.opcode
+            operands = tuple(planned.operands)
+            if opcode == "CALL_RUNTIME":
+                expected = (
+                    "BL",
+                    (_symbol_address(runtime_symbols, plan.runtime_symbol) & ~1,),
+                )
+            elif opcode == "TAIL_RUNTIME":
+                expected = (
+                    "B.W",
+                    (_symbol_address(runtime_symbols, plan.runtime_symbol) & ~1,),
+                )
+            elif opcode in {"STMDB", "LDMIA", "MOV", "PUSH", "POP", "BX"}:
+                expected = (opcode, operands)
+            elif opcode in {"LDR_SP", "STR_SP", "ADD_FROM_SP", "ADD_SP", "SUB_SP"}:
+                expected = (opcode, operands)
+            elif opcode == "NOP":
+                expected = ("NOP", ())
+            else:
+                raise MachineAuditError(
+                    f"no independent private ABI audit rule for {opcode}"
+                )
+            cursor = _expect_one(
+                image, cursor, end, image.image_base, decoded, *expected
+            )
+        while cursor < end:
+            cursor = _expect_one(
+                image, cursor, end, image.image_base, decoded, "NOP", ()
+            )
+        if cursor != end:
+            raise MachineAuditError("private ABI veneer crosses its symbol boundary")
+        reports[plan.public_symbol] = tuple(decoded)
+    if set(reports) != set(image.labels):
+        raise MachineAuditError("private ABI veneer labels do not match audited plans")
     return reports
 
 
