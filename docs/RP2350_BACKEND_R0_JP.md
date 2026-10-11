@@ -7,9 +7,11 @@
 ## 現在の段階
 
 R0は検査済み仮想assemblerをRP2350 Arm Cortex-M33向けbackend planへ変換し、安全に確定できる
-Thumb機械語とrelocationを生成する。runtime helper実装、独立逆解析、W^X publication、実機試験が
-完了するまでは、生成したmachine fragmentの実行を許可しない。encoderと実装を共有しない内部decoderに
-よる逆解析は完了したが、外部ARM disassemblerによるsecond opinionはまだ行っていない。
+Thumb機械語とrelocationを生成する。独立逆解析をpublication gateへ接続し、W^Xの`rw,nx` stagingから
+封印済み`rx` snapshotを作るhost reference実装まで完了した。runtime helper実装、外部ARM disassembler、
+target固有のcache／MPU処理、実機試験が完了するまでは、生成したmachine fragmentの実行を許可しない。
+encoderと実装を共有しない内部decoderによる逆解析は完了したが、外部ARM disassemblerによるsecond opinionは
+まだ行っていない。
 
 ## Register対応
 
@@ -275,9 +277,31 @@ offset、`r12`のwrite値受渡しも逆解析対象になる。
 これはencoderと同じ誤りをそのまま見逃さないための別実装だが、同じrepository内のPython decoderである。
 実行許可前にはARM対応の外部disassemblerでもbyte列を確認し、さらにRP2350実機で限定testを行う。
 
+## RP2350 publication gate R0
+
+`min0_rp2350_publication.py`は、link完了したfragmentをそのまま実行許可とせず、次の順序で処理する。
+
+```text
+仮想assemblerのbackend plan
+  -> emitter / relocation / helper thunk / branch link
+  -> rw,nx stagingへcopy
+  -> mainと全helper thunkを独立disassemble監査
+  -> literal poolとalignmentを含む全byte coverage確認
+  -> code、label、base、symbol表をSHA-256 receiptへ固定
+  -> 監査時と同じsnapshotだけをsealed rxへcopy
+```
+
+policyはarchitecture、image base／limit、承認済みhelper symbol addressを固定する。未解決relocation、planとの
+命令不一致、未監査byte、範囲外配置、helper address違い、監査後の1 byte変更、policy変更のいずれかがあれば
+公開を拒否する。mainだけでなく、out-of-line helper thunkの改変も拒否試験で確認する。
+
+公開結果は`permissions=rx`、`programmable=false`、`sealed=true`だが、R0では
+`execution_authorized=false`を維持し、`execute`操作を持たない。ここでのpublicationは監査済みbytesを
+変更不能な候補へ進める境界であり、RP2350実機で呼び出す許可ではない。
+
 ### 次段階
 
-1. 独立disassembly auditをpublication gateへ接続する。
-2. 既存のrelocationとW^X publicationへ接続する。
-3. ARM対応の外部disassemblerでsecond opinionを取得する。
-4. Pico 2 Wでは最初に生成のみを行い、その後限定されたtest CODEから実行を開始する。
+1. ARM対応の外部disassemblerでsecond opinionを取得する。
+2. runtime helperのC実装と異常終了時rollbackをreference testする。
+3. RP2350向けcache同期、MPUまたは実行領域切替をtarget adapterで定義する。
+4. Pico 2 Wでは最初に生成と監査receiptの表示だけを行い、その後限定されたtest CODEから実行を開始する。

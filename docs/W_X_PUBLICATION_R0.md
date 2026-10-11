@@ -79,3 +79,17 @@ PythonとRubyで次が一致する。
 - development compilerがartifactを作る場所の自由は保つ。ここで保証するのは、safe-runtimeへ入る公開境界である。
 - DICTIONARYの表示permissionはMonitor DEFER gateのため`rw`だが、通常writeは追加capability層で保護される。
   詳細は`DICTIONARY_CAPABILITY_R0.md`を参照する。
+
+## RP2350 native CODEへの適用
+
+仮想assemblerのRP2350 backendは、このW^X原則をnative machine fragmentにも適用する。link完了は
+「未解決relocationがない」ことだけを表し、実行許可とは区別する。
+
+`min0_rp2350_publication.py`では、linked bytesを`rw,nx` stagingへcopyし、独立disassembly、全byte coverage、
+配置policy、helper symbol、digestを確認する。合格した同一snapshotだけを別storageの`rx` imageへcopyして
+封印する。公開後にstagingを変更しても`rx` imageは変化せず、監査後かつ公開前の変更はdigest不一致として
+拒否する。
+
+このnative `rx` imageは、外部disassembler、runtime helper、targetのcache／MPU境界、実機限定試験が未完了の
+ため、R0では`execution_authorized=false`である。W^X publicationを通過したことだけを理由にCPUへbranchしては
+ならない。
