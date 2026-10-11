@@ -10,8 +10,10 @@ R0は検査済み仮想assemblerをRP2350 Arm Cortex-M33向けbackend planへ変
 Thumb機械語とrelocationを生成する。独立逆解析をpublication gateへ接続し、W^Xの`rw,nx` stagingから
 封印済み`rx` snapshotを作るhost reference実装まで完了した。private helper ABI 0.2についても、入力frame、
 出力staging、memory capability、未確定write、commit／abortを扱うhost runtime referenceとrollback試験を
-追加した。target用C helper、外部ARM disassembler、target固有のcache／MPU処理、実機試験が完了するまでは、
-生成したmachine fragmentの実行を許可しない。
+追加した。同じ契約をheap allocationなしで実装するportable C transaction coreも追加し、RasPi 5のGCCで
+Python referenceと同じ正常・abort・拒否vectorを確認した。private register／tail ABI veneer、外部ARM
+disassembler、target固有のcache／MPU処理、実機試験が完了するまでは、生成したmachine fragmentの実行を
+許可しない。
 encoderと実装を共有しない内部decoderによる逆解析は完了したが、外部ARM disassemblerによるsecond opinionは
 まだ行っていない。
 
@@ -123,6 +125,26 @@ DATA stackを維持する。abortは繰り返しても最初の失敗statusと�
 
 このhost referenceは生成済みThumb codeを実行しない。target用C実装と同じ試験vectorを比較するための
 正解モデルであり、C helper完成後も実機実行許可とは別の検査段階として使用する。
+
+### Portable C transaction core
+
+`runtime/rp2350/min0_rp2350_runtime.c`と`.h`は、host referenceと同じstatus番号、frame、capability、
+未確定write、commit／abort規則をheap allocationなしで実装する。stack、出力slot、capability表、pending
+write領域は呼出し側が明示的に用意し、初期化時に容量と重複capability IDを検査する。pending領域が不足した
+場合はstatus 14の`PENDING_FULL`として拒否し、暗黙に実メモリへ書き出さない。
+
+RasPi 5のaarch64 GCC 14でC11、`-Wall -Wextra -Werror -pedantic`を使用し、次を確認した。
+
+- 入力3個を出力2個へ置換し、未確定writeを成功時だけ反映する。
+- commit前のchecked readが同一transactionの未確定writeをforwardする。
+- abort時にstack、memory、最初の失敗statusを維持する。
+- index、出力不足、契約不一致、capability、overflow、整列、範囲、権限、pending容量のstatusが
+  Python referenceの番号と一致する。
+
+このC codeはtransaction本体であり、生成machine codeが直接呼ぶ最終symbolではない。特に
+`min0_stage_st32`の第5引数を`r12`からC引数へ移す処理と、`min0_abort_transaction`が32-byte function
+frameを復元して呼出し元へ戻る処理は、RP2350固有assembly veneerで実装する必要がある。このveneerが
+完成して逆解析監査へ含まれるまで、C test合格をmachine実行許可とは扱わない。
 
 ## Stack contractのlowering
 
@@ -319,7 +341,7 @@ policyはarchitecture、image base／limit、承認済みhelper symbol address�
 
 ### 次段階
 
-1. ARM対応の外部disassemblerでsecond opinionを取得する。
-2. host runtime referenceと同じstatus／commit／rollback契約を持つtarget用C helperを実装する。
+1. portable C transaction coreへ接続するRP2350 private ABI veneerを実装し、逆解析監査へ含める。
+2. ARM対応の外部disassemblerでsecond opinionを取得する。
 3. RP2350向けcache同期、MPUまたは実行領域切替をtarget adapterで定義する。
 4. Pico 2 Wでは最初に生成と監査receiptの表示だけを行い、その後限定されたtest CODEから実行を開始する。

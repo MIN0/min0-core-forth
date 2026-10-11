@@ -29,6 +29,7 @@ class HelperStatus(IntEnum):
     READ_DENIED = 11
     WRITE_DENIED = 12
     ABORTED = 13
+    PENDING_FULL = 14
 
 
 @dataclass(frozen=True)

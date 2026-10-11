@@ -15,8 +15,11 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ALLOWED_DIRECTORIES = {
     "docs": frozenset({".md"}),
+    "runtime": frozenset({".c", ".h"}),
     "tools": frozenset({".py"}),
-    "workbench": frozenset({".py", ".rb", ".js", ".fth", ".fcb", ".json"}),
+    "workbench": frozenset({
+        ".c", ".py", ".rb", ".js", ".fth", ".fcb", ".json",
+    }),
     "viewer": frozenset({".html", ".js"}),
 }
 EXCLUDED_PARTS = frozenset({
@@ -33,7 +36,9 @@ EXPLICIT_TOP_LEVEL = frozenset({
     "LICENSE", "README.md", "README_JP.md", "SECURITY.md", "SECURITY_JP.md", "VERSION",
     "requirements.txt",
 })
-TEXT_SUFFIXES = frozenset({".py", ".rb", ".js", ".md", ".txt", ".json", ".fth", ".html"})
+TEXT_SUFFIXES = frozenset({
+    ".c", ".h", ".py", ".rb", ".js", ".md", ".txt", ".json", ".fth", ".html",
+})
 REQUIRED_PATHS = (
     ".gitattributes",
     ".nojekyll",

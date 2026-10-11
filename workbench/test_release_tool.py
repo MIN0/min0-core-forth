@@ -24,6 +24,8 @@ class ReleaseToolTests(unittest.TestCase):
         self.assertIn(".gitattributes", selected)
         self.assertIn("viewer/value-trace.html", selected)
         self.assertIn("workbench/min0_forth.py", selected)
+        self.assertIn("runtime/rp2350/min0_rp2350_runtime.c", selected)
+        self.assertIn("runtime/rp2350/min0_rp2350_runtime.h", selected)
         self.assertIn("docs/QUICKSTART.md", selected)
         self.assertNotIn("docs/CHECKPOINT_2026-08-26.md", selected)
         self.assertNotIn("新FORTHシステム仕様を検討_会話記録.docx", selected)
