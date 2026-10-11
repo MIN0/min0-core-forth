@@ -8,8 +8,10 @@
 
 R0は検査済み仮想assemblerをRP2350 Arm Cortex-M33向けbackend planへ変換し、安全に確定できる
 Thumb機械語とrelocationを生成する。独立逆解析をpublication gateへ接続し、W^Xの`rw,nx` stagingから
-封印済み`rx` snapshotを作るhost reference実装まで完了した。runtime helper実装、外部ARM disassembler、
-target固有のcache／MPU処理、実機試験が完了するまでは、生成したmachine fragmentの実行を許可しない。
+封印済み`rx` snapshotを作るhost reference実装まで完了した。private helper ABI 0.2についても、入力frame、
+出力staging、memory capability、未確定write、commit／abortを扱うhost runtime referenceとrollback試験を
+追加した。target用C helper、外部ARM disassembler、target固有のcache／MPU処理、実機試験が完了するまでは、
+生成したmachine fragmentの実行を許可しない。
 encoderと実装を共有しない内部decoderによる逆解析は完了したが、外部ARM disassemblerによるsecond opinionは
 まだ行っていない。
 
@@ -105,6 +107,22 @@ backend verifierはこの並びとclobber分離を検査する。
 入口では`r0=status`、`r8=context`、CPU stack先頭には生成関数が保存した`r4-r10,lr`の32 byteがある。
 このtail helperは未確定writeを破棄し、その32 byteを復元して生成関数の呼出し元へ戻る責任を持つ。
 したがってhelper thunkは自分自身の8 byteだけを復元してから、この入口へ`B.W`する。
+
+### Host runtime reference
+
+`min0_rp2350_runtime.py`は、将来のtarget用C helperが守るtransaction契約をPython上で固定する。
+execution contextは呼出し開始時のDATA stack、入力frame、出力slot、numeric capability、未確定memory write、
+最初の失敗statusを保持する。`FRAME_LOAD`と`RESULT_STAGE`は宣言したindexだけを扱い、同じ出力への2回目の
+書込みを拒否する。memory helperは32-bit address overflow、4-byte整列、window範囲、read／write権限を
+個別に検査する。
+
+`STAGE_ST32`は実メモリを書き換えず、同じtransaction内の`CHECKED_LD32`だけが未確定値を先に読める。
+`FRAME_COMMIT`は入出力数と全出力slotを再確認した後、未確定memory writeと「入力を出力へ置換した
+DATA stack」を同時に確定する。失敗経路の`min0_abort_transaction`は未確定出力とwriteを破棄し、元の
+DATA stackを維持する。abortは繰り返しても最初の失敗statusと状態を変えない。
+
+このhost referenceは生成済みThumb codeを実行しない。target用C実装と同じ試験vectorを比較するための
+正解モデルであり、C helper完成後も実機実行許可とは別の検査段階として使用する。
 
 ## Stack contractのlowering
 
@@ -302,6 +320,6 @@ policyはarchitecture、image base／limit、承認済みhelper symbol address�
 ### 次段階
 
 1. ARM対応の外部disassemblerでsecond opinionを取得する。
-2. runtime helperのC実装と異常終了時rollbackをreference testする。
+2. host runtime referenceと同じstatus／commit／rollback契約を持つtarget用C helperを実装する。
 3. RP2350向けcache同期、MPUまたは実行領域切替をtarget adapterで定義する。
 4. Pico 2 Wでは最初に生成と監査receiptの表示だけを行い、その後限定されたtest CODEから実行を開始する。
