@@ -14,8 +14,9 @@ Thumb機械語とrelocationを生成する。独立逆解析をpublication gate�
 Python referenceと同じ正常・abort・拒否vectorを確認した。private register／tail ABI veneerをThumb bytesへ
 変換して独立decoderで監査し、ARM GNU objdumpでもveneer全72 byteを確認した。さらにmain、helper thunk、
 private veneerを一つの連続imageとSHA-256 receiptへ統合し、344 byteの検査用image全体を内部監査と
-ARM GNU objdumpで確認した。target固有のcache／MPU処理と実機試験が完了するまでは、生成したmachine
-fragmentの実行を許可しない。
+ARM GNU objdumpで確認した。さらにRP2350内部SRAMへの転送、receipt再照合、barrier、MPU保護変更を
+一方向に扱うtarget publication adapterのhost modelを追加した。target固有処理の実機実装と実機試験が
+完了するまでは、生成したmachine fragmentの実行を許可しない。
 
 ## Register対応
 
@@ -387,9 +388,41 @@ thunk、thunkからveneer、veneerから`0x6000`台のportable C coreへ進む�
 raw binaryの外部逆解析では`0x2100`からのliteral poolが`MOVS`命令のように表示されるが、内部監査はこの16 byteを
 4個の32-bit data cellとして識別し、命令とは別にcoverageへ含める。
 
+## RP2350 target publication adapter R0.3
+
+`min0_rp2350_target_publication.py`は、統合receiptを得たimageをRP2350 targetへ移す手順をhost上の
+一方向状態機械として表現する。これはMPU registerを実際に操作するdriverではなく、target実装が守る順序と
+拒否条件を先に固定するreference modelである。
+
+R0.3の公開先はRP2350内部SRAM `0x20000000..0x20081fff`だけに限定する。外部flash／PSRAMのXIP領域は
+別のcache管理と書換え手順を必要とするため、このprofileでは受け付けない。
+
+```text
+empty
+  -> staging rw,nx
+  -> 全byte転送完了
+  -> target bytesを独立監査しreceipt再照合
+  -> DSB before MPU
+  -> MPUをrxへ変更
+  -> DSB after MPU
+  -> ISB after MPU
+  -> sealed rx
+```
+
+書込み中は`rw,nx`であり、実行可能にはしない。全byteが一度ずつ書かれた後、target側snapshotへ
+`audit_integrated_candidate`を再実行し、転送前receiptとの完全一致を確認する。1 byte不足、重複書込み、
+転送後改変、receipt不一致を拒否する。
+
+MPU変更前のDSB、変更後のDSBとISBは省略も順序変更もできない。`sealed rx`へ到達すると書込み、再公開、
+再封印を拒否する。公開結果は`execution_authorized=false`のままで`execute`操作を持たない。
+
+RP2350 Cortex-M33 profileについて、R0.3は一般的な「data cache clean／instruction cache invalidate」を
+無条件には要求しない。内部SRAM公開ではbarrierとMPU保護変更を契約にし、XIP cacheを扱う公開方式は将来の
+別profileとする。これにより、内部SRAMとXIP flashの異なるcache特性を一つの曖昧なhookへ混ぜない。
+
 ### 次段階
 
-1. RP2350向けcache同期、MPUまたは実行領域切替をtarget publication adapterとして定義する。
-2. target adapterのhost modelで、書込み中は`rw,nx`、確定後は`rx`、再書込み禁止を拒否試験する。
-3. Pico 2 Wでは最初に生成imageと監査receiptの表示だけを行う。
-4. target側のreceipt照合まで成功した後、限定されたtest CODEから実行を開始する。
+1. Pico SDK上の実装点を調査し、MPU region粒度、alignment、Secure／Non-secure側の所有権を決める。
+2. host modelと同じevent列を出すPico 2 W診断版を作り、生成imageと監査receiptの表示だけを行う。
+3. 実機上のSRAM bytesとreceipt再照合、barrier、MPU設定結果を観測する。
+4. target側検証まで成功した後も別の明示的な許可段階を設け、限定test CODEから実行を開始する。
