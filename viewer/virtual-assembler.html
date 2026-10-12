@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ja"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes">
+<title>MIN0 仮想アセンブラ体験Viewer</title>
+<style>
+:root{color-scheme:dark;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;--bg:#081318;--panel:#10242b;--line:#31525d;--text:#edf8f8;--muted:#a8c1c8;--gold:#ffd166;--green:#65d395;--red:#ff7474;--blue:#6fd4ff}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top right,#17343d 0,#081318 42%);color:var(--text);line-height:1.5;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}main{max-width:1120px;margin:auto;padding:16px}h1{font-size:clamp(1.65rem,6vw,2.6rem);line-height:1.12;margin:.25rem 0}h2{font-size:1.12rem;margin:0 0 9px}.lead{color:var(--muted);max-width:850px}.notice{border-left:4px solid var(--gold);background:#29291c;padding:10px 12px;border-radius:7px;margin:14px 0}.panel{background:rgba(16,36,43,.96);border:1px solid var(--line);border-radius:13px;padding:13px;margin:12px 0}.grid{display:grid;gap:12px}.controls{display:grid;grid-template-columns:1fr;gap:10px}label{font-weight:700;display:block;margin-bottom:5px}select,input,button,textarea{font:16px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace;border-radius:9px}select,input{width:100%;min-height:44px;background:#0a1a20;color:var(--text);border:1px solid #4a707b;padding:8px}textarea{width:100%;min-height:310px;resize:vertical;background:#061015;color:#f4fbfb;border:1px solid #4a707b;padding:12px}button{min-height:48px;border:0;background:var(--gold);color:#18170f;font-weight:800;padding:9px 18px;width:100%}pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;font:14px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace}.stack{font:700 1rem/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--blue)}.ok{color:var(--green)}.bad{color:var(--red)}.muted{color:var(--muted);font-size:.9rem}.audit{display:grid;gap:6px}.audit div{padding:7px 9px;border-radius:7px;background:#09191f;font:14px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:.82rem}th,td{text-align:left;vertical-align:top;border-bottom:1px solid var(--line);padding:7px 5px;white-space:nowrap}th{color:var(--gold)}td.source{white-space:normal;min-width:150px}@media(min-width:760px){.grid.two{grid-template-columns:1fr 1fr}.controls{grid-template-columns:1.4fr 1fr}.span{grid-column:1/-1}}
+</style></head><body><main>
+<noscript><div class="notice">JavaScriptが停止しているため実行できません。</div></noscript>
+<h1>MIN0 仮想アセンブラ<br>体験Viewer</h1>
+<p class="lead">sourceと入力値を変更し、安全なreference modelで実行できます。命令ごとのregister変化、stack contract、失敗時のrollbackを観察してください。</p>
+<div class="notice"><strong>安全境界：</strong>RP2350機械語をCPUで実行しません。ブラウザ内の仮想命令だけを実行し、実memoryやPico 2 Wには触れません。</div>
+<section class="panel controls">
+<div><label for="example">例題</label><select id="example"><option value="add">成功：加算</option><option value="max">分岐：大きい値</option><option value="memory">成功：memory往復</option><option value="memory-error">失敗：範囲外memory</option></select></div>
+<div><label for="inputs">入力stack（空白区切り）</label><input id="inputs" value="12 30" autocapitalize="none" autocomplete="off"></div>
+<div class="span"><label for="source">仮想アセンブラsource</label><textarea id="source" spellcheck="false" autocapitalize="none"></textarea></div>
+<div class="span"><button id="run">reference modelで実行</button></div></section>
+<div class="grid two"><section class="panel"><h2>実行結果</h2><p id="status" class="muted">（未実行）</p><p>実行前stack</p><div id="before" class="stack">&lt;0&gt;</div><p>実行後stack</p><div id="after" class="stack">&lt;0&gt;</div><p id="memory" class="muted"></p></section><section class="panel"><h2>検査と安全状態</h2><div id="audit" class="audit"><div>（未実行）</div></div></section></div>
+<section id="error-panel" class="panel" hidden><h2>安全に停止しました</h2><pre id="error" class="bad"></pre><p class="muted">危険な操作は実行されず、入力stackと未確定memory writeは開始前へ戻されます。修正して再実行してください。</p></section>
+<section class="panel"><h2>命令ごとの変化</h2><div class="table-wrap"><table><thead><tr><th>#</th><th>source</th><th>実行前register</th><th>実行後register</th><th>観察</th></tr></thead><tbody id="trace"><tr><td colspan="5">（未実行）</td></tr></tbody></table></div></section>
+<section class="panel"><h2>このデモが示す範囲</h2><pre>REFERENCE EXECUTION      ブラウザ内で実行
+STACK ROLLBACK           失敗例で確認可能
+MEMORY TRANSACTION       成功時だけcommit
+RP2350 CODE GENERATION   開発pipelineで実装済み
+RP2350 MACHINE AUDIT     開発pipelineで実装済み
+RP2350 MACHINE EXECUTION このページでは無効</pre></section>
+</main><script src="virtual-assembler-core.js"></script><script>
+"use strict";
+const examples={
+add:{inputs:"12 30",source:`CODE: ADD-TEST ( a b -- result )
+  IN V0, a
+  IN V1, b
+  ADD V0, V1
+  OUT result, V0
+;CODE`},
+max:{inputs:"10 20",source:`CODE: MAX ( a b -- max )
+  IN V0, a
+  IN V1, b
+  CMP V0, V1
+  BGE @a-wins
+  OUT max, V1
+  BRA @done
+@a-wins:
+  OUT max, V0
+@done:
+;CODE`},
+memory:{inputs:"55 0x1000",source:`CODE: ROUND-TRIP ( value address -- observed )
+  IN V0, value
+  IN V1, address
+  ST32 [DATA: V1], V0
+  LD32 V2, [DATA: V1]
+  OUT observed, V2
+;CODE`},
+"memory-error":{inputs:"55 0x2000",source:`CODE: RANGE-FAIL ( value address -- observed )
+  IN V0, value
+  IN V1, address
+  ST32 [DATA: V1], V0
+  LD32 V2, [DATA: V1]
+  OUT observed, V2
+;CODE`}}
+const $=id=>document.getElementById(id),esc=v=>String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const stack=v=>`&lt;${v.length}&gt; ${v.map(x=>`0x${x.toString(16).padStart(8,"0")} (${x})`).join(" ")}`;
+const regs=v=>["V0","V1","V2","V3"].filter(k=>v[k]!==undefined).map(k=>`${k}=${v[k]}`).join(" ")||"—";
+function clear(){$("status").textContent="（未実行）";$("status").className="muted";$("before").innerHTML="&lt;0&gt;";$("after").innerHTML="&lt;0&gt;";$("memory").textContent="";$("audit").innerHTML="<div>（未実行）</div>";$("trace").innerHTML='<tr><td colspan="5">（未実行）</td></tr>';$("error-panel").hidden=true}
+function load(){const x=examples[$("example").value];$("source").value=x.source;$("inputs").value=x.inputs;clear()}
+function run(){clear();try{const input=$("inputs").value.trim()?$("inputs").value.trim().split(/\s+/).map(x=>Number(BigInt(x))):[],r=Min0VirtualAssembler.execute($("source").value,input);$("before").innerHTML=stack(r.beforeStack);$("after").innerHTML=stack(r.afterStack);$("status").textContent=r.ok?`${r.name}: 正常終了`:`${r.name}: 安全に中止`;$("status").className=r.ok?"ok":"bad";$("memory").textContent=`確定したmemory write: ${r.memoryCommitted}件`;$("audit").innerHTML=r.audit.map(x=>`<div class="${x.includes("PASS")||x.includes("RESTORED")||x.includes("DISCARDED")?"ok":x.includes("ABORTED")?"bad":""}">${esc(x)}</div>`).join("");$("trace").innerHTML=r.trace.map(t=>`<tr><td>${t.step}</td><td class="source">${esc(t.source)}</td><td>${esc(regs(t.before))}</td><td>${esc(regs(t.after))}</td><td>${esc(t.note)}</td></tr>`).join("")||'<tr><td colspan="5">命令実行前に停止しました</td></tr>';if(!r.ok){$("error-panel").hidden=false;$("error").textContent=`${r.error.code}\nline: ${r.error.line||"—"}\n${r.error.message}`}}catch(e){$("status").textContent="compile／verifyで停止";$("status").className="bad";$("error-panel").hidden=false;$("error").textContent=`${e.code||e.name}\nline: ${e.line||"—"}\n${e.message}`}}
+$("example").addEventListener("change",load);$("run").addEventListener("click",run);load();
+</script></body></html>
