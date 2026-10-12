@@ -21,6 +21,7 @@
 リリースノート：**[0.1.2文書整備版](docs/RELEASE_NOTES_0.1.2_JP.md)**
 
 次期開発候補：`0.1.3-rc.1` — **[収録範囲と制限](docs/RELEASE_NOTES_0.1.3_JP.md)**。
+**[ローカルrelease candidate監査](docs/RELEASE_AUDIT_0.1.3_JP.md)**はGate Aに合格しましたが、
 まだ公式公開版ではありません。
 
 ## まず試してみる

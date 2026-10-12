@@ -21,7 +21,8 @@ Release tag: `v0.1.2`<br>
 Release notes: **[0.1.2 documentation maintenance release](docs/RELEASE_NOTES_0.1.2.md)**
 
 Next development candidate: `0.1.3-rc.1` — **[scope and limitations](docs/RELEASE_NOTES_0.1.3.md)**.
-It is not an official published release yet.
+Its **[local release-candidate audit](docs/RELEASE_AUDIT_0.1.3.md)** has passed Gate A, but it is not
+an official published release yet.
 
 ## Start here
 

@@ -49,6 +49,7 @@ class DocumentationLanguageTests(unittest.TestCase):
             "docs/KNOWN_LIMITATIONS_0.1.md",
             "docs/RELEASE_NOTES_0.1.2.md",
             "docs/RELEASE_NOTES_0.1.3.md",
+            "docs/RELEASE_AUDIT_0.1.3.md",
             "docs/RELEASE_AUDIT_0.1.2.md",
             "docs/RELEASE_AUDIT_0.1.1.md",
         )
@@ -70,6 +71,7 @@ class DocumentationLanguageTests(unittest.TestCase):
             "docs/KNOWN_LIMITATIONS_0.1_JP.md",
             "docs/RELEASE_NOTES_0.1.2_JP.md",
             "docs/RELEASE_NOTES_0.1.3_JP.md",
+            "docs/RELEASE_AUDIT_0.1.3_JP.md",
             "docs/RELEASE_AUDIT_0.1.2_JP.md",
             "SECURITY_JP.md",
             "viewer/value-trace.html",
@@ -92,6 +94,7 @@ class DocumentationLanguageTests(unittest.TestCase):
             "docs/KNOWN_LIMITATIONS_0.1.md",
             "docs/RELEASE_NOTES_0.1.2.md",
             "docs/RELEASE_NOTES_0.1.3.md",
+            "docs/RELEASE_AUDIT_0.1.3.md",
             "docs/RELEASE_AUDIT_0.1.2.md",
             "SECURITY.md",
             "viewer/value-trace-en.html",

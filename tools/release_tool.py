@@ -79,6 +79,8 @@ REQUIRED_PATHS = (
     "docs/RELEASE_NOTES_0.1.2_JP.md",
     "docs/RELEASE_NOTES_0.1.3.md",
     "docs/RELEASE_NOTES_0.1.3_JP.md",
+    "docs/RELEASE_AUDIT_0.1.3.md",
+    "docs/RELEASE_AUDIT_0.1.3_JP.md",
     "docs/RELEASE_AUDIT_0.1.2.md",
     "docs/RELEASE_AUDIT_0.1.2_JP.md",
     "docs/RELEASE_AUDIT_0.1.1_JP.md",
