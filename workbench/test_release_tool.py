@@ -23,10 +23,12 @@ class ReleaseToolTests(unittest.TestCase):
         selected = {path.as_posix() for path in collect_release_files(PROJECT_ROOT)}
         self.assertIn(".gitattributes", selected)
         self.assertIn("viewer/value-trace.html", selected)
+        self.assertIn("viewer/virtual-assembler.html", selected)
         self.assertIn("workbench/min0_forth.py", selected)
         self.assertIn("runtime/rp2350/min0_rp2350_runtime.c", selected)
         self.assertIn("runtime/rp2350/min0_rp2350_runtime.h", selected)
         self.assertIn("docs/QUICKSTART.md", selected)
+        self.assertIn("docs/RELEASE_NOTES_0.1.3.md", selected)
         self.assertNotIn("docs/CHECKPOINT_2026-08-26.md", selected)
         self.assertNotIn("新FORTHシステム仕様を検討_会話記録.docx", selected)
         self.assertFalse(any(path.startswith("document_work/") for path in selected))

@@ -1,6 +1,6 @@
 # MIN0 CORE FORTH 0.1 known limitations
 
-Status: applies to releases `0.1.0`, `0.1.1`, and `0.1.2`.
+Status: applies to releases `0.1.0`, `0.1.1`, `0.1.2`, and `0.1.3`.
 
 ## Language and compatibility
 
@@ -20,7 +20,12 @@ Status: applies to releases `0.1.0`, `0.1.1`, and `0.1.2`.
   hardware memory-protection target is included in this release.
 - The reference terminal collects output deterministically instead of automatically writing arbitrary
   control bytes to a real terminal.
-- The offline Viewer displays measured traces but does not execute edited source.
+- The Guided Viewer displays measured traces and does not execute edited source. Mobile Learning and the
+  virtual assembler Viewer execute browser reference models but do not access physical memory, IO, or a Pico 2 W.
+- The RP2350 backend generates, links, and audits Thumb code, but 0.1.3 does not execute it on hardware,
+  configure a physical MPU, or perform target-side `rx` sealing.
+- Viewer CODE definitions are not installed in the normal FORTH dictionary, and an integrated trace across
+  normal words and virtual assembler CODE is not yet implemented.
 - Spinel packaging is not currently supported; compatibility depends on future Spinel support for the
   Ruby runtime features and libraries used here.
 
@@ -42,6 +47,7 @@ Status: applies to releases `0.1.0`, `0.1.1`, and `0.1.2`.
   guarantee fitness for a particular use; see `LICENSE_AND_SECURITY.md`.
 - The official repository is <https://github.com/MIN0/min0-core-forth>. Release tag `v0.1.0` identifies
   the first release; `v0.1.1` improves navigation and packaging; `v0.1.2` formally packages the
-  bilingual entry paths, pocket word reference, and learning references.
+  bilingual entry paths, pocket word reference, and learning references; `v0.1.3` adds browser learning
+  environments and the virtual assembler/RP2350 audit pipeline.
 - Forks and modified builds are welcome but should use a distinct build name or version suffix so users
   can distinguish them from the official release.

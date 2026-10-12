@@ -63,6 +63,9 @@ Forkや改造版を歓迎します。変更した配布物には固有のbuild�
 最初の版は`v0.1.0`、現在おすすめする
 保守版は`v0.1.2`です。タグ、ZIP、SHA-256一覧、release notes、既知の制限、監査記録を公開しています。
 
+repositoryには、ブラウザ学習環境と仮想アセンブラbackendの開発候補`0.1.3-rc.1`が含まれる場合が
+あります。release auditとtagが公開されるまでは、おすすめする公式版として`v0.1.2`を利用してください。
+
 ## おすすめの順番
 
 1. [日本語版Guided Viewer](https://min0.github.io/min0-core-forth/viewer/value-trace.html)を開く。

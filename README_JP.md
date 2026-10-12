@@ -20,6 +20,9 @@
 リリースタグ：`v0.1.2`<br>
 リリースノート：**[0.1.2文書整備版](docs/RELEASE_NOTES_0.1.2_JP.md)**
 
+次期開発候補：`0.1.3-rc.1` — **[収録範囲と制限](docs/RELEASE_NOTES_0.1.3_JP.md)**。
+まだ公式公開版ではありません。
+
 ## まず試してみる
 
 1. **[日本語版Guided Viewer](https://min0.github.io/min0-core-forth/viewer/value-trace.html)**を開きます。
@@ -30,9 +33,12 @@
    小規模systemの設計を学ぶ資料を探します。
 5. **[なぜRubyとPythonで始めたのか](docs/PROJECT_ORIGIN_JP.md)**を読みます。
 6. **[日本語文書索引](docs/README_JP.md)**から設計と監査を調べます。
+7. **[仮想アセンブラViewer](viewer/virtual-assembler.html)**で、ブラウザ内の移植可能な
+   assembler reference modelを実行します。
 
-Viewerは単独で動作します。測定済みトレースを表示しますが、編集したソースを実行したり、
-トレースをネットワークへ送信したりしません。
+Guided Viewerは単独で動作し、編集したsourceを実行せずに測定済みtraceを表示します。
+Mobile Learningと仮想アセンブラViewerはブラウザ内のreference modelを実行しますが、実memory、
+IO、Pico 2 Wを操作しません。いずれもtraceをネットワークへ送信しません。
 
 ## このプロジェクトについて
 

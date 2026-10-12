@@ -12,6 +12,7 @@
 - [Project origin](PROJECT_ORIGIN.md)
 - [License and security](LICENSE_AND_SECURITY.md)
 - [Known limitations](KNOWN_LIMITATIONS_0.1.md)
+- [0.1.3 release-candidate notes](RELEASE_NOTES_0.1.3.md)
 - [0.1.2 release notes](RELEASE_NOTES_0.1.2.md)
 - [0.1.2 release audit](RELEASE_AUDIT_0.1.2.md)
 - [0.1.1 release audit](RELEASE_AUDIT_0.1.1.md)

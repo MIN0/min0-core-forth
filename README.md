@@ -20,6 +20,9 @@ Official repository: <https://github.com/MIN0/min0-core-forth><br>
 Release tag: `v0.1.2`<br>
 Release notes: **[0.1.2 documentation maintenance release](docs/RELEASE_NOTES_0.1.2.md)**
 
+Next development candidate: `0.1.3-rc.1` — **[scope and limitations](docs/RELEASE_NOTES_0.1.3.md)**.
+It is not an official published release yet.
+
 ## Start here
 
 1. Open the **[English Guided Viewer](https://min0.github.io/min0-core-forth/viewer/value-trace-en.html)**.
@@ -30,9 +33,12 @@ Release notes: **[0.1.2 documentation maintenance release](docs/RELEASE_NOTES_0.
    implementations, and material for studying small-system design.
 5. Read **[why the project began with Ruby and Python](docs/PROJECT_ORIGIN.md)**.
 6. Use the **[English documentation index](docs/README.md)** to explore the design and audits.
+7. Try the **[virtual assembler Viewer](viewer/virtual-assembler.html)** (Japanese UI) to execute the
+   portable assembler reference model in a browser.
 
-The Viewer is self-contained. It displays measured traces but does not execute edited source or send
-trace data over the network.
+The Guided Viewer is self-contained and displays measured traces without executing edited source.
+Mobile Learning and the virtual assembler Viewer execute browser reference models, but they do not
+access physical memory, IO, or a Pico 2 W. None of these pages send trace data over the network.
 
 ## What this project is
 

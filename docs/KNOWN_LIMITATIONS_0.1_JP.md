@@ -2,7 +2,7 @@
 
 [英語版はこちらです](KNOWN_LIMITATIONS_0.1.md)
 
-対象：`0.1.0`、`0.1.1`、`0.1.2`
+対象：`0.1.0`、`0.1.1`、`0.1.2`、`0.1.3`
 
 ## 言語と互換性
 
@@ -16,7 +16,11 @@
 
 - PythonとRubyは実行可能仕様です。実MPU、FPGA、Flash、EEPROM、UART、TPMは含みません。
 - 参照端末は任意の制御byteを実端末へ直接流さず、出力を決定的に収集します。
-- Viewerは測定済みtraceを表示しますが、編集したsourceを実行しません。
+- Guided Viewerは測定済みtraceを表示し、編集したsourceを実行しません。Mobile Learningと仮想アセンブラ
+  Viewerはブラウザ内のreference modelを実行しますが、実memory、IO、Pico 2 Wを操作しません。
+- RP2350 backendはThumb機械語を生成・link・監査しますが、0.1.3では実機実行、実機MPU設定、target側の
+  `rx`封印を行いません。
+- 仮想アセンブラViewerのCODEは通常FORTH dictionaryへ登録されず、通常wordとの統合traceは未実装です。
 - Spinel packageには現在対応していません。将来のSpinel側runtimeとlibrary対応に依存します。
 
 ## 安全上の境界
@@ -32,5 +36,6 @@
 
 MIT Licenseは再利用を許可しますが、安全性や特定用途への適合を保証しません。公式repositoryは
 <https://github.com/MIN0/min0-core-forth>です。`v0.1.0`は最初の版、`v0.1.1`は導線とpackageの改善版、
-`v0.1.2`は日英の入口、ワード・ポケットリファレンス、学習資料を正式収録した保守版です。Forkや
+`v0.1.2`は日英の入口、ワード・ポケットリファレンス、学習資料を正式収録した保守版です。`v0.1.3`は
+ブラウザ学習環境と仮想アセンブラ／RP2350監査pipelineを収録します。Forkや
 改造版には識別できるbuild名またはversion suffixを付けてください。

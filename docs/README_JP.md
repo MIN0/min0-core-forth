@@ -18,6 +18,7 @@
 - [プロジェクトの由来](PROJECT_ORIGIN_JP.md)
 - [ライセンスと安全性](LICENSE_AND_SECURITY_JP.md)
 - [既知の制限](KNOWN_LIMITATIONS_0.1_JP.md)
+- [0.1.3リリース候補ノート](RELEASE_NOTES_0.1.3_JP.md)
 - [0.1.2リリースノート](RELEASE_NOTES_0.1.2_JP.md)
 - [0.1.2リリース監査](RELEASE_AUDIT_0.1.2_JP.md)
 - [0.1.1リリース監査](RELEASE_AUDIT_0.1.1_JP.md)
