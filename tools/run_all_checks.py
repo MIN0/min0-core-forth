@@ -11,9 +11,9 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKBENCH = ROOT / "workbench"
 
 
-def run(label: str, command: list[str]) -> bool:
+def run(label: str, command: list[str], *, cwd: Path = ROOT) -> bool:
     print(f"\n=== {label} ===", flush=True)
-    result = subprocess.run(command, cwd=ROOT, check=False)
+    result = subprocess.run(command, cwd=cwd, check=False)
     if result.returncode == 0:
         print(f"PASS: {label}", flush=True)
         return True
@@ -38,7 +38,10 @@ def main() -> int:
     cross_checks = sorted(WORKBENCH.glob("cross*.py"))
     for path in cross_checks:
         label = path.name
-        if not run(label, [sys.executable, str(path)]):
+        # Cross-check scripts intentionally invoke their sibling demo files by
+        # relative name. Keep that public contract independent of the shell's
+        # original working directory.
+        if not run(label, [sys.executable, str(path)], cwd=WORKBENCH):
             failures.append(label)
 
     print("\n=== SUMMARY ===")

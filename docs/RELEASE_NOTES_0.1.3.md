@@ -49,3 +49,7 @@ execution of the generated machine code on a Pico 2 W.
 The release gate covers Python, Ruby, cross-implementation checks, JavaScript Viewers, the release
 audit, and a reproducible ZIP. Final counts, checksums, and post-publication retrieval evidence belong
 in the 0.1.3 release audit.
+
+The Windows all-check runner now launches cross-implementation checks from the correct `workbench`
+directory. Because the restricted Codex sandbox rejects `ruby.exe` with `0xC0000022`, the final Ruby
+gate must run in the user's normal PowerShell session.

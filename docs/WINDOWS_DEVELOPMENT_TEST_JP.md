@@ -82,7 +82,8 @@ cross_region_memory_check.py
 cross_split_dictionary_check.py
 ```
 
-この2件は試験script側を修正後、同じ全体試験を再実行して`ALL CHECKS PASSED`を確認する。
+0.1.3-rc.1では、一括試験工具が相互試験を`workbench`から起動するよう修正した。通常PowerShellで
+同じ全体試験を再実行し、この2件を含む`ALL CHECKS PASSED`を確認する。
 
 ## 5. 結果を保存する
 

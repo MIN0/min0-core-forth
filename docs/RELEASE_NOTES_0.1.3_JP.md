@@ -44,3 +44,7 @@ publication監査までを収録しますが、生成機械語をPico 2 Wで実�
 
 Python、Ruby、両実装の相互検査、JavaScript Viewer、release audit、再現可能ZIPを確認します。完了した
 件数、checksum、公開後の再取得結果は、0.1.3 release auditへ記録します。
+
+Windows一括試験工具は、相互試験を正しい`workbench` directoryから起動するよう修正しました。Codexの
+制限付きsandboxでは`ruby.exe`が`0xC0000022`で拒否されるため、Rubyを含む最終判定は通常PowerShellで
+行います。
