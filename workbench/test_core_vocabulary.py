@@ -45,7 +45,7 @@ class CoreVocabularyTests(unittest.TestCase):
             [0xFFFFFFFC],
         )
 
-    def test_words_lists_all_74_startup_words(self) -> None:
+    def test_words_lists_all_78_candidate_words(self) -> None:
         host = make_host()
         host.interpret("WORDS")
         startup, _user = host.terminal_text.split(
@@ -55,7 +55,7 @@ class CoreVocabularyTests(unittest.TestCase):
             word for word in startup.split()
             if word != "起動時から使えるワード"
         }
-        self.assertEqual(len(listed), 74)
+        self.assertEqual(len(listed), 78)
 
 
 if __name__ == "__main__":

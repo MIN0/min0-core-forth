@@ -4,10 +4,15 @@
 
 ## 最初に読む文書
 
-- [ワード・ポケットリファレンス―次期候補の起動時全74ワード](WORD_REFERENCE_JP.md)
+- [ワード・ポケットリファレンス―次期候補の全78ワード](WORD_REFERENCE_JP.md)
 - [localhost Live Viewerの起動と安全境界](LIVE_VIEWER_JP.md)
 - [ブラウザで仮想アセンブラを体験する](../viewer/virtual-assembler.html)
 - [iPhone用オフライン閲覧パック](IPHONE_READING_PACK_JP.md)
+- [FORTHの解釈・compile・実行を理解するためのノート](FORTH_EXECUTION_PHASES_JP.md)
+- [CORE wordのcompile互換性解消計画](CORE_WORD_COMPILATION_PLAN_JP.md)
+- [起動時65 wordのsemantics監査表](CORE_WORD_SEMANTICS_MATRIX_JP.md)
+- [直接制御構造設計](DIRECT_CONTROL_V0_3_JP.md)
+- [FOR/NEXT直接loop設計](FOR_NEXT_DIRECT_V0_2_JP.md)
 - [FORTHの設計と学習のための参考資料](REFERENCES_JP.md)
 - [Quick Start](QUICKSTART_JP.md)
 - [Windows開発環境でのPython／Ruby全体試験](WINDOWS_DEVELOPMENT_TEST_JP.md)
@@ -18,8 +23,10 @@
 - [プロジェクトの由来](PROJECT_ORIGIN_JP.md)
 - [ライセンスと安全性](LICENSE_AND_SECURITY_JP.md)
 - [既知の制限](KNOWN_LIMITATIONS_0.1_JP.md)
-- [0.1.3リリース候補ノート](RELEASE_NOTES_0.1.3_JP.md)
-- [0.1.3リリース候補監査](RELEASE_AUDIT_0.1.3_JP.md)
+- [0.1.4ローカル候補ノート](RELEASE_NOTES_0.1.4_JP.md)
+- [0.1.4ローカル候補監査](RELEASE_AUDIT_0.1.4_JP.md)
+- [0.1.3互換性改善版リリースノート](RELEASE_NOTES_0.1.3_JP.md)
+- [0.1.3リリース監査](RELEASE_AUDIT_0.1.3_JP.md)
 - [0.1.2リリースノート](RELEASE_NOTES_0.1.2_JP.md)
 - [0.1.2リリース監査](RELEASE_AUDIT_0.1.2_JP.md)
 - [0.1.1リリース監査](RELEASE_AUDIT_0.1.1_JP.md)
@@ -31,7 +38,7 @@
 このフォルダーのそのほかのファイルは、実行可能仕様を積み上げた詳細記録です。試験、議論、将来の
 実機移植から正確に参照できるよう、ファイル名を安定させています。
 
-- VMと言語：bytecode、source、辞書、対話compiler、条件分岐、loop、data、文字列
+- VMと言語：bytecode、source、辞書、対話compiler、直接制御構造、回数指定loop、data、文字列
 - 仮想assembler：CPU・FPGA共通契約、対象別backend profile、適合試験
 - 機器学習：Device Lab、device manifest、仮想機器、失敗例から学ぶ調査手順
 - 定義ワード：`DOES>` descriptor、source `DOES>`、constructor plan

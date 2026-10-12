@@ -2,7 +2,7 @@
 
 [Read this page in Japanese](WORD_REFERENCE_JP.md)
 
-This is the short manual for the 74 startup words printed by `WORDS` in the next release candidate. It is designed
+This is the short manual for the 78 words available in the next release candidate. It is designed
 for use beside the terminal. Detailed rationale and implementation limits remain in the specification
 documents.
 
@@ -49,7 +49,18 @@ control path.
 - `xt` is an execution token, not a raw CODE address.
 
 “Interpret” means entering the word directly at the prompt. “Compile” means using it inside `: name ... ;`.
-“Structure” means a compile-only word whose effect occurs when the definition later runs.
+“Structure” means a control word that forms a matched construct. In a definition it emits control-flow
+bytecode; at the prompt, supported structures are collected through their closer and then executed.
+
+## Comments
+
+| Word | Stack effect | Use | Meaning |
+| --- | --- | --- | --- |
+| `(` | `( -- )` | interpret/compile | Skip source through the next `)`; the comment may span lines. |
+| `\` | `( -- )` | interpret/compile | Skip the rest of the current physical line. |
+
+Comments do not search, execute, or compile the text they consume, and they do not change interpreter
+state. A parenthesis comment without a closing `)` is an error.
 
 ## Stack, arithmetic, logic, and comparison
 
@@ -96,6 +107,7 @@ control path.
 | `CHARS` | `( n -- n )` | interpret/compile | Convert a character count to byte-address units. |
 
 `!` cannot bypass the memory backend's permissions. Sealed CODE is not writable through ordinary `!`.
+Use `CELL+`, not `1 +`, to advance to the next 32-bit cell; `1 +` advances a byte address by only one byte.
 
 ## Dictionary allocation and data definitions
 
@@ -126,50 +138,61 @@ SLOT @ .             \ prints 123
 | --- | --- | --- | --- |
 | `: name` | `( -- )` | interpret | Begin a hidden colon definition. |
 | `;` | `( -- )` | compile only | Finish and publish the current definition. |
-| `IF` | `( flag -- )` | structure | Run the following part only when true. |
-| `ELSE` | `( -- )` | structure | Begin the alternative part. |
-| `THEN` | `( -- )` | structure | End `IF` or `ELSE`. |
-| `BEGIN` | `( -- )` | structure | Mark the start of an indefinite loop. |
-| `UNTIL` | `( flag -- )` | structure | Repeat from `BEGIN` while false. |
-| `AGAIN` | `( -- )` | structure | Always repeat from `BEGIN`. |
-| `WHILE` | `( flag -- )` | structure | Exit a `BEGIN ... REPEAT` loop when false. |
-| `REPEAT` | `( -- )` | structure | Return to `BEGIN` and close `WHILE`. |
+| `IF` | `( flag -- )` | direct/structure | Run the following part only when true. |
+| `ELSE` | `( -- )` | direct/structure | Begin the alternative part. |
+| `THEN` | `( -- )` | direct/structure | End `IF` or `ELSE`. |
+| `BEGIN` | `( -- )` | direct/structure | Mark the start of an indefinite loop. |
+| `UNTIL` | `( flag -- )` | direct/structure | Repeat from `BEGIN` while false. |
+| `AGAIN` | `( -- )` | direct/structure | Always repeat from `BEGIN`. |
+| `WHILE` | `( flag -- )` | direct/structure | Exit a `BEGIN ... REPEAT` loop when false. |
+| `REPEAT` | `( -- )` | direct/structure | Return to `BEGIN` and close `WHILE`. |
 
-Mismatched structures abort the definition and restore dictionary and compiled-code allocation.
+Mismatched structures abort the definition or direct-input block. Definition errors restore dictionary and
+compiled-code allocation; direct-input errors restore the DATA and loop stacks.
 
 ## Counted loops
 
 | Word | Run-time stack effect | Use | Meaning |
 | --- | --- | --- | --- |
-| `DO` | `( limit start -- )` | structure | Start a counted loop; avoid equal start/limit. |
-| `?DO` | `( limit start -- )` | structure | Skip the loop when start equals limit. |
-| `LOOP` | `( -- )` | structure | Add one to the index and continue if needed. |
-| `+LOOP` | `( increment -- )` | structure | Add a signed increment and test limit crossing. |
+| `DO` | `( limit start -- )` | direct/structure | Start a counted loop; avoid equal start/limit. |
+| `?DO` | `( limit start -- )` | direct/structure | Skip the loop when start equals limit. |
+| `LOOP` | `( -- )` | direct/structure | Add one to the index and continue if needed. |
+| `+LOOP` | `( increment -- )` | direct/structure | Add a signed increment and test limit crossing. |
+| `FOR` | `( u -- )` | direct/structure | Repeat the body `u` times with a zero-based index. |
+| `NEXT` | `( -- )` | direct/structure | End the matching `FOR` body and advance its index. |
 | `I` | `( -- index )` | interpret/compile | Copy the innermost loop index. |
 | `J` | `( -- index )` | interpret/compile | Copy the next-outer loop index. |
-| `LEAVE` | `( -- )` | structure | Exit the innermost counted loop. |
+| `LEAVE` | `( -- )` | direct loop/structure | Exit the innermost counted loop. |
 | `UNLOOP` | `( -- )` | interpret/compile | Remove one loop frame explicitly. |
 
 The reference limit is 32 loop frames; the minimum portable guarantee is eight. `I`, `J`, and
 `UNLOOP` fault when the required loop frame does not exist.
 
+At the prompt, `IF`, `BEGIN`, `DO`, `?DO`, and `FOR` collect tokens through their matching closer before execution.
+Inside a colon definition, `FOR ... NEXT` compiles to the existing zero-trip counted-loop bytecode.
+`0 FOR ... NEXT` executes zero times in both forms. Direct `DO ... LOOP`, `?DO ... LOOP`, and
+`DO ... +LOOP` produce the same index results as their definition forms. See
+[direct control structures](DIRECT_CONTROL_V0_3.md).
+
 ## Character, string, and numeric output
 
 | Word | Stack effect | Use | Meaning |
 | --- | --- | --- | --- |
-| `.` | `( n -- )` | interpret | Print signed decimal and remove `n`. |
+| `.` | `( n -- )` | interpret/compile | Print signed decimal and remove `n`; compiled form emits `SERVICE 3`. |
 | `.S` | `( -- )` | interpret | Print stack depth and signed contents without changing the stack. |
-| `EMIT` | `( x -- )` | interpret | Output the low byte as one character. |
-| `CR` | `( -- )` | interpret | Output one logical line feed. |
-| `TYPE` | `( c-addr u -- )` | interpret | Validate and output `u` bytes atomically. |
+| `EMIT` | `( x -- )` | interpret/compile | Output the low byte as one character; compiled form emits `SERVICE 2`. |
+| `CR` | `( -- )` | interpret/compile | Output one logical line feed; compiled form emits stack-free `SERVICE 4`. |
+| `TYPE` | `( c-addr u -- )` | interpret/compile | Validate and output `u` bytes atomically; compiled form emits `SERVICE 1`. |
 | `S" text"` | `( -- c-addr u )` | interpret/compile | Store or compile a quoted byte string and return its range. |
 | `." text"` | `( -- )` | interpret/compile | Output a quoted byte string; compiled form uses verified SERVICE 1. |
 
 Quoted text is currently one byte per character, U+0000 through U+00FF. The portable visible teaching
-subset is ASCII. Interpret-state `.`, `.S`, `EMIT`, `CR`, and `TYPE` are host words and are not compiled directly.
+subset is ASCII. Direct and compiled `.`, `EMIT`, `CR`, and `TYPE` use the same target-owned handlers, so
+their output, stack effects, and failure state agree. The VM keeps terminal policy outside its opcode set by
+using the verified `SERVICE` boundary.
 
-`/MOD`, `/`, and `MOD` reject division by zero. The signed overflow case
-`-2147483648 -1 /MOD` is also rejected without changing the input stack.
+`.S` remains an interpret-only inspection word. `/MOD`, `/`, and `MOD` reject division by zero. The signed
+overflow case `-2147483648 -1 /MOD` is also rejected without changing the input stack.
 
 ## Defining words: `CREATE` and `DOES>`
 
@@ -210,10 +233,9 @@ experiment. Monitor attachment locks ordinary mutation and leaves only authentic
 `WORDS` lists only the newest searchable definition of a name. Hidden, failed, and rolled-back entries
 are omitted.
 
-## Input syntax that is not a startup word
+## Other input syntax
 
 - Decimal numbers such as `123` and hexadecimal numbers such as `0x7B` push one cell.
-- `\` starts a comment that continues to the end of the line.
 - Input is case-insensitive except for quoted text.
 - `BYE` and `EXIT` leave the host reference REPL; they are launcher commands, not frozen CORE words.
 

@@ -32,6 +32,8 @@ The software is provided as-is. Selecting the MIT License does not mean:
 | Question | Evidence |
 | --- | --- |
 | What is checked before and after publication? | [Release security audit plan](RELEASE_SECURITY_AUDIT_PLAN.md) |
+| What is pending for the local 0.1.4 candidate? | [0.1.4 candidate audit](RELEASE_AUDIT_0.1.4.md) |
+| What passed locally for the 0.1.3 candidate? | [0.1.3 release audit](RELEASE_AUDIT_0.1.3.md) |
 | What passed for 0.1.2? | [0.1.2 release audit](RELEASE_AUDIT_0.1.2.md) |
 | What passed for 0.1.1? | [0.1.1 release audit](RELEASE_AUDIT_0.1.1.md) |
 | What passed for the original 0.1.0 release? | [0.1.0 release audit](RELEASE_AUDIT_0.1.md) |

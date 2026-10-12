@@ -26,6 +26,16 @@ class CompilerTests(unittest.TestCase):
     def test_comment_and_hex_literal(self) -> None:
         self.assertEqual(run("0x10 \\ ignored\n 2 *"), [32])
 
+    def test_parenthesis_comments_can_span_lines(self) -> None:
+        self.assertEqual(
+            run(": DOUBLE ( n -- n+n\n ignored ) DUP + ; 9 DOUBLE"),
+            [18],
+        )
+
+    def test_unterminated_parenthesis_comment_fails(self) -> None:
+        with self.assertRaisesRegex(CompileError, "parenthesis comment"):
+            compile_source("1 ( missing")
+
     def test_unknown_word_fails_at_compile_time(self) -> None:
         with self.assertRaises(CompileError):
             compile_source("MISSING")

@@ -11,6 +11,7 @@ def run_service_output_demo(implementation = "ruby")
   outer = Min0CoreForth::OuterInterpreter.new(vm, dictionary)
   outer.interpret(': HELLO ." Hello" ;')
   outer.interpret(': GREET HELLO ."  Service" ;')
+  outer.interpret(': CORE-OUTPUT 65 EMIT CR -42 . S" ABC" TYPE ;')
   components = {
     code: vm.read_bytes(
       Min0CoreForth::DEFAULT_CODE_BASE,
@@ -33,10 +34,10 @@ def run_service_output_demo(implementation = "ruby")
   vm.seal_verified_execution(
     verification, extra_entries: outer.execution_extra_entries
   )
-  stack = outer.interpret("GREET")
+  stack = outer.interpret("GREET CORE-OUTPUT")
   late_registration_rejected = false
   begin
-    vm.register_service(2, -> {})
+    vm.register_service(99, -> {})
   rescue Min0CoreForth::ServiceRegistrySealed
     late_registration_rejected = true
   end
@@ -45,6 +46,12 @@ def run_service_output_demo(implementation = "ruby")
   {
     implementation: implementation,
     service_id: Min0CoreForth::TERMINAL_TYPE_SERVICE_ID,
+    service_id_map: {
+      "terminal-type-v0.1" => Min0CoreForth::TERMINAL_TYPE_SERVICE_ID,
+      "terminal-emit-v0.1" => Min0CoreForth::TERMINAL_EMIT_SERVICE_ID,
+      "terminal-dot-v0.1" => Min0CoreForth::TERMINAL_DOT_SERVICE_ID,
+      "terminal-cr-v0.1" => Min0CoreForth::TERMINAL_CR_SERVICE_ID
+    },
     service_ids: verification[:service_ids],
     service_addresses: verification[:service_addresses],
     registered_service_ids: vm.registered_service_ids,

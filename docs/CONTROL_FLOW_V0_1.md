@@ -2,10 +2,15 @@
 
 Status: executable interactive-compiler experiment.
 
-## Compile-only words
+## Definition and direct-input forms
 
-`IF`, `ELSE`, and `THEN` are recognized by the interactive compiler only while
-`STATE=COMPILE`. Using one in interpret state is a `CompileStateError`.
+Inside a colon definition, `IF`, `ELSE`, and `THEN` produce the bytecode described below.
+In direct input, `IF` starts buffered collection through the matching `THEN`; `ELSE` is optional.
+Mixed nesting with `BEGIN`, `DO`, and `FOR` is supported.
+
+The same direct collection model now covers `BEGIN` and the `DO` family. See
+`DIRECT_CONTROL_V0_3.md` for the complete contract. A closer without its opener remains a
+`CompileStateError` because no structure is available to complete.
 
 ## Control-flow stack
 

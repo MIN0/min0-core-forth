@@ -52,12 +52,15 @@ rescue Min0CoreForth::CompileStateError
   assert_equal(nil, dictionary.find("BROKEN", include_hidden: true), "unresolved IF word rollback")
 end
 
-["IF", "ELSE", "THEN"].each do |token|
+assert_equal([], outer.interpret("1 IF"), "direct IF begins")
+assert_equal(true, outer.awaiting_direct_control?, "direct IF awaits THEN")
+assert_equal([7], outer.interpret("7 THEN"), "direct IF completes")
+["ELSE", "THEN"].each do |token|
   begin
     outer.interpret(token)
     raise "#{token}: expected CompileStateError"
   rescue Min0CoreForth::CompileStateError
-    puts "#{token} compile-only: PASS"
+    puts "unmatched #{token}: PASS"
   end
 end
 

@@ -113,9 +113,12 @@ class ExtendedCountedLoopTests(unittest.TestCase):
                 self.assertEqual(outer.code_here, saved_code_here)
                 self.assertIsNone(dictionary.find("BAD", include_hidden=True))
 
-    def test_extended_control_words_are_compile_only(self) -> None:
+    def test_direct_question_do_and_context_dependent_words(self) -> None:
         _vm, _dictionary, outer = build_outer()
-        for token in ("?DO", "+LOOP", "LEAVE"):
+        self.assertEqual(outer.interpret("0 0 ?DO"), [])
+        self.assertTrue(outer.awaiting_direct_control)
+        self.assertEqual(outer.interpret("99 LOOP"), [])
+        for token in ("+LOOP", "LEAVE"):
             with self.subTest(token=token), self.assertRaises(CompileStateError):
                 outer.interpret(token)
 

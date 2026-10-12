@@ -104,12 +104,15 @@ assert_equal([], vm.loop_stack, "LEAVE loop stack balanced")
   end
 end
 
-["?DO", "+LOOP", "LEAVE"].each do |token|
+assert_equal([], outer.interpret("0 0 ?DO"), "direct ?DO begins")
+assert_equal(true, outer.awaiting_direct_control?, "direct ?DO awaits LOOP")
+assert_equal([], outer.interpret("99 LOOP"), "direct ?DO zero trip")
+["+LOOP", "LEAVE"].each do |token|
   begin
     outer.interpret(token)
     raise "#{token}: expected CompileStateError"
   rescue Min0CoreForth::CompileStateError
-    puts "#{token} compile-only: PASS"
+    puts "context error for #{token}: PASS"
   end
 end
 

@@ -59,6 +59,78 @@ class HostCliTests(unittest.TestCase):
         self.assertEqual(result.stdout, "")
         self.assertIn("ERROR UnknownWord", result.stderr)
 
+    def test_quiet_direct_for_matches_in_both_launchers(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source = self._source(directory, "3 FOR I . NEXT")
+            python_result = subprocess.run(
+                [sys.executable, str(ROOT / "min0_forth.py"), "-z", str(source)],
+                text=True, capture_output=True, check=False, encoding="utf-8",
+            )
+            ruby_result = subprocess.run(
+                ["ruby", str(ROOT / "min0_forth.rb"), "-z", str(source)],
+                text=True, capture_output=True, check=False, encoding="utf-8",
+            )
+        self.assertEqual(python_result.returncode, 0)
+        self.assertEqual(ruby_result.returncode, 0)
+        self.assertEqual(python_result.stdout, "012")
+        self.assertEqual(ruby_result.stdout, "012")
+
+    def test_quiet_compiled_output_words_match_in_both_launchers(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source = self._source(
+                directory,
+                ': CORE-OUT 65 EMIT CR -42 . S" ABC" TYPE ; CORE-OUT',
+            )
+            python_result = subprocess.run(
+                [sys.executable, str(ROOT / "min0_forth.py"), "-z", str(source)],
+                text=True, capture_output=True, check=False, encoding="utf-8",
+            )
+            ruby_result = subprocess.run(
+                ["ruby", str(ROOT / "min0_forth.rb"), "-z", str(source)],
+                text=True, capture_output=True, check=False, encoding="utf-8",
+            )
+        self.assertEqual(python_result.returncode, 0)
+        self.assertEqual(ruby_result.returncode, 0)
+        self.assertEqual(python_result.stdout, "A\n-42ABC")
+        self.assertEqual(ruby_result.stdout, "A\n-42ABC")
+
+    def test_quiet_direct_mixed_control_matches_in_both_launchers(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source = self._source(
+                directory,
+                "1 IF\n5 2 DO I . LOOP\nELSE 99 . THEN",
+            )
+            python_result = subprocess.run(
+                [sys.executable, str(ROOT / "min0_forth.py"), "-z", str(source)],
+                text=True, capture_output=True, check=False, encoding="utf-8",
+            )
+            ruby_result = subprocess.run(
+                ["ruby", str(ROOT / "min0_forth.rb"), "-z", str(source)],
+                text=True, capture_output=True, check=False, encoding="utf-8",
+            )
+        self.assertEqual(python_result.returncode, 0)
+        self.assertEqual(ruby_result.returncode, 0)
+        self.assertEqual(python_result.stdout, "234")
+        self.assertEqual(ruby_result.stdout, "234")
+
+    def test_quiet_unfinished_for_is_an_error_in_both_launchers(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source = self._source(directory, "3 FOR I")
+            results = (
+                subprocess.run(
+                    [sys.executable, str(ROOT / "min0_forth.py"), "-z", str(source)],
+                    text=True, capture_output=True, check=False, encoding="utf-8",
+                ),
+                subprocess.run(
+                    ["ruby", str(ROOT / "min0_forth.rb"), "-z", str(source)],
+                    text=True, capture_output=True, check=False, encoding="utf-8",
+                ),
+            )
+        for result in results:
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("matching NEXT", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

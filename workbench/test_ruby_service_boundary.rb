@@ -20,12 +20,12 @@ rescue Min0CoreForth::BytecodeVerificationError
 end
 
 result = run_service_output_demo
-assert_service(result[:service_ids] == [1], "service ID derivation")
-assert_service(result[:registered_service_ids] == [1], "trusted service registry")
+assert_service(result[:service_ids] == [1, 2, 3, 4], "service ID derivation")
+assert_service(result[:registered_service_ids] == [1, 2, 3, 4], "trusted service registry")
 assert_service(result[:registry_sealed], "service registry seal")
 assert_service(result[:late_registration_rejected], "late service rejection")
 assert_service(result[:stack] == [], "compiled dot-quote stack")
-assert_service(result[:terminal_text] == "Hello Service", "compiled dot-quote output")
+assert_service(result[:terminal_text] == "Hello ServiceA\n-42ABC", "compiled service output")
 assert_service(result[:code_permissions] == "rx", "service CODE seal")
 assert_service(result[:data_permissions] == "r", "service DATA seal")
 

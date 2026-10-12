@@ -68,9 +68,9 @@ The official repository is <https://github.com/MIN0/min0-core-forth>. The first 
 the recommended maintenance release is `v0.1.2`. Releases provide a tag, ZIP, SHA-256 list, notes,
 known limitations, and audit records.
 
-The repository may also contain `0.1.3-rc.1`, a development candidate for browser learning and the
-virtual assembler backend. Until its release audit and tag are published, use `v0.1.2` when you need
-the recommended official release.
+The published evaluation pre-release `v0.1.3-rc.1` contains compatibility improvements. The repository
+may also contain the unpublished `0.1.4-rc.1` local candidate for browser learning and the virtual
+assembler backend. Use `v0.1.2` when you need the recommended final and security-reviewed baseline.
 
 ## Recommended order
 

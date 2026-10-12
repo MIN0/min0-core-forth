@@ -1,53 +1,45 @@
-# MIN0 CORE FORTH 0.1.3 release candidate audit
+# MIN0 CORE FORTH 0.1.3 compatibility release audit
 
 [Read this page in Japanese](RELEASE_AUDIT_0.1.3_JP.md)
 
-Status: local Gate A PASS. GitHub publication Gate B and post-publication Gate C are pending. The
-audited version is `0.1.3-rc.1`; it is not yet an official release.
+Candidate: `0.1.3-rc.1`
+
+Status: Gate A PASS; evaluation pre-release Gate B PASS; independently retrieved public-asset Gate C PASS.
+Final `0.1.3` has not been published.
 
 ## Scope
 
-The 0.1.3 candidate adds Mobile Learning for PC and iPhone, the browser virtual assembler Viewer, a
-portable virtual instruction specification, the RP2350 Thumb backend and publication host model, and
-learning and portability principles for safe failure.
+This candidate covers comments, direct control structures, `FOR ... NEXT`, compilable `. EMIT CR TYPE`, and
+the 65-word semantics and learning documentation. Published `v0.1.0` through `v0.1.2` tags and assets remain
+unchanged.
 
-It excludes Pico 2 W execution of generated machine code, physical MPU configuration, target-side
-`rx` sealing, live patching, and installation of virtual assembler CODE in the normal FORTH dictionary.
-The recommended official release remains `v0.1.2` until Gates B and C are complete.
+## Gate A -- local pre-publication verification
 
-## Gate A — local pre-publication evidence
+- VERSION: `0.1.3-rc.1`
+- Release allowlist: 401 files, no issues
+- Python: 336 tests passed
+- Ruby: 48 test files passed
+- Python/Ruby: 49 cross-language checks passed
+- Startup vocabulary: all 65 words match both pocket references and semantics matrices
+- Local Markdown links: 93 files checked, 0 broken links
+- Reproducible ZIP: two independent builds from identical source matched byte-for-byte
 
-- Executed: 2026-10-13 (Asia/Tokyo).
-- Commit: `048ee06 Fix Windows cross-check working directory`.
-- Command: `python tools\run_all_checks.py` in the user's normal Windows 11 PowerShell.
-- Python unittest suite: PASS.
-- Ruby: all 48 test files passed.
-- Python/Ruby cross-language checks: all 50 check files passed.
-- Final result: `ALL CHECKS PASSED`.
-- The runner launched cross-checks from `workbench`, including the two checks that use relative demo paths.
-- Documentation, release-tool, and virtual-assembler Viewer target tests: 15/15 passed.
-- JavaScript virtual-assembler Viewer test: PASS.
-- Release allowlist audit before adding this audit pair: 442 selected files and no issues.
-- `git diff --check`: no issues.
-- The restricted Codex sandbox's `ruby.exe` denial did not reproduce in normal PowerShell; the product
-  test gate passed.
+## Gate B -- evaluation pre-release publication
 
-The final candidate containing this audit pair must repeat the allowlist audit and two independent
-deterministic ZIP builds. The ZIP digest is stored in the adjacent `SHA256SUMS.txt` to avoid making this
-audit self-referential.
+- Official [`v0.1.3-rc.1` pre-release](https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.3-rc.1)
+- Published: 2026-09-14 22:18:19 (Asia/Tokyo)
+- Tagged commit: `43b0881643f76c1a1daa5c06810606d6e94415fa`
+- Artifact: `min0-core-forth-0.1.3-rc.1.zip`, 690780 bytes
+- SHA-256: `4dca02ad18d18eab23d6f49032054556f3b0441ec6e5df8d54b3740d6018895a`
+- Published as a non-draft pre-release without replacing final `v0.1.2`
 
-## Gate B — GitHub publication
+## Gate C -- independent retrieval of public assets
 
-Pending. Publication records will include the `v0.1.3` tag and commit, GitHub Release URL and time,
-artifact name, size and SHA-256, release status, GitHub Pages build and HTTPS state, and open secret
-scanning and Dependabot alert counts.
+- The public ZIP and checksum were downloaded into a new directory and matched the pre-publication candidate.
+- All 401 ZIP source files match `RELEASE_MANIFEST.txt`, with zero missing or extra files.
+- The extracted public tree passes 336 Python tests, 48 Ruby test files, and 49 Python/Ruby checks.
 
-## Gate C — independent post-publication verification
+This evidence makes the evaluation candidate suitable for sharing with testers. It does not claim publication
+of final `0.1.3`.
 
-Pending. The public ZIP and `SHA256SUMS.txt` will be downloaded into a fresh directory and checked
-against size, SHA-256, manifest, tag blobs, and published Pages. Representative Mobile Learning and
-virtual assembler Viewer examples will be checked on PC and iPhone, followed by the all-check and
-release-audit commands from the downloaded artifact.
-
-This audit applies only to MIN0 CORE FORTH. It does not modify or publish MIN0 RASPI FORTH or
-MSX0-FORTH.
+This audit applies only to MIN0 CORE FORTH and does not modify or publish MSX0-FORTH.

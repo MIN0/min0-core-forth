@@ -18,7 +18,7 @@ DOCUMENTS = (
     ("01_README_JP.txt", "README_JP.md", "概要"),
     ("02_FIRST_READ_JP.txt", "FIRST_READ_JP.md", "最初に読む説明"),
     ("03_QUICKSTART_JP.txt", "docs/QUICKSTART_JP.md", "クイックスタート"),
-    ("04_WORD_REFERENCE_JP.txt", "docs/WORD_REFERENCE_JP.md", "74ワード・リファレンス"),
+    ("04_WORD_REFERENCE_JP.txt", "docs/WORD_REFERENCE_JP.md", "78ワード・リファレンス"),
     ("05_LIVE_VIEWER_JP.txt", "docs/LIVE_VIEWER_JP.md", "Live Viewer説明"),
     ("06_VIEWER_GUIDE_JP.txt", "docs/VIEWER_GUIDE_V0_1.md", "Guided Viewer操作"),
     ("07_KNOWN_LIMITATIONS_JP.txt", "docs/KNOWN_LIMITATIONS_0.1_JP.md", "既知の制限"),

@@ -1,14 +1,14 @@
 # MIN0 CORE FORTH terminal output v0.1
 
-Status: host-side executable experiment. `EMIT`, `CR`, `TYPE`, and interpret／compiled quoted
-strings are implemented in Python and Ruby.
+Status: executable host/service-boundary experiment. `.`, `EMIT`, `CR`, `TYPE`, and interpret／compiled
+quoted strings are implemented in Python and Ruby.
 
 ## Boundary
 
-Terminal policy remains outside the minimal VM. Interpret-state output is handled by the outer
-interpreter; compiled `."` calls generic verified `SERVICE 1`. The VM knows only a numeric service
-boundary and therefore does not depend on UART, USB, console, operating-system, or FPGA display
-hardware. A target port may bind ID 1 to its own adapter without changing compiled image semantics.
+Terminal policy remains outside the minimal VM. Direct output words use target-owned handlers; their
+compiled forms call generic verified services 1 through 4. The VM knows only a numeric service boundary
+and therefore does not depend on UART, USB, console, operating-system, or FPGA display hardware. A target
+port may bind those IDs to its own adapters without changing FORTH source semantics.
 
 The host reference implementation accumulates ordered output fragments in `output` and exposes their
 exact concatenation as `terminal_text`. It does not automatically print those fragments to the real
@@ -51,9 +51,11 @@ regions are valid sources. When `u` is zero, `TYPE` consumes both arguments with
 validating `c-addr`, and adds no output fragment. Host byte-to-character mapping is the same
 U+0000–U+00FF rule used by `EMIT`.
 
-In this stage, `.`, `EMIT`, `CR`, and `TYPE` are interpret-state host words. Their names are reserved, and they
-cannot yet be compiled inside a colon definition. This restriction is explicit rather than silently
-creating target-dependent bytecode.
+`.`, `EMIT`, `CR`, and `TYPE` are reserved ordinary output words usable both directly and inside a colon
+definition. Direct and compiled paths call the same target-owned handlers. Compilation emits `SERVICE 3`,
+`SERVICE 2`, `SERVICE 4`, and `SERVICE 1` respectively; it does not create target-dependent terminal opcodes.
+Dedicated `SERVICE 4` lets `CR ( -- )` succeed even when the DATA stack is full, because it does not need a
+temporary line-feed cell.
 
 `S"` stores case-preserved quoted byte text in dictionary DATA and returns `c-addr u`; `."` adds quoted
 text directly to the collector. Their same-line grammar, byte restriction, allocator behavior, and
@@ -76,5 +78,5 @@ markup. In particular, Viewer insertion must use text nodes rather than HTML int
 ## Verified compiled-output boundary
 
 `OUTPUT_SERVICE_BOUNDARY_R0.md` defines registry ownership, verifier-derived service requirements,
-one-way sealing, and the `terminal-type-v0.1 ( c-addr u -- )` contract. Python and Ruby execute nested
-compiled `."` calls with CODE=`rx` and DATA=`r`; an absent service prevents sealing before CODE runs.
+one-way sealing, and all four terminal service contracts. Python and Ruby execute compiled output calls
+with CODE=`rx` and DATA=`r`; an absent required service prevents sealing before CODE runs.

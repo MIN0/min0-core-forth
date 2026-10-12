@@ -20,9 +20,23 @@
 リリースタグ：`v0.1.2`<br>
 リリースノート：**[0.1.2文書整備版](docs/RELEASE_NOTES_0.1.2_JP.md)**
 
-次期開発候補：`0.1.3-rc.1` — **[収録範囲と制限](docs/RELEASE_NOTES_0.1.3_JP.md)**。
-**[ローカルrelease candidate監査](docs/RELEASE_AUDIT_0.1.3_JP.md)**はGate Aに合格しましたが、
-まだ公式公開版ではありません。
+現在の開発候補：[`0.1.3-rc.1`](https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.3-rc.1)（公開済み評価用pre-release）<br>
+候補版の変更内容：**[0.1.3互換性改善版リリースノート](docs/RELEASE_NOTES_0.1.3_JP.md)**<br>
+候補版の検証状況：**[0.1.3リリース監査](docs/RELEASE_AUDIT_0.1.3_JP.md)**
+
+次期ローカル候補：`0.1.4-rc.1` — **[ブラウザ学習・仮想アセンブラ版ノート](docs/RELEASE_NOTES_0.1.4_JP.md)**。
+まだ公開していません。公開済み0.1.3開発を統合したため、**[候補監査](docs/RELEASE_AUDIT_0.1.4_JP.md)**を
+改めて完了させる必要があります。
+
+## 開発候補0.1.3の主な変更
+
+- 標準／CF互換の`(...)`コメントと標準的な`\`行末コメント
+- 直接入力で複数行・多重構造を扱える`IF`、`BEGIN`、`DO`、`?DO`
+- CFの考え方を基礎に、直接入力と定義内で同じ反復結果を与える`FOR ... NEXT`
+- 定義内でも使用できる`.`、`EMIT`、`CR`、`TYPE`と検証済み`SERVICE 1`～`4`
+- 起動時全65ワードのポケットリファレンス、semantics監査表、実行段階の学習ノート
+
+この候補は評価と意見募集のための版です。正式公開と安全レビューの基準は、引き続き`v0.1.2`です。
 
 ## まず試してみる
 
@@ -30,11 +44,13 @@
 2. PythonまたはRubyで**[5分間のQuick Start](docs/QUICKSTART_JP.md)**を試します。
 3. 端末の横に**[ワード・ポケットリファレンス](docs/WORD_REFERENCE_JP.md)**を置きます。`WORDS`に
    表示される全ワードと、`DEFER`による動的切替えの入口を説明しています。
-4. **[FORTHの設計と学習のための参考資料](docs/REFERENCES_JP.md)**から、書籍、歴史的実装、
+4. **[直接制御構造設計](docs/DIRECT_CONTROL_V0_3_JP.md)**で、直接入力できる`IF`、`BEGIN`、
+   `DO`、`FOR`構造を確認します。
+5. **[FORTHの設計と学習のための参考資料](docs/REFERENCES_JP.md)**から、書籍、歴史的実装、
    小規模systemの設計を学ぶ資料を探します。
-5. **[なぜRubyとPythonで始めたのか](docs/PROJECT_ORIGIN_JP.md)**を読みます。
-6. **[日本語文書索引](docs/README_JP.md)**から設計と監査を調べます。
-7. **[仮想アセンブラViewer](viewer/virtual-assembler.html)**で、ブラウザ内の移植可能な
+6. **[なぜRubyとPythonで始めたのか](docs/PROJECT_ORIGIN_JP.md)**を読みます。
+7. **[日本語文書索引](docs/README_JP.md)**から設計と監査を調べます。
+8. **[仮想アセンブラViewer](viewer/virtual-assembler.html)**で、ブラウザ内の移植可能な
    assembler reference modelを実行します。
 
 Guided Viewerは単独で動作し、編集したsourceを実行せずに測定済みtraceを表示します。

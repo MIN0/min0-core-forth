@@ -20,9 +20,24 @@ Official repository: <https://github.com/MIN0/min0-core-forth><br>
 Release tag: `v0.1.2`<br>
 Release notes: **[0.1.2 documentation maintenance release](docs/RELEASE_NOTES_0.1.2.md)**
 
-Next development candidate: `0.1.3-rc.1` — **[scope and limitations](docs/RELEASE_NOTES_0.1.3.md)**.
-Its **[local release-candidate audit](docs/RELEASE_AUDIT_0.1.3.md)** has passed Gate A, but it is not
-an official published release yet.
+Current development candidate: [`0.1.3-rc.1`](https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.3-rc.1) (published evaluation pre-release)<br>
+Candidate changes: **[0.1.3 compatibility release notes](docs/RELEASE_NOTES_0.1.3.md)**<br>
+Candidate verification: **[0.1.3 release audit](docs/RELEASE_AUDIT_0.1.3.md)**
+
+Next local candidate: `0.1.4-rc.1` — **[browser learning and virtual-assembler notes](docs/RELEASE_NOTES_0.1.4.md)**.
+It has not been published. Its **[candidate audit](docs/RELEASE_AUDIT_0.1.4.md)** must be completed
+again after integrating the published 0.1.3 work.
+
+## Main changes in development candidate 0.1.3
+
+- Standard/CF-compatible `( ... )` comments and standard-style `\` line comments
+- Multiline, nested direct `IF`, `BEGIN`, `DO`, and `?DO` structures
+- CF-inspired `FOR ... NEXT` with matching direct and compiled iteration results
+- Compilable `.`, `EMIT`, `CR`, and `TYPE` through verified services 1 through 4
+- A pocket reference and semantics audit for all 65 startup words, plus an execution-phase learning note
+
+This candidate is for evaluation and feedback. The latest final and security-reviewed baseline remains
+`v0.1.2`.
 
 ## Start here
 
@@ -30,11 +45,13 @@ an official published release yet.
 2. Follow the **[five-minute Quick Start](docs/QUICKSTART.md)** with Python or Ruby.
 3. Keep the **[pocket word reference](docs/WORD_REFERENCE.md)** beside the terminal. It explains every
    word printed by `WORDS` and highlights dynamic switching with `DEFER`.
-4. Use the **[FORTH design and learning references](docs/REFERENCES.md)** to find books, historical
+4. Read the **[direct control-structure design](docs/DIRECT_CONTROL_V0_3.md)** for buffered direct
+   `IF`, `BEGIN`, `DO`, and `FOR` structures.
+5. Use the **[FORTH design and learning references](docs/REFERENCES.md)** to find books, historical
    implementations, and material for studying small-system design.
-5. Read **[why the project began with Ruby and Python](docs/PROJECT_ORIGIN.md)**.
-6. Use the **[English documentation index](docs/README.md)** to explore the design and audits.
-7. Try the **[virtual assembler Viewer](viewer/virtual-assembler.html)** (Japanese UI) to execute the
+6. Read **[why the project began with Ruby and Python](docs/PROJECT_ORIGIN.md)**.
+7. Use the **[English documentation index](docs/README.md)** to explore the design and audits.
+8. Try the **[virtual assembler Viewer](viewer/virtual-assembler.html)** (Japanese UI) to execute the
    portable assembler reference model in a browser.
 
 The Guided Viewer is self-contained and displays measured traces without executing edited source.

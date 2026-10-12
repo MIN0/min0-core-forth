@@ -22,6 +22,20 @@ assert_equal(
 assert_equal([18], run_source(": double dup + ; 9 DoUbLe"), "case insensitive")
 assert_equal([42], run_source(": A B ; : B 41 1 + ; A"), "forward reference")
 assert_equal([32], run_source("0x10 \\ ignored\n 2 *"), "comment and hex literal")
+assert_equal(
+  [18],
+  run_source(": DOUBLE ( n -- n+n\n ignored ) DUP + ; 9 DOUBLE"),
+  "multiline parenthesis comments"
+)
+
+begin
+  Min0CoreForth::Compiler.compile("1 ( missing")
+  raise "unterminated parenthesis comment: expected CompileError"
+rescue Min0CoreForth::CompileError => error
+  raise unless error.message.include?("parenthesis comment")
+
+  puts "unterminated parenthesis comment: PASS"
+end
 
 begin
   Min0CoreForth::Compiler.compile("MISSING")
