@@ -12,6 +12,7 @@
 - [Windows開発環境でのPython／Ruby全体試験](WINDOWS_DEVELOPMENT_TEST_JP.md)
 - [CPU・FPGAへ共通する移植可能backend開発原則](PORTABLE_BACKEND_PRINCIPLES_JP.md)
 - [学習の自由と安全な失敗の設計原則](LEARNING_FREEDOM_PRINCIPLES_JP.md)
+- [小容量環境でも安全に失敗するための移植原則](SAFE_FAILURE_PORTABILITY_JP.md)
 - [未知の機器を安全に調べるMIN0 Device Lab初心者ガイド](DEVICE_LAB_BEGINNER_GUIDE_JP.md)
 - [プロジェクトの由来](PROJECT_ORIGIN_JP.md)
 - [ライセンスと安全性](LICENSE_AND_SECURITY_JP.md)
