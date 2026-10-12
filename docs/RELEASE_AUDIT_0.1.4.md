@@ -4,9 +4,9 @@
 
 Candidate: `0.1.4-rc.1`
 
-Status: integration audit in progress. The published 0.1.3 branch and the previous local virtual-
-assembler branch have been combined, so pre-merge results are historical evidence only and do not
-constitute a pass for this candidate.
+Status: local Gate A PASS. GitHub publication Gate B and independent post-publication Gate C are
+pending. The published 0.1.3 branch and the previous local virtual-assembler branch were combined and
+then verified again; pre-merge results are retained only as historical evidence.
 
 ## Scope
 
@@ -19,9 +19,21 @@ It excludes execution of generated machine code on Pico 2 W, physical MPU config
 
 ## Gate A — local integration verification
 
-Pending. It must include Python, Ruby in normal PowerShell, cross-language checks, JavaScript Viewer
-tests, documentation checks, release allowlist audit, `git diff --check`, and two deterministic ZIP
-builds from the integrated tree.
+- Executed: 2026-10-13 (Asia/Tokyo).
+- Command in the user's normal Windows PowerShell: `python tools\run_all_checks.py`.
+- Python suite: PASS.
+- Ruby: all 50 test files passed.
+- Python/Ruby cross-language checks: all 51 check files passed.
+- Final result: `ALL CHECKS PASSED`.
+- Mobile Learning JavaScript test: PASS.
+- Virtual assembler browser JavaScript test: PASS.
+- Release allowlist audit: 465 selected files, no issues.
+- `git diff --check`: no issues.
+- Two independent ZIP builds from the final Gate A commit are byte-for-byte identical. Their digest is
+  stored beside the candidate artifact so this document does not make the package hash self-referential.
+
+The restricted Codex sandbox still rejects child `ruby.exe` launches with `0xC0000022`; this did not
+reproduce in normal PowerShell, where the complete product gate passed.
 
 ## Gate B — GitHub publication
 
