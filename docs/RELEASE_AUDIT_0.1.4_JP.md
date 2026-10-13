@@ -4,8 +4,8 @@
 
 候補版：`0.1.4-rc.1`
 
-状態：ローカルGate A合格。GitHub公開Gate Bと公開後の独立確認Gate Cは未実施です。公開済み0.1.3系と
-従来のローカル仮想アセンブラ系を統合後に改めて検証し、merge前の結果は履歴上の証拠としてだけ残します。
+状態：評価用pre-release `v0.1.4-rc.1`についてGate A、B、C合格。公開済み0.1.3系と従来のローカル
+仮想アセンブラ系を統合後に改めて検証し、merge前の結果は履歴上の証拠としてだけ残します。
 
 ## 対象範囲
 
@@ -35,11 +35,27 @@ Pico 2 Wでの生成機械語実行、実MPU設定、target側`rx`封印、live 
 
 ## Gate B―GitHub公開
 
-未実施です。`v0.1.4-rc.1` tag、GitHub Release、配布asset、Pages公開は作成していません。
+- 公開日時：2026-10-13 21:07 JST
+- tag：`v0.1.4-rc.1`、commit `c8ff554aa9b8a129ca6f4746a899954c50ed47c9`
+- Release：<https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.4-rc.1>
+- 状態：公開評価用pre-release。正式版ではない。
+- ZIP：`min0-core-forth-0.1.4-rc.1.zip`、861703 byte
+- ZIP SHA-256：`1215eaabc5d32b0cb16b03c4782d46d77710b31938cda8fd1542ffe6c51dd0d3`
+- `SHA256SUMS.txt`を別assetとして公開
+- GitHub Pagesはcommit `c8ff554`を正常buildし、HTTPSを強制
 
 ## Gate C―公開後の独立確認
 
-未実施です。公開物を新しいdirectoryへ再取得し、digest、manifest、tag内容、Pages動作、代表的な
-ブラウザ例題、全試験commandを確認します。
+- GitHubから二つのrelease assetを新規directoryへ再取得した。
+- 再取得ZIPのbyte数とSHA-256はGate Bおよび公開checksum fileと一致した。
+- manifest全465項目の存在とSHA-256一致を確認した。
+- 展開後treeのrelease allowlist監査は465ファイル、問題0件。
+- 公開artifact上でMobile Learningと仮想アセンブラのJavaScript試験が成功した。
+- 二つのPages URLはHTTP 200。仮想アセンブラHTMLはtagged local fileと一致し、両画面に必要な
+  実行scriptとcontrolが含まれる。
+- iPhone実機表示は利用者による推奨確認事項であり、自動Gate Cで確認したとは主張しない。
+
+release asset内には性質上、公開前時点の本監査が収録される。この公開後追記はimmutableなtagged artifactを
+検証した後の`main`へ記録し、artifact、tag、checksumを変更しない。
 
 この監査はMIN0 CORE FORTHだけを対象とし、MIN0 RASPI FORTHとMSX0-FORTHを変更・公開しません。

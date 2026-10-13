@@ -4,9 +4,9 @@
 
 Candidate: `0.1.4-rc.1`
 
-Status: local Gate A PASS. GitHub publication Gate B and independent post-publication Gate C are
-pending. The published 0.1.3 branch and the previous local virtual-assembler branch were combined and
-then verified again; pre-merge results are retained only as historical evidence.
+Status: Gates A, B, and C PASS for the `v0.1.4-rc.1` evaluation pre-release. The published 0.1.3
+branch and the previous local virtual-assembler branch were combined and then verified again;
+pre-merge results are retained only as historical evidence.
 
 ## Scope
 
@@ -37,12 +37,29 @@ reproduce in normal PowerShell, where the complete product gate passed.
 
 ## Gate B — GitHub publication
 
-Pending. No `v0.1.4-rc.1` tag, GitHub Release, asset, or Pages publication has been created.
+- Published: 2026-10-13 21:07 JST.
+- Tag: `v0.1.4-rc.1` at commit `c8ff554aa9b8a129ca6f4746a899954c50ed47c9`.
+- Release: <https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.4-rc.1>
+- Status: public evaluation pre-release, not a final release.
+- ZIP: `min0-core-forth-0.1.4-rc.1.zip`, 861703 bytes.
+- ZIP SHA-256: `1215eaabc5d32b0cb16b03c4782d46d77710b31938cda8fd1542ffe6c51dd0d3`.
+- `SHA256SUMS.txt` was published as a separate asset.
+- GitHub Pages built commit `c8ff554` successfully with HTTPS enforced.
 
 ## Gate C — independent post-publication verification
 
-Pending. A published artifact must be downloaded into a fresh directory and checked against its digest,
-manifest, tag contents, Pages behavior, representative browser examples, and the complete test commands.
+- The two release assets were downloaded from GitHub into a new directory.
+- The downloaded ZIP size and SHA-256 match Gate B and the published checksum file.
+- All 465 manifest entries exist and match their recorded SHA-256 values.
+- The extracted tree passes the release allowlist audit with 465 selected files and no issues.
+- Mobile Learning and virtual assembler JavaScript tests pass from the extracted public artifact.
+- The two Pages URLs return HTTP 200. The published virtual-assembler HTML matches the tagged local file;
+  both pages contain their required executable scripts and controls.
+- iPhone hardware display remains a recommended user observation, not a claim of automated Gate C.
+
+The release asset necessarily contains the pre-publication form of this audit. This post-publication
+section is recorded on `main` after verifying the immutable tagged artifact and does not alter that
+artifact, tag, or checksum.
 
 This audit applies only to MIN0 CORE FORTH. It does not modify or publish MIN0 RASPI FORTH or
 MSX0-FORTH.
