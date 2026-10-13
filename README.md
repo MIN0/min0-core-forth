@@ -51,8 +51,10 @@ This candidate is for evaluation and feedback. The latest final and security-rev
    implementations, and material for studying small-system design.
 6. Read **[why the project began with Ruby and Python](docs/PROJECT_ORIGIN.md)**.
 7. Use the **[English documentation index](docs/README.md)** to explore the design and audits.
-8. Try the **[virtual assembler Viewer](viewer/virtual-assembler.html)** (Japanese UI) to execute the
-   portable assembler reference model in a browser.
+8. Try **[Mobile Learning](https://min0.github.io/min0-core-forth/viewer/mobile-forth.html)** (Japanese UI)
+   to edit and execute the browser FORTH learning subset on a PC or iPhone.
+9. Try the **[virtual assembler Viewer](https://min0.github.io/min0-core-forth/viewer/virtual-assembler.html)**
+   (Japanese UI) to execute the portable assembler reference model in a browser.
 
 The Guided Viewer is self-contained and displays measured traces without executing edited source.
 Mobile Learning and the virtual assembler Viewer execute browser reference models, but they do not

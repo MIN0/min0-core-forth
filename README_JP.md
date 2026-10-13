@@ -50,8 +50,10 @@
    小規模systemの設計を学ぶ資料を探します。
 6. **[なぜRubyとPythonで始めたのか](docs/PROJECT_ORIGIN_JP.md)**を読みます。
 7. **[日本語文書索引](docs/README_JP.md)**から設計と監査を調べます。
-8. **[仮想アセンブラViewer](viewer/virtual-assembler.html)**で、ブラウザ内の移植可能な
-   assembler reference modelを実行します。
+8. **[Mobile Learning](https://min0.github.io/min0-core-forth/viewer/mobile-forth.html)**で、PCまたは
+   iPhoneから学習用FORTH subsetを編集・実行します。
+9. **[仮想アセンブラViewer](https://min0.github.io/min0-core-forth/viewer/virtual-assembler.html)**で、
+   ブラウザ内の移植可能なassembler reference modelを実行します。
 
 Guided Viewerは単独で動作し、編集したsourceを実行せずに測定済みtraceを表示します。
 Mobile Learningと仮想アセンブラViewerはブラウザ内のreference modelを実行しますが、実memory、

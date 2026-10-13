@@ -6,7 +6,9 @@
 
 - [ワード・ポケットリファレンス―次期候補の全78ワード](WORD_REFERENCE_JP.md)
 - [localhost Live Viewerの起動と安全境界](LIVE_VIEWER_JP.md)
-- [ブラウザで仮想アセンブラを体験する](../viewer/virtual-assembler.html)
+- [Mobile Learningの説明](MOBILE_FORTH_JP.md)
+- [GitHub PagesでMobile Learningを実行する](https://min0.github.io/min0-core-forth/viewer/mobile-forth.html)
+- [GitHub Pagesで仮想アセンブラを体験する](https://min0.github.io/min0-core-forth/viewer/virtual-assembler.html)
 - [iPhone用オフライン閲覧パック](IPHONE_READING_PACK_JP.md)
 - [FORTHの解釈・compile・実行を理解するためのノート](FORTH_EXECUTION_PHASES_JP.md)
 - [CORE wordのcompile互換性解消計画](CORE_WORD_COMPILATION_PLAN_JP.md)
