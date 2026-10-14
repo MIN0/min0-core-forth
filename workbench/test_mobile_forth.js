@@ -1,7 +1,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
-const { MobileForth, tokenize } = require("../viewer/mobile-forth-core.js");
+const { MobileForth, tokenize, WORD_METADATA } = require("../viewer/mobile-forth-core.js");
 
 function run(source, options = {}) {
   return new MobileForth(options).interpret(source);
@@ -14,6 +14,10 @@ function ok(source, stack, terminal = "") {
   assert.equal(result.terminal, terminal, source);
   return result;
 }
+
+const metadataNames = WORD_METADATA.map(item => item.name);
+assert.equal(new Set(metadataNames).size, metadataNames.length, "word metadata names must be unique");
+Object.keys(new MobileForth().builtins()).forEach(name => assert.ok(metadataNames.includes(name), `metadata missing for ${name}`));
 
 ok("2 3 4 * + . CR", [], "14\n");
 ok("1 2 3 ROT", [2, 3, 1]);
@@ -86,6 +90,19 @@ assert.equal(outerCall.sourceLine, 5);
 assert.equal(outerCall.sourceColumn, 2);
 assert.equal(innerStep.sourceLine, 2);
 assert.equal(innerStep.sourceColumn, 2);
+
+const catalogTrace = ok(": DOUBLE ( n -- n2 ) DUP + ; 3 DOUBLE", [6]);
+const doubleMeta = catalogTrace.wordCatalog.find(item => item.id === 1 && item.name === "DOUBLE");
+assert.ok(doubleMeta);
+assert.equal(doubleMeta.stackEffect, "( n -- n2 )");
+assert.equal(doubleMeta.category, "利用者定義");
+assert.equal(doubleMeta.invocationCount, 1);
+assert.deepEqual(doubleMeta.lastDataBefore, [3]);
+assert.deepEqual(doubleMeta.lastDataAfter, [6]);
+assert.match(doubleMeta.source, /^: DOUBLE/);
+const dupMeta = catalogTrace.wordCatalog.find(item => item.name === "DUP" && item.type === "builtin");
+assert.equal(dupMeta.stackEffect, "( x -- x x )");
+assert.match(dupMeta.description, /複製/);
 
 const failedTrace = run(": BAD 0 /MOD ; 7 BAD");
 assert.equal(failedTrace.ok, false);

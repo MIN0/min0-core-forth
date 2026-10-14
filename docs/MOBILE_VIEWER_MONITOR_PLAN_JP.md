@@ -168,6 +168,12 @@ word／invocation選択UI、短いワード辞典は未実装であり、次の�
 入れ子loopは異なるloop IDで区別される。残るPhase Aの中心は、より詳細なword／invocation階層表示と
 短いワード辞典metadata／検索UIである。
 
+続いてbuiltin／制御wordの共有metadataと検索可能なワード辞典UIを追加した。名前、分類、stack effect、
+短い説明、利用可能な局面を表示する。利用者定義wordでは定義名直後の`( ... -- ... )`commentを抽出し、
+通し番号、source、呼出し回数、直近の入出力stackも表示する。commentがなければ推測せず「未記載」とする。
+`WORDS`も同じbuiltin metadataを名前一覧の正本として利用する。残るPhase Aは、実行前・error停止時・
+復旧後／正常終了stackを結果objectと画面でさらに明確に分けること、およびiPhone実画面確認である。
+
 ### Phase B―Monitor基盤
 
 1. interpreterを1 instructionずつ再開可能なstate machineへ分離する。

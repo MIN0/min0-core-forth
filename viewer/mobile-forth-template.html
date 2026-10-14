@@ -20,6 +20,7 @@
     textarea { width:100%; min-height:250px; resize:vertical; border:1px solid #4b6e79; border-radius:9px; background:#071015; color:#f5fbfc; padding:12px; font:16px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace; }
     select,button { min-height:44px; border-radius:9px; font-size:16px; }
     select { width:100%; color:var(--text); background:#0d1c22; border:1px solid #4b6e79; padding:8px; }
+    input[type="search"] { width:100%; min-height:44px; color:var(--text); background:#0d1c22; border:1px solid #4b6e79; border-radius:9px; padding:8px; font-size:16px; }
     .buttons { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:10px; }
     button { border:1px solid #526d76; background:#203842; color:var(--text); padding:9px 12px; font-weight:700; }
     button.primary { background:var(--accent); border-color:var(--accent); color:#1d1b12; }
@@ -88,6 +89,14 @@
       <label class="check-label"><input id="trace-all-loops" type="checkbox" disabled>LOOPの全反復を表示</label>
     </div>
     <div class="table-wrap"><table><thead><tr><th>#</th><th>場所</th><th>ソース</th><th>入力／命令</th><th>実行前</th><th>実行後</th><th>結果</th></tr></thead><tbody id="trace"><tr><td colspan="7">（未実行）</td></tr></tbody></table></div>
+  </section>
+
+  <section class="panel">
+    <h2>ワード辞典</h2>
+    <label for="word-search">名前・分類・説明を検索</label>
+    <input id="word-search" type="search" placeholder="例：DUP、スタック、LOOP" disabled>
+    <p id="word-summary" class="hint">実行後に利用できます。</p>
+    <div class="table-wrap"><table><thead><tr><th>ワード</th><th>分類</th><th>stack effect</th><th>説明</th><th>利用状況</th></tr></thead><tbody id="word-catalog"><tr><td colspan="5">（未実行）</td></tr></tbody></table></div>
   </section>
 
   <details class="panel">
@@ -198,6 +207,28 @@
       [event.sequence, location, sourceLocation, token, formatStack(event.dataBefore), formatStack(event.dataAfter || []), event.status === "error" ? `ERROR: ${event.error.name}` : "OK"].forEach(value => { const cell = row.insertCell(); cell.textContent = String(value); });
     });
   }
+  function renderWordCatalog() {
+    if (!lastResult) return;
+    const query = $("word-search").value.trim().toLocaleLowerCase("ja");
+    const entries = lastResult.wordCatalog.filter(item => !query || [item.name, item.category, item.stackEffect, item.description, item.availability].join(" ").toLocaleLowerCase("ja").includes(query));
+    setText($("word-summary"), `全${lastResult.wordCatalog.length}件中${entries.length}件を表示`);
+    const body = $("word-catalog"); body.textContent = "";
+    if (!entries.length) {
+      const row = body.insertRow(); const cell = row.insertCell(); cell.colSpan = 5; cell.textContent = "該当するワードはありません"; return;
+    }
+    entries.forEach(item => {
+      const row = body.insertRow();
+      row.insertCell().textContent = item.id === null ? item.name : `#${item.id} ${item.name}`;
+      row.insertCell().textContent = item.category;
+      row.insertCell().textContent = item.stackEffect;
+      const description = row.insertCell(); description.appendChild(document.createTextNode(item.description));
+      if (item.source) {
+        const details = document.createElement("details"); const summary = document.createElement("summary"); summary.textContent = "sourceを表示";
+        const source = document.createElement("pre"); source.textContent = item.source; details.append(summary, source); description.appendChild(details);
+      }
+      row.insertCell().textContent = item.type === "colon" ? `${item.availability}／呼出${item.invocationCount}回／${formatStack(item.lastDataBefore)} → ${formatStack(item.lastDataAfter)}` : item.availability;
+    });
+  }
   function run() {
     const result = new Min0MobileForth.MobileForth().interpret($("source").value);
     lastResult = result;
@@ -209,6 +240,8 @@
     if (!result.ok) setText($("error"), `${result.error.name}: ${result.error.message}\n停止位置: #${result.error.wordId} ${result.error.word}${result.error.sourceLine ? `（${result.error.sourceLine}行${result.error.sourceColumn}列）` : ""}${result.error.instructionIndex ? ` 命令${result.error.instructionIndex}` : ""}\n最上位入力位置: ${result.error.tokenIndex}`);
     configureTraceChoices(result);
     renderTrace();
+    $("word-search").disabled = false;
+    renderWordCatalog();
   }
   $("run").addEventListener("click", run);
   $("save").addEventListener("click", () => {
@@ -225,6 +258,7 @@
   $("trace-word").addEventListener("change", () => { updateInvocationChoices(); renderTrace(); });
   $("trace-invocation").addEventListener("change", renderTrace);
   $("trace-all-loops").addEventListener("change", renderTrace);
+  $("word-search").addEventListener("input", renderWordCatalog);
   loadDraft();
 })();
 </script>

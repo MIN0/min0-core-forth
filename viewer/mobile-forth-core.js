@@ -13,6 +13,59 @@
 
   const cell = value => Number(value) >>> 0;
   const signed = value => Number(value) | 0;
+  const wordMeta = (name, stackEffect, category, description, availability = "実行・定義内") => Object.freeze({ name, stackEffect, category, description, availability, type: "builtin" });
+  const WORD_METADATA = Object.freeze([
+    wordMeta("NOP", "( -- )", "スタック", "何も変更しません。"),
+    wordMeta("DROP", "( x -- )", "スタック", "最上位の値を捨てます。"),
+    wordMeta("DUP", "( x -- x x )", "スタック", "最上位の値を複製します。"),
+    wordMeta("SWAP", "( x1 x2 -- x2 x1 )", "スタック", "上位2値を交換します。"),
+    wordMeta("OVER", "( x1 x2 -- x1 x2 x1 )", "スタック", "上から2番目の値を複製します。"),
+    wordMeta("ROT", "( x1 x2 x3 -- x2 x3 x1 )", "スタック", "上位3値を回転します。"),
+    wordMeta("2DUP", "( x1 x2 -- x1 x2 x1 x2 )", "スタック", "上位2値をまとめて複製します。"),
+    wordMeta("2DROP", "( x1 x2 -- )", "スタック", "上位2値を捨てます。"),
+    wordMeta("DEPTH", "( -- u )", "スタック", "現在のdata stack深さを積みます。"),
+    wordMeta("+", "( n1 n2 -- n3 )", "算術", "2値を加算します。"),
+    wordMeta("-", "( n1 n2 -- n3 )", "算術", "n1からn2を減算します。"),
+    wordMeta("*", "( n1 n2 -- n3 )", "算術", "2値を32ビット乗算します。"),
+    wordMeta("/", "( n1 n2 -- quot )", "算術", "符号付き除算の商を返します。"),
+    wordMeta("MOD", "( n1 n2 -- rem )", "算術", "符号付き除算の余りを返します。"),
+    wordMeta("/MOD", "( n1 n2 -- rem quot )", "算術", "符号付き除算の余りと商を返します。"),
+    wordMeta("1+", "( n -- n+1 )", "算術", "1を加算します。"),
+    wordMeta("1-", "( n -- n-1 )", "算術", "1を減算します。"),
+    wordMeta("NEGATE", "( n -- -n )", "算術", "符号を反転します。"),
+    wordMeta("ABS", "( n -- u )", "算術", "絶対値を返します。"),
+    wordMeta("=", "( x1 x2 -- flag )", "比較", "2値が等しければtrueを返します。"),
+    wordMeta("<", "( n1 n2 -- flag )", "比較", "n1がn2より小さければtrueを返します。"),
+    wordMeta("0=", "( x -- flag )", "比較", "値が0ならtrueを返します。"),
+    wordMeta("AND", "( x1 x2 -- x3 )", "論理", "ビット単位ANDを行います。"),
+    wordMeta("OR", "( x1 x2 -- x3 )", "論理", "ビット単位ORを行います。"),
+    wordMeta("XOR", "( x1 x2 -- x3 )", "論理", "ビット単位XORを行います。"),
+    wordMeta(".", "( n -- )", "出力", "数値を端末出力します。"),
+    wordMeta(".S", "( -- )", "出力", "data stackを変更せず表示します。"),
+    wordMeta("EMIT", "( char -- )", "出力", "下位8ビットを1文字として出力します。"),
+    wordMeta("CR", "( -- )", "出力", "改行を出力します。"),
+    wordMeta('."', "( -- )", "出力", "終端quoteまでの文字列を出力します。", "解釈・compile"),
+    wordMeta("WORDS", "( -- )", "辞書", "利用可能なword名を表示します。"),
+    wordMeta("I", "( -- n )", "LOOP", "現在のLOOP indexを積みます。", "定義内"),
+    wordMeta("J", "( -- n )", "LOOP", "1段外側のLOOP indexを積みます。", "定義内"),
+    wordMeta("UNLOOP", "( -- )", "LOOP", "現在のLOOP frameを破棄します。", "定義内"),
+    wordMeta(":", "( -- )", "定義", "新しいcolon wordの定義を開始します。", "解釈時"),
+    wordMeta(";", "( -- )", "定義", "colon wordの定義を終了します。", "compile時"),
+    wordMeta("RECURSE", "( -- )", "定義", "現在定義中のwordを再帰呼出しします。", "compile時"),
+    wordMeta("IF", "( flag -- )", "分岐", "flagがtrueの場合だけ後続部分を実行します。", "compile時"),
+    wordMeta("ELSE", "( -- )", "分岐", "IFのfalse側を開始します。", "compile時"),
+    wordMeta("THEN", "( -- )", "分岐", "IF／ELSE構造を終了します。", "compile時"),
+    wordMeta("BEGIN", "( -- )", "反復", "条件反復の開始位置を示します。", "compile時"),
+    wordMeta("UNTIL", "( flag -- )", "反復", "flagがfalseの間BEGINへ戻ります。", "compile時"),
+    wordMeta("AGAIN", "( -- )", "反復", "無条件にBEGINへ戻ります。", "compile時"),
+    wordMeta("WHILE", "( flag -- )", "反復", "flagがfalseならBEGIN／REPEATを抜けます。", "compile時"),
+    wordMeta("REPEAT", "( -- )", "反復", "BEGIN／WHILEへ戻ります。", "compile時"),
+    wordMeta("DO", "( limit start -- )", "LOOP", "counted LOOPを開始します。", "compile時"),
+    wordMeta("?DO", "( limit start -- )", "LOOP", "limitとstartが等しい場合はLOOPを実行しません。", "compile時"),
+    wordMeta("LOOP", "( -- )", "LOOP", "indexを1増やしてDOへ戻ります。", "compile時"),
+    wordMeta("+LOOP", "( n -- )", "LOOP", "指定値だけindexを進めてDOへ戻ります。", "compile時"),
+    wordMeta("LEAVE", "( -- )", "LOOP", "現在のcounted LOOPを終了します。", "compile時"),
+  ]);
 
   class ForthError extends Error {}
   class UnknownWord extends ForthError {}
@@ -72,13 +125,13 @@
           index += 1;
         }
         if (index >= source.length) throw new CompileError('." string is missing closing quote');
-        tokens.push({ value: { kind: "PRINT", text: source.slice(start, index), label: '."' }, ...sourcePosition(source, tokenStart) });
+        tokens.push({ value: { kind: "PRINT", text: source.slice(start, index), label: '."' }, start: tokenStart, end: index + 1, ...sourcePosition(source, tokenStart) });
         index += 1;
         continue;
       }
       const start = index;
       while (index < source.length && !/\s/.test(source[index]) && source[index] !== "\\") index += 1;
-      tokens.push({ value: source.slice(start, index).toUpperCase(), ...sourcePosition(source, start) });
+      tokens.push({ value: source.slice(start, index).toUpperCase(), start, end: index, ...sourcePosition(source, start) });
     }
     return tokens;
   }
@@ -186,6 +239,8 @@
       this.steps = 0;
       this.dictionary = new Map();
       this.wordIds = new Map();
+      this.wordDefinitions = new Map();
+      this.wordRuntime = new Map();
       this.nextWordId = 1;
       this.trace = [];
       this.traceTail = new Array(Math.ceil(this.maxTraceEvents / 2));
@@ -283,9 +338,13 @@
       if (this.returnStack.length >= MAX_CALL_DEPTH) throw new CallDepthExceeded(`call depth ${MAX_CALL_DEPTH} exceeded`);
       const frame = { word: name, wordId: this.wordIds.get(name) || null, invocationId: this.nextInvocationId, callDepth: this.callFrames.length + 1 };
       this.nextInvocationId += 1;
+      const runtime = this.wordRuntime.get(frame.wordId) || { invocationCount: 0, lastDataBefore: [], lastDataAfter: [] };
+      runtime.invocationCount += 1;
+      runtime.lastDataBefore = this.stackSnapshot();
+      this.wordRuntime.set(frame.wordId, runtime);
       this.returnStack.push(name);
       this.callFrames.push(frame);
-      try { this.runCode(code, frame); } finally { this.callFrames.pop(); this.returnStack.pop(); }
+      try { this.runCode(code, frame); } finally { runtime.lastDataAfter = this.stackSnapshot(); this.callFrames.pop(); this.returnStack.pop(); }
     }
 
     runCode(code, frame) {
@@ -373,7 +432,7 @@
         "I": () => { if (!this.loopStack.length) throw new StackUnderflow("I needs a loop frame"); this.push(this.loopStack[this.loopStack.length - 1].index); },
         "J": () => { if (this.loopStack.length < 2) throw new StackUnderflow("J needs two loop frames"); this.push(this.loopStack[this.loopStack.length - 2].index); },
         "UNLOOP": () => { if (!this.loopStack.length) throw new StackUnderflow("UNLOOP needs a loop frame"); this.loopStack.pop(); },
-        "WORDS": () => { this.output += [...Object.keys(this._builtins), ...this.dictionary.keys()].sort().join(" "); },
+        "WORDS": () => { this.output += [...WORD_METADATA.map(item => item.name), ...this.dictionary.keys()].sort().join(" "); },
       };
       return this._builtins;
     }
@@ -391,7 +450,8 @@
           const event = this.beginTrace({ scope: "main", word: "#0 MAIN", wordId: 0, invocationId: 0, callDepth: 0, instructionIndex: index + 1, sourceLine: sourceToken.line, sourceColumn: sourceToken.column, token: typeof token === "object" ? '."' : token, op: token === ":" ? "DEFINE" : "TOKEN" });
           try {
             if (token === ":") {
-              const name = tokens[index + 1] && tokens[index + 1].value;
+              const nameToken = tokens[index + 1];
+              const name = nameToken && nameToken.value;
               if (typeof name !== "string" || [":", ";"].includes(name)) throw new CompileError(":" + " requires a word name");
               const body = [];
               index += 2;
@@ -400,6 +460,20 @@
               this.dictionary.set(name, compileBody(body));
               this.wordIds.set(name, this.nextWordId);
               event.wordId = this.nextWordId;
+              const terminator = tokens[index];
+              const headerEnd = nameToken.end;
+              const firstBodyStart = body.length ? body[0].start : terminator.start;
+              const stackComment = source.slice(headerEnd, firstBodyStart).match(/\(\s*([^)]*--[^)]*)\)/s);
+              this.wordDefinitions.set(this.nextWordId, {
+                id: this.nextWordId,
+                name,
+                type: "colon",
+                category: "利用者定義",
+                stackEffect: stackComment ? `( ${stackComment[1].trim().replace(/\s+/g, " ")} )` : "未記載",
+                description: "このsourceで登録したcolon wordです。",
+                availability: "実行・定義内",
+                source: source.slice(sourceToken.start, terminator.end),
+              });
               this.nextWordId += 1;
               event.token = `: ${name} ... ;`;
               event.word = name;
@@ -429,10 +503,20 @@
       }
     }
 
+    wordCatalog() {
+      const builtins = WORD_METADATA.map(item => ({ ...item, id: null, invocationCount: null, lastDataBefore: null, lastDataAfter: null, source: null }));
+      const definitions = [...this.wordDefinitions.values()].map(item => {
+        const runtime = this.wordRuntime.get(item.id) || { invocationCount: 0, lastDataBefore: [], lastDataAfter: [] };
+        return { ...item, invocationCount: runtime.invocationCount, lastDataBefore: [...runtime.lastDataBefore], lastDataAfter: [...runtime.lastDataAfter] };
+      });
+      return [...builtins, ...definitions];
+    }
+
     result(error) {
-      return { ok: error === null, terminal: this.output, dataStack: this.stack.map(signed), returnStack: [...this.returnStack], loopStack: this.loopSnapshot(), steps: this.steps, words: this.traceEvents(), traceSummary: { limit: this.maxTraceEvents, recorded: Math.min(this.traceSequence, this.maxTraceEvents), omitted: this.omittedTraceEvents, total: this.traceSequence }, userWords: [...this.wordIds.entries()].map(([name, id]) => ({ id, name })).sort((left, right) => left.id - right.id), error };
+      const userWords = [...this.wordDefinitions.values()].map(item => ({ id: item.id, name: item.name })).sort((left, right) => left.id - right.id);
+      return { ok: error === null, terminal: this.output, dataStack: this.stack.map(signed), returnStack: [...this.returnStack], loopStack: this.loopSnapshot(), steps: this.steps, words: this.traceEvents(), traceSummary: { limit: this.maxTraceEvents, recorded: Math.min(this.traceSequence, this.maxTraceEvents), omitted: this.omittedTraceEvents, total: this.traceSequence }, userWords, wordCatalog: this.wordCatalog(), error };
     }
   }
 
-  return { MobileForth, tokenize, tokenizeDetailed, parseNumber, compileBody, signed, cell, MAX_SOURCE_BYTES, DEFAULT_MAX_TRACE_EVENTS };
+  return { MobileForth, tokenize, tokenizeDetailed, parseNumber, compileBody, signed, cell, WORD_METADATA, MAX_SOURCE_BYTES, DEFAULT_MAX_TRACE_EVENTS };
 });
