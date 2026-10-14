@@ -7,6 +7,7 @@
 - [ワード・ポケットリファレンス―次期候補の全78ワード](WORD_REFERENCE_JP.md)
 - [localhost Live Viewerの起動と安全境界](LIVE_VIEWER_JP.md)
 - [Mobile Learningの説明](MOBILE_FORTH_JP.md)
+- [Mobile Learning／仮想アセンブラViewer 観察・Monitor改良計画](MOBILE_VIEWER_MONITOR_PLAN_JP.md)
 - [GitHub PagesでMobile Learningを実行する](https://min0.github.io/min0-core-forth/viewer/mobile-forth.html)
 - [GitHub Pagesで仮想アセンブラを体験する](https://min0.github.io/min0-core-forth/viewer/virtual-assembler.html)
 - [iPhone用オフライン閲覧パック](IPHONE_READING_PACK_JP.md)

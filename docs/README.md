@@ -8,6 +8,7 @@
 - [localhost Live Viewer setup and safety boundary (Japanese)](LIVE_VIEWER_JP.md)
 - [iPhone offline reading pack (Japanese)](IPHONE_READING_PACK_JP.md)
 - [Mobile Learning guide (Japanese)](MOBILE_FORTH_JP.md)
+- [Mobile Learning and virtual-assembler observation/Monitor plan (Japanese)](MOBILE_VIEWER_MONITOR_PLAN_JP.md)
 - [Run Mobile Learning on GitHub Pages](https://min0.github.io/min0-core-forth/viewer/mobile-forth.html)
 - [Run the virtual assembler Viewer on GitHub Pages](https://min0.github.io/min0-core-forth/viewer/virtual-assembler.html)
 - [Understanding FORTH interpretation, compilation, and execution](FORTH_EXECUTION_PHASES.md)
