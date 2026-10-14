@@ -181,6 +181,7 @@
       this.stack = [];
       this.returnStack = [];
       this.loopStack = [];
+      this.nextLoopId = 1;
       this.output = "";
       this.steps = 0;
       this.dictionary = new Map();
@@ -204,7 +205,7 @@
     step() { this.steps += 1; if (this.steps > this.maxSteps) throw new StepLimitExceeded(`step limit ${this.maxSteps} exceeded`); }
 
     stackSnapshot() { return this.stack.map(signed); }
-    loopSnapshot() { return this.loopStack.map(frame => ({ limit: signed(frame.limit), index: signed(frame.index) })); }
+    loopSnapshot() { return this.loopStack.map((frame, depth) => ({ loopId: frame.loopId, depth: depth + 1, iteration: frame.iteration, limit: signed(frame.limit), index: signed(frame.index) })); }
 
     beginTrace(fields) {
       const event = {
@@ -311,12 +312,16 @@
             const limit = this.stack[this.stack.length - 2];
             this.stack.splice(-2, 2);
             if (instruction.op === "?DO" && start === limit) nextIp = instruction.target;
-            else this.loopStack.push({ limit, index: start });
+            else {
+              this.loopStack.push({ loopId: this.nextLoopId, iteration: 0, limit, index: start });
+              this.nextLoopId += 1;
+            }
           } else if (instruction.op === "LOOP") {
             if (!this.loopStack.length) throw new StackUnderflow("LOOP needs a loop frame");
             const loopFrame = this.loopStack[this.loopStack.length - 1];
             loopFrame.index = cell(loopFrame.index + 1);
-            if (loopFrame.index === loopFrame.limit) this.loopStack.pop(); else nextIp = instruction.target;
+            if (loopFrame.index === loopFrame.limit) this.loopStack.pop();
+            else { loopFrame.iteration += 1; nextIp = instruction.target; }
           } else if (instruction.op === "+LOOP") {
             if (!this.loopStack.length) throw new StackUnderflow("+LOOP needs a loop frame");
             const increment = signed(this.pop("+LOOP"));
@@ -325,7 +330,8 @@
             loopFrame.index = cell(loopFrame.index + increment);
             const newDelta = signed(loopFrame.index - loopFrame.limit);
             const crossed = (increment > 0 && oldDelta < 0 && newDelta >= 0) || (increment < 0 && oldDelta > 0 && newDelta <= 0);
-            if (crossed) this.loopStack.pop(); else nextIp = instruction.target;
+            if (crossed) this.loopStack.pop();
+            else { loopFrame.iteration += 1; nextIp = instruction.target; }
           } else if (instruction.op === "LEAVE") {
             if (!this.loopStack.length) throw new StackUnderflow("LEAVE needs a loop frame");
             this.loopStack.pop(); nextIp = instruction.target;
@@ -424,7 +430,7 @@
     }
 
     result(error) {
-      return { ok: error === null, terminal: this.output, dataStack: this.stack.map(signed), returnStack: [...this.returnStack], loopStack: this.loopStack.map(frame => ({ limit: signed(frame.limit), index: signed(frame.index) })), steps: this.steps, words: this.traceEvents(), traceSummary: { limit: this.maxTraceEvents, recorded: Math.min(this.traceSequence, this.maxTraceEvents), omitted: this.omittedTraceEvents, total: this.traceSequence }, userWords: [...this.wordIds.entries()].map(([name, id]) => ({ id, name })).sort((left, right) => left.id - right.id), error };
+      return { ok: error === null, terminal: this.output, dataStack: this.stack.map(signed), returnStack: [...this.returnStack], loopStack: this.loopSnapshot(), steps: this.steps, words: this.traceEvents(), traceSummary: { limit: this.maxTraceEvents, recorded: Math.min(this.traceSequence, this.maxTraceEvents), omitted: this.omittedTraceEvents, total: this.traceSequence }, userWords: [...this.wordIds.entries()].map(([name, id]) => ({ id, name })).sort((left, right) => left.id - right.id), error };
     }
   }
 

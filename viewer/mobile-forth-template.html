@@ -32,9 +32,13 @@
     th,td { text-align:left; vertical-align:top; border-bottom:1px solid var(--line); padding:7px 5px; overflow-wrap:anywhere; }
     th { color:var(--accent); }
     .table-wrap { overflow-x:auto; }
+    .trace-controls { display:grid; gap:8px; margin:10px 0; }
+    .trace-controls label { margin:0; }
+    .check-label { display:flex; align-items:center; gap:8px; min-height:44px; }
+    .check-label input { width:22px; height:22px; }
     details { margin-top:12px; } summary { cursor:pointer; font-weight:700; }
     code { color:var(--accent); }
-    @media (min-width:680px) { .grid { grid-template-columns:1fr 1fr; } .buttons { grid-template-columns:repeat(4,1fr); } }
+    @media (min-width:680px) { .grid { grid-template-columns:1fr 1fr; } .buttons { grid-template-columns:repeat(4,1fr); } .trace-controls { grid-template-columns:1fr 1fr 1fr; align-items:end; } }
   </style>
 </head>
 <body>
@@ -78,6 +82,11 @@
   <section class="panel">
     <h2>ワードごとのスタック遷移</h2>
     <p id="trace-summary" class="hint">（未実行）</p>
+    <div class="trace-controls">
+      <label for="trace-word">表示するワード<select id="trace-word" disabled><option value="all">すべて</option></select></label>
+      <label for="trace-invocation">呼出し番号<select id="trace-invocation" disabled><option value="all">すべて</option></select></label>
+      <label class="check-label"><input id="trace-all-loops" type="checkbox" disabled>LOOPの全反復を表示</label>
+    </div>
     <div class="table-wrap"><table><thead><tr><th>#</th><th>場所</th><th>ソース</th><th>入力／命令</th><th>実行前</th><th>実行後</th><th>結果</th></tr></thead><tbody id="trace"><tr><td colspan="7">（未実行）</td></tr></tbody></table></div>
   </section>
 
@@ -110,29 +119,96 @@
     recursiveHex: ': HEX-DIGIT ( n -- )\n  DUP 10 < IF 48 + ELSE 10 - 65 + THEN EMIT\n;\n\n: HEX-PRT ( u -- )\n  DUP 16 < IF\n    HEX-DIGIT\n  ELSE\n    16 /MOD RECURSE HEX-DIGIT\n  THEN\n;\n\n255 HEX-PRT CR'
   };
   const formatStack = stack => `<${stack.length}>${stack.length ? " " + stack.join(" ") : ""}`;
+  let lastResult = null;
   function setText(node, value) { node.textContent = value; }
   function loadDraft() {
     try { const saved = localStorage.getItem(storageKey); if (saved !== null) $("source").value = saved; }
     catch (_) { setText($("save-status"), "この表示方法では端末内保存を利用できません。ソースをコピーして保管してください。"); }
   }
+  function addOption(select, value, label) {
+    const option = document.createElement("option"); option.value = value; option.textContent = label; select.appendChild(option);
+  }
+  function updateInvocationChoices() {
+    const select = $("trace-invocation"); select.textContent = ""; addOption(select, "all", "すべて");
+    if (!lastResult || $("trace-word").value === "all" || $("trace-word").value === "0") { select.disabled = true; return; }
+    const wordId = Number($("trace-word").value);
+    const ids = [...new Set(lastResult.words.filter(item => item.scope === "colon" && item.wordId === wordId).map(item => item.invocationId))].sort((a, b) => a - b);
+    ids.forEach(id => addOption(select, String(id), `呼出し #${id}`));
+    select.disabled = ids.length === 0;
+  }
+  function configureTraceChoices(result) {
+    const select = $("trace-word"); select.textContent = ""; addOption(select, "all", "すべて"); addOption(select, "0", "#0 MAIN");
+    result.userWords.forEach(word => addOption(select, String(word.id), `#${word.id} ${word.name}`));
+    select.disabled = false;
+    $("trace-all-loops").disabled = false;
+    updateInvocationChoices();
+  }
+  function loopTotals(events) {
+    const totals = new Map();
+    events.forEach(event => [...(event.loopStackBefore || []), ...(event.loopStack || [])].forEach(frame => totals.set(frame.loopId, Math.max(totals.get(frame.loopId) || 0, frame.iteration + 1))));
+    return totals;
+  }
+  function foldLoops(events) {
+    if ($("trace-all-loops").checked) return events.map(event => ({ event }));
+    const totals = loopTotals(events);
+    const rows = [];
+    let lastHiddenLoop = null;
+    events.forEach(event => {
+      const hidden = (event.loopStackBefore || []).find(frame => {
+        const total = totals.get(frame.loopId) || 0;
+        return total > 4 && frame.iteration >= 2 && frame.iteration < total - 2;
+      });
+      if (hidden) {
+        if (lastHiddenLoop !== hidden.loopId) rows.push({ omission: { loopId: hidden.loopId, count: (totals.get(hidden.loopId) || 4) - 4 } });
+        lastHiddenLoop = hidden.loopId;
+      } else {
+        rows.push({ event });
+        lastHiddenLoop = null;
+      }
+    });
+    return rows;
+  }
+  function renderTrace() {
+    if (!lastResult) return;
+    const wordValue = $("trace-word").value;
+    const invocationValue = $("trace-invocation").value;
+    let events = lastResult.words;
+    if (wordValue !== "all") events = events.filter(item => item.wordId === Number(wordValue));
+    if (invocationValue !== "all") events = events.filter(item => item.scope === "colon" && item.invocationId === Number(invocationValue));
+    const rows = foldLoops(events);
+    const omittedByLoop = rows.reduce((count, row) => count + (row.omission ? row.omission.count : 0), 0);
+    const bounded = lastResult.traceSummary.omitted ? `／記録上限により中間${lastResult.traceSummary.omitted} event省略` : "";
+    const folded = omittedByLoop ? `／LOOP中間${omittedByLoop}反復を折り畳み` : "";
+    setText($("trace-summary"), `${events.length} eventから${rows.length}行を表示${folded}${bounded}`);
+    const body = $("trace"); body.textContent = "";
+    if (!rows.length) {
+      const row = body.insertRow(); const cell = row.insertCell(); cell.colSpan = 7; cell.textContent = "該当する記録なし"; return;
+    }
+    rows.forEach(item => {
+      const row = body.insertRow();
+      if (item.omission) {
+        const cell = row.insertCell(); cell.colSpan = 7; cell.textContent = `↳ LOOP L${item.omission.loopId}：中間${item.omission.count}反復を省略（「全反復を表示」で展開）`; return;
+      }
+      const event = item.event;
+      const location = event.scope === "colon" ? `${"↳".repeat(event.callDepth)} #${event.wordId} ${event.word} 呼出#${event.invocationId}` : event.scope === "definition" ? `#${event.wordId} ${event.word} 定義` : "#0 MAIN";
+      const sourceLocation = event.sourceLine ? `${event.sourceLine}:${event.sourceColumn}` : "—";
+      const loopFrames = event.loopStackBefore || [];
+      const loopFrame = loopFrames[loopFrames.length - 1];
+      const token = loopFrame ? `${event.token} 〔L${loopFrame.loopId} 反復${loopFrame.iteration} I=${loopFrame.index}〕` : event.token;
+      [event.sequence, location, sourceLocation, token, formatStack(event.dataBefore), formatStack(event.dataAfter || []), event.status === "error" ? `ERROR: ${event.error.name}` : "OK"].forEach(value => { const cell = row.insertCell(); cell.textContent = String(value); });
+    });
+  }
   function run() {
     const result = new Min0MobileForth.MobileForth().interpret($("source").value);
+    lastResult = result;
     setText($("terminal"), result.terminal || "（出力なし）");
     setText($("stack"), formatStack(result.dataStack));
     setText($("status"), result.ok ? `正常終了 / ${result.steps} steps` : `停止 / ${result.steps} steps`);
     $("status").className = result.ok ? "ok" : "bad";
     $("error-panel").hidden = result.ok;
     if (!result.ok) setText($("error"), `${result.error.name}: ${result.error.message}\n停止位置: #${result.error.wordId} ${result.error.word}${result.error.sourceLine ? `（${result.error.sourceLine}行${result.error.sourceColumn}列）` : ""}${result.error.instructionIndex ? ` 命令${result.error.instructionIndex}` : ""}\n最上位入力位置: ${result.error.tokenIndex}`);
-    setText($("trace-summary"), result.traceSummary.omitted ? `${result.traceSummary.total}件中${result.traceSummary.recorded}件を表示（中間${result.traceSummary.omitted}件を省略）` : `${result.traceSummary.total}件をすべて表示`);
-    const body = $("trace"); body.textContent = "";
-    if (!result.words.length) {
-      const row = body.insertRow(); const cell = row.insertCell(); cell.colSpan = 7; cell.textContent = "記録なし";
-    } else result.words.forEach(item => {
-      const row = body.insertRow();
-      const location = item.scope === "colon" ? `${"  ".repeat(item.callDepth - 1)}#${item.wordId} ${item.word} 呼出#${item.invocationId}` : item.scope === "definition" ? `#${item.wordId} ${item.word} 定義` : "#0 MAIN";
-      const sourceLocation = item.sourceLine ? `${item.sourceLine}:${item.sourceColumn}` : "—";
-      [item.sequence, location, sourceLocation, item.token, formatStack(item.dataBefore), formatStack(item.dataAfter || []), item.status === "error" ? `ERROR: ${item.error.name}` : "OK"].forEach(value => { const cell = row.insertCell(); cell.textContent = String(value); });
-    });
+    configureTraceChoices(result);
+    renderTrace();
   }
   $("run").addEventListener("click", run);
   $("save").addEventListener("click", () => {
@@ -146,6 +222,9 @@
   });
   $("clear").addEventListener("click", () => { $("source").value = ""; $("source").focus(); });
   $("examples").addEventListener("change", event => { if (examples[event.target.value]) $("source").value = examples[event.target.value]; });
+  $("trace-word").addEventListener("change", () => { updateInvocationChoices(); renderTrace(); });
+  $("trace-invocation").addEventListener("change", renderTrace);
+  $("trace-all-loops").addEventListener("change", renderTrace);
   loadDraft();
 })();
 </script>

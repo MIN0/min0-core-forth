@@ -162,6 +162,12 @@ traceは既定2000件を上限とし、先頭半分と末尾半分を保持し�
 長いloopでもmemory使用量を固定しながら停止直前のeventを残す。loopを反復単位でまとめる表示、
 word／invocation選択UI、短いワード辞典は未実装であり、次の作業とする。
 
+さらにword番号とinvocation番号による表示選択UIを追加した。LOOP frameには固有loop ID、nest depth、
+反復番号を持たせ、既定表示では各loopの先頭2反復と末尾2反復を残して中間を1行へ折り畳む。
+「LOOPの全反復を表示」で展開でき、各eventにはloop ID、反復番号、`I`の値を表示する。
+入れ子loopは異なるloop IDで区別される。残るPhase Aの中心は、より詳細なword／invocation階層表示と
+短いワード辞典metadata／検索UIである。
+
 ### Phase B―Monitor基盤
 
 1. interpreterを1 instructionずつ再開可能なstate machineへ分離する。

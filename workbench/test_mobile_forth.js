@@ -104,4 +104,11 @@ assert.equal(boundedTrace.ok, true);
 assert.deepEqual(boundedTrace.words.map(item => item.sequence), [1, 2, 3, 6, 7, 8]);
 assert.deepEqual(boundedTrace.traceSummary, { limit: 6, recorded: 6, omitted: 2, total: 8 });
 
+const loopTrace = run(": COUNT 0 DO I DROP LOOP ; 6 COUNT");
+assert.equal(loopTrace.ok, true);
+const loopBody = loopTrace.words.filter(item => item.scope === "colon" && item.word === "COUNT" && item.token === "I");
+assert.deepEqual(loopBody.map(item => item.loopStackBefore[0].iteration), [0, 1, 2, 3, 4, 5]);
+assert.equal(new Set(loopBody.map(item => item.loopStackBefore[0].loopId)).size, 1);
+assert.deepEqual(loopBody.map(item => item.loopStackBefore[0].index), [0, 1, 2, 3, 4, 5]);
+
 console.log("mobile forth tests: PASS");
