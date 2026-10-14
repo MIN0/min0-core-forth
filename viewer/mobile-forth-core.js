@@ -161,6 +161,8 @@
       this.steps = 0;
       this.dictionary = new Map();
       this.trace = [];
+      this.callFrames = [];
+      this.nextInvocationId = 1;
     }
 
     need(count, word) {
@@ -169,6 +171,52 @@
     pop(word) { this.need(1, word); return this.stack.pop(); }
     push(value) { this.stack.push(cell(value)); }
     step() { this.steps += 1; if (this.steps > this.maxSteps) throw new StepLimitExceeded(`step limit ${this.maxSteps} exceeded`); }
+
+    stackSnapshot() { return this.stack.map(signed); }
+    loopSnapshot() { return this.loopStack.map(frame => ({ limit: signed(frame.limit), index: signed(frame.index) })); }
+
+    beginTrace(fields) {
+      const event = {
+        sequence: this.trace.length + 1,
+        scope: fields.scope,
+        word: fields.word,
+        invocationId: fields.invocationId,
+        callDepth: fields.callDepth,
+        instructionIndex: fields.instructionIndex,
+        token: fields.token,
+        op: fields.op || null,
+        dataBefore: this.stackSnapshot(),
+        dataAfter: null,
+        returnStackBefore: [...this.returnStack],
+        returnStack: null,
+        loopStackBefore: this.loopSnapshot(),
+        loopStack: null,
+        outputBefore: this.output,
+        output: null,
+        outputDelta: "",
+        status: "running",
+        error: null,
+      };
+      this.trace.push(event);
+      return event;
+    }
+
+    finishTrace(event, error = null) {
+      event.dataAfter = this.stackSnapshot();
+      event.returnStack = [...this.returnStack];
+      event.loopStack = this.loopSnapshot();
+      event.output = this.output;
+      event.outputDelta = this.output.slice(event.outputBefore.length);
+      event.status = error ? "error" : "ok";
+      event.error = error ? { name: error.constructor.name, message: error.message } : null;
+    }
+
+    instructionLabel(instruction) {
+      if (instruction.op === "LIT") return String(signed(instruction.value));
+      if (instruction.op === "PRINT") return '."';
+      if (instruction.op === "WORD") return instruction.name;
+      return instruction.op;
+    }
 
     executeWord(name) {
       this.step();
@@ -181,51 +229,62 @@
 
     executeDefinition(name, code) {
       if (this.returnStack.length >= MAX_CALL_DEPTH) throw new CallDepthExceeded(`call depth ${MAX_CALL_DEPTH} exceeded`);
+      const frame = { word: name, invocationId: this.nextInvocationId, callDepth: this.callFrames.length + 1 };
+      this.nextInvocationId += 1;
       this.returnStack.push(name);
-      try { this.runCode(code); } finally { this.returnStack.pop(); }
+      this.callFrames.push(frame);
+      try { this.runCode(code, frame); } finally { this.callFrames.pop(); this.returnStack.pop(); }
     }
 
-    runCode(code) {
+    runCode(code, frame) {
       let ip = 0;
       while (ip < code.length) {
         const instruction = code[ip];
-        this.step();
-        if (instruction.op === "LIT") this.push(instruction.value);
-        else if (instruction.op === "PRINT") this.output += instruction.text;
-        else if (instruction.op === "WORD") this.executeWord(instruction.name);
-        else if (instruction.op === "RECURSE") {
-          const name = this.returnStack[this.returnStack.length - 1];
-          if (!name) throw new CompileError("RECURSE requires a colon definition");
-          this.executeDefinition(name, code);
+        const event = this.beginTrace({ scope: "colon", word: frame.word, invocationId: frame.invocationId, callDepth: frame.callDepth, instructionIndex: ip + 1, token: this.instructionLabel(instruction), op: instruction.op });
+        let nextIp = ip + 1;
+        try {
+          this.step();
+          if (instruction.op === "LIT") this.push(instruction.value);
+          else if (instruction.op === "PRINT") this.output += instruction.text;
+          else if (instruction.op === "WORD") this.executeWord(instruction.name);
+          else if (instruction.op === "RECURSE") {
+            const name = this.returnStack[this.returnStack.length - 1];
+            if (!name) throw new CompileError("RECURSE requires a colon definition");
+            this.executeDefinition(name, code);
+          }
+          else if (instruction.op === "JUMP") nextIp = instruction.target;
+          else if (instruction.op === "JZ") { if (this.pop("branch") === 0) nextIp = instruction.target; }
+          else if (instruction.op === "DO" || instruction.op === "?DO") {
+            this.need(2, instruction.op);
+            const start = this.stack[this.stack.length - 1];
+            const limit = this.stack[this.stack.length - 2];
+            this.stack.splice(-2, 2);
+            if (instruction.op === "?DO" && start === limit) nextIp = instruction.target;
+            else this.loopStack.push({ limit, index: start });
+          } else if (instruction.op === "LOOP") {
+            if (!this.loopStack.length) throw new StackUnderflow("LOOP needs a loop frame");
+            const loopFrame = this.loopStack[this.loopStack.length - 1];
+            loopFrame.index = cell(loopFrame.index + 1);
+            if (loopFrame.index === loopFrame.limit) this.loopStack.pop(); else nextIp = instruction.target;
+          } else if (instruction.op === "+LOOP") {
+            if (!this.loopStack.length) throw new StackUnderflow("+LOOP needs a loop frame");
+            const increment = signed(this.pop("+LOOP"));
+            const loopFrame = this.loopStack[this.loopStack.length - 1];
+            const oldDelta = signed(loopFrame.index - loopFrame.limit);
+            loopFrame.index = cell(loopFrame.index + increment);
+            const newDelta = signed(loopFrame.index - loopFrame.limit);
+            const crossed = (increment > 0 && oldDelta < 0 && newDelta >= 0) || (increment < 0 && oldDelta > 0 && newDelta <= 0);
+            if (crossed) this.loopStack.pop(); else nextIp = instruction.target;
+          } else if (instruction.op === "LEAVE") {
+            if (!this.loopStack.length) throw new StackUnderflow("LEAVE needs a loop frame");
+            this.loopStack.pop(); nextIp = instruction.target;
+          } else throw new CompileError(`invalid instruction ${instruction.op}`);
+          this.finishTrace(event);
+        } catch (error) {
+          this.finishTrace(event, error);
+          throw error;
         }
-        else if (instruction.op === "JUMP") { ip = instruction.target; continue; }
-        else if (instruction.op === "JZ") { if (this.pop("branch") === 0) { ip = instruction.target; continue; } }
-        else if (instruction.op === "DO" || instruction.op === "?DO") {
-          this.need(2, instruction.op);
-          const start = this.stack[this.stack.length - 1];
-          const limit = this.stack[this.stack.length - 2];
-          this.stack.splice(-2, 2);
-          if (instruction.op === "?DO" && start === limit) { ip = instruction.target; continue; }
-          this.loopStack.push({ limit, index: start });
-        } else if (instruction.op === "LOOP") {
-          if (!this.loopStack.length) throw new StackUnderflow("LOOP needs a loop frame");
-          const frame = this.loopStack[this.loopStack.length - 1];
-          frame.index = cell(frame.index + 1);
-          if (frame.index === frame.limit) this.loopStack.pop(); else { ip = instruction.target; continue; }
-        } else if (instruction.op === "+LOOP") {
-          if (!this.loopStack.length) throw new StackUnderflow("+LOOP needs a loop frame");
-          const increment = signed(this.pop("+LOOP"));
-          const frame = this.loopStack[this.loopStack.length - 1];
-          const oldDelta = signed(frame.index - frame.limit);
-          frame.index = cell(frame.index + increment);
-          const newDelta = signed(frame.index - frame.limit);
-          const crossed = (increment > 0 && oldDelta < 0 && newDelta >= 0) || (increment < 0 && oldDelta > 0 && newDelta <= 0);
-          if (crossed) this.loopStack.pop(); else { ip = instruction.target; continue; }
-        } else if (instruction.op === "LEAVE") {
-          if (!this.loopStack.length) throw new StackUnderflow("LEAVE needs a loop frame");
-          this.loopStack.pop(); ip = instruction.target; continue;
-        } else throw new CompileError(`invalid instruction ${instruction.op}`);
-        ip += 1;
+        ip = nextIp;
       }
     }
 
@@ -270,30 +329,35 @@
         if (new TextEncoder().encode(source).length > MAX_SOURCE_BYTES) throw new CompileError(`source exceeds ${MAX_SOURCE_BYTES} UTF-8 bytes`);
         tokens = tokenize(source);
         while (index < tokens.length) {
-          const before = this.stack.map(signed);
           const token = tokens[index];
-          let label;
-          if (token === ":") {
-            const name = tokens[index + 1];
-            if (typeof name !== "string" || [":", ";"].includes(name)) throw new CompileError(":" + " requires a word name");
-            const body = [];
-            index += 2;
-            while (index < tokens.length && tokens[index] !== ";") { body.push(tokens[index]); index += 1; }
-            if (index >= tokens.length) throw new CompileError(`definition ${name} is missing ;`);
-            this.dictionary.set(name, compileBody(body));
-            label = `: ${name} ... ;`;
-          } else if (typeof token === "object" && token.kind === "PRINT") {
-            this.step(); this.output += token.text; label = '."';
-          } else {
-            const number = parseNumber(token);
-            if (number !== null) { this.step(); this.push(number); }
-            else {
-              if ([";", "IF", "ELSE", "THEN", "BEGIN", "UNTIL", "AGAIN", "WHILE", "REPEAT", "DO", "?DO", "LOOP", "+LOOP", "LEAVE", "RECURSE"].includes(token)) throw new CompileError(`${token} is compile-only`);
-              this.executeWord(token);
+          const event = this.beginTrace({ scope: "main", word: "#0 MAIN", invocationId: 0, callDepth: 0, instructionIndex: index + 1, token: typeof token === "object" ? '."' : token, op: token === ":" ? "DEFINE" : "TOKEN" });
+          try {
+            if (token === ":") {
+              const name = tokens[index + 1];
+              if (typeof name !== "string" || [":", ";"].includes(name)) throw new CompileError(":" + " requires a word name");
+              const body = [];
+              index += 2;
+              while (index < tokens.length && tokens[index] !== ";") { body.push(tokens[index]); index += 1; }
+              if (index >= tokens.length) throw new CompileError(`definition ${name} is missing ;`);
+              this.dictionary.set(name, compileBody(body));
+              event.token = `: ${name} ... ;`;
+              event.word = name;
+              event.scope = "definition";
+            } else if (typeof token === "object" && token.kind === "PRINT") {
+              this.step(); this.output += token.text;
+            } else {
+              const number = parseNumber(token);
+              if (number !== null) { this.step(); this.push(number); }
+              else {
+                if ([";", "IF", "ELSE", "THEN", "BEGIN", "UNTIL", "AGAIN", "WHILE", "REPEAT", "DO", "?DO", "LOOP", "+LOOP", "LEAVE", "RECURSE"].includes(token)) throw new CompileError(`${token} is compile-only`);
+                this.executeWord(token);
+              }
             }
-            label = token;
+            this.finishTrace(event);
+          } catch (error) {
+            this.finishTrace(event, error);
+            throw error;
           }
-          this.trace.push({ sequence: this.trace.length + 1, token: label, dataBefore: before, dataAfter: this.stack.map(signed), returnStack: [...this.returnStack], loopStack: this.loopStack.map(frame => ({ limit: signed(frame.limit), index: signed(frame.index) })), output: this.output });
           index += 1;
         }
         return this.result(null);

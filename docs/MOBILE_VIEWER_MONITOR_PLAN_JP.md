@@ -152,6 +152,12 @@ Pause、`BREAK`、`KEY`待ち、安全停止で実行が止まったときは、
 6. ワード辞典metadataと検索UIを追加する。
 7. Node.js試験、browser構造試験、iPhone表示確認を行う。
 
+2026-10-15進捗：項目1の共通trace eventを実装した。`#0 MAIN`、definition、colon内部を区別し、
+colon eventにはword名、invocation ID、call depth、instruction位置、実行前後stack、return／loop stack、
+出力差分、成功／errorを記録する。入れ子colon wordと、stackを壊さず失敗する`/MOD`の回帰試験を追加した。
+画面の表でも場所、呼出し番号、内部命令、errorを確認できる。word通し番号、source行・列、loop折り畳み、
+trace上限は未実装であり、次の作業とする。
+
 ### Phase B―Monitor基盤
 
 1. interpreterを1 instructionずつ再開可能なstate machineへ分離する。

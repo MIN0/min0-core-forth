@@ -67,4 +67,26 @@ const deepRecursion = run(": DIVE 1+ RECURSE ; 0 DIVE");
 assert.equal(deepRecursion.ok, false);
 assert.equal(deepRecursion.error.name, "CallDepthExceeded");
 
+const nestedTrace = ok(": INNER 1+ ; : OUTER INNER DUP ; 4 OUTER", [5, 5]);
+const outerCall = nestedTrace.words.find(item => item.scope === "colon" && item.word === "OUTER" && item.token === "INNER");
+const innerStep = nestedTrace.words.find(item => item.scope === "colon" && item.word === "INNER" && item.token === "1+");
+assert.ok(outerCall, "OUTER must expose its INNER instruction");
+assert.ok(innerStep, "INNER must expose its 1+ instruction");
+assert.equal(outerCall.callDepth, 1);
+assert.equal(innerStep.callDepth, 2);
+assert.notEqual(outerCall.invocationId, innerStep.invocationId);
+assert.deepEqual(innerStep.dataBefore, [4]);
+assert.deepEqual(innerStep.dataAfter, [5]);
+assert.deepEqual(innerStep.returnStackBefore, ["OUTER", "INNER"]);
+assert.equal(innerStep.status, "ok");
+
+const failedTrace = run(": BAD 0 /MOD ; 7 BAD");
+assert.equal(failedTrace.ok, false);
+const failedInstruction = failedTrace.words.find(item => item.scope === "colon" && item.word === "BAD" && item.token === "/MOD");
+assert.ok(failedInstruction, "failed colon instruction must remain observable");
+assert.equal(failedInstruction.status, "error");
+assert.equal(failedInstruction.error.name, "DivisionByZero");
+assert.deepEqual(failedInstruction.dataBefore, [7, 0]);
+assert.deepEqual(failedInstruction.dataAfter, [7, 0]);
+
 console.log("mobile forth tests: PASS");
