@@ -99,6 +99,35 @@ BREAK    ( -- )       承認済みMonitor停止点へ入る
 - 現在word、source位置、stack、loop indexの表示
 - 変数一覧、選択、検査付き変更
 
+### 停止位置と呼出し履歴の表示
+
+Pause、`BREAK`、`KEY`待ち、安全停止で実行が止まったときは、data stackだけでなく「どこで止まり、
+どのwordから呼ばれて現在位置へ来たか」を確認できなければならない。画面には独立した
+「実行位置／呼出し履歴」paneを設け、必要なら別窓へpop-outできるようにする。
+
+```text
+停止理由：Pause要求（instruction境界で受理）
+現在位置：#7 FILTER-SAMPLE  invocation 12  token 18/31  source 9:14
+
+呼出し履歴（新しいframeが上）
+→ #7 FILTER-SAMPLE   return: #5 READ-SENSOR token 24
+  #5 READ-SENSOR     return: #2 SAMPLE-LOOP token 11
+  #2 SAMPLE-LOOP     return: #0 MAIN token 6
+  #0 MAIN            entry
+```
+
+- frameを選ぶと、そのwordのsource、停止token、呼出しtoken、data stack snapshot、loop frameを表示する。
+- 再帰では同じword名でもinvocation番号とcall depthで区別する。
+- return stackにはreturn先だけでなくloop制御値などが入る場合があるため、全cellをアドレスと推測しない。
+  `CALL_RETURN`、`LOOP_FRAME`、`EXCEPTION_FRAME`などの型付きframeとして保持・表示する。
+- Mobile Learningでは生のmemory addressを持たないため、`wordId`、`invocationId`、token index、source位置を
+  論理return addressとして保存する。
+- native targetでは停止snapshotのreturn addressをsymbol／word range mapへ照合し、word名とoffsetを表示する。
+  対応表にない値はword名を捏造せず、`unknown address`として16進表示する。
+- Pauseを受理したinstruction境界のsnapshotだけをUIへ渡し、実行中に変化しているstackを直接読まない。
+- 継続後も直前の停止snapshotを履歴として残し、「現在実行中の状態」と混同しない表示にする。
+- trace上限で古いeventを省略しても、現在のcall chainと再開に必要なreturn frameは失わない。
+
 ## 安全規則
 
 - 画面から実行中のJavaScript objectを直接書き換えない。
@@ -127,8 +156,10 @@ BREAK    ( -- )       承認済みMonitor停止点へ入る
 
 1. interpreterを1 instructionずつ再開可能なstate machineへ分離する。
 2. Run／Pause／Step／Continue／Stopの状態遷移試験を作る。
-3. Web Workerへ移し、message protocolを固定する。
-4. `YIELD`と自動yieldを実装する。
+3. return stackを型付きframe化し、現在word、caller、logical return位置を停止snapshotへ保存する。
+4. 「実行位置／呼出し履歴」paneとframe選択表示を追加する。
+5. Web Workerへ移し、停止snapshotを含むmessage protocolを固定する。
+6. `YIELD`と自動yieldを実装する。
 
 ### Phase C―入力と変数操作
 
