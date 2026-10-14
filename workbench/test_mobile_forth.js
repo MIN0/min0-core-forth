@@ -67,7 +67,7 @@ const deepRecursion = run(": DIVE 1+ RECURSE ; 0 DIVE");
 assert.equal(deepRecursion.ok, false);
 assert.equal(deepRecursion.error.name, "CallDepthExceeded");
 
-const nestedTrace = ok(": INNER 1+ ; : OUTER INNER DUP ; 4 OUTER", [5, 5]);
+const nestedTrace = ok(": INNER\n 1+\n;\n: OUTER\n INNER DUP\n;\n4 OUTER", [5, 5]);
 const outerCall = nestedTrace.words.find(item => item.scope === "colon" && item.word === "OUTER" && item.token === "INNER");
 const innerStep = nestedTrace.words.find(item => item.scope === "colon" && item.word === "INNER" && item.token === "1+");
 assert.ok(outerCall, "OUTER must expose its INNER instruction");
@@ -79,14 +79,29 @@ assert.deepEqual(innerStep.dataBefore, [4]);
 assert.deepEqual(innerStep.dataAfter, [5]);
 assert.deepEqual(innerStep.returnStackBefore, ["OUTER", "INNER"]);
 assert.equal(innerStep.status, "ok");
+assert.deepEqual(nestedTrace.userWords, [{ id: 1, name: "INNER" }, { id: 2, name: "OUTER" }]);
+assert.equal(outerCall.wordId, 2);
+assert.equal(innerStep.wordId, 1);
+assert.equal(outerCall.sourceLine, 5);
+assert.equal(outerCall.sourceColumn, 2);
+assert.equal(innerStep.sourceLine, 2);
+assert.equal(innerStep.sourceColumn, 2);
 
 const failedTrace = run(": BAD 0 /MOD ; 7 BAD");
 assert.equal(failedTrace.ok, false);
+assert.equal(failedTrace.error.word, "BAD");
+assert.equal(failedTrace.error.wordId, 1);
+assert.equal(failedTrace.error.instructionIndex, 2);
 const failedInstruction = failedTrace.words.find(item => item.scope === "colon" && item.word === "BAD" && item.token === "/MOD");
 assert.ok(failedInstruction, "failed colon instruction must remain observable");
 assert.equal(failedInstruction.status, "error");
 assert.equal(failedInstruction.error.name, "DivisionByZero");
 assert.deepEqual(failedInstruction.dataBefore, [7, 0]);
 assert.deepEqual(failedInstruction.dataAfter, [7, 0]);
+
+const boundedTrace = run("1 2 3 4 5 6 7 8", { maxTraceEvents: 6 });
+assert.equal(boundedTrace.ok, true);
+assert.deepEqual(boundedTrace.words.map(item => item.sequence), [1, 2, 3, 6, 7, 8]);
+assert.deepEqual(boundedTrace.traceSummary, { limit: 6, recorded: 6, omitted: 2, total: 8 });
 
 console.log("mobile forth tests: PASS");

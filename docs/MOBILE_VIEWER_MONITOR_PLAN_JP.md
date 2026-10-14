@@ -155,8 +155,12 @@ Pause、`BREAK`、`KEY`待ち、安全停止で実行が止まったときは、
 2026-10-15進捗：項目1の共通trace eventを実装した。`#0 MAIN`、definition、colon内部を区別し、
 colon eventにはword名、invocation ID、call depth、instruction位置、実行前後stack、return／loop stack、
 出力差分、成功／errorを記録する。入れ子colon wordと、stackを壊さず失敗する`/MOD`の回帰試験を追加した。
-画面の表でも場所、呼出し番号、内部命令、errorを確認できる。word通し番号、source行・列、loop折り畳み、
-trace上限は未実装であり、次の作業とする。
+画面の表でも場所、呼出し番号、内部命令、errorを確認できる。
+
+同日の次段階で、利用者定義wordへ`#1`からの通し番号を付け、各traceにsource行・列を追加した。
+traceは既定2000件を上限とし、先頭半分と末尾半分を保持して中間の省略件数を表示する。これにより、
+長いloopでもmemory使用量を固定しながら停止直前のeventを残す。loopを反復単位でまとめる表示、
+word／invocation選択UI、短いワード辞典は未実装であり、次の作業とする。
 
 ### Phase B―Monitor基盤
 

@@ -77,7 +77,8 @@
   <section class="panel" id="error-panel" hidden><h2>エラー</h2><pre id="error" class="bad"></pre></section>
   <section class="panel">
     <h2>ワードごとのスタック遷移</h2>
-    <div class="table-wrap"><table><thead><tr><th>#</th><th>場所</th><th>入力／命令</th><th>実行前</th><th>実行後</th><th>結果</th></tr></thead><tbody id="trace"><tr><td colspan="6">（未実行）</td></tr></tbody></table></div>
+    <p id="trace-summary" class="hint">（未実行）</p>
+    <div class="table-wrap"><table><thead><tr><th>#</th><th>場所</th><th>ソース</th><th>入力／命令</th><th>実行前</th><th>実行後</th><th>結果</th></tr></thead><tbody id="trace"><tr><td colspan="7">（未実行）</td></tr></tbody></table></div>
   </section>
 
   <details class="panel">
@@ -121,14 +122,16 @@
     setText($("status"), result.ok ? `正常終了 / ${result.steps} steps` : `停止 / ${result.steps} steps`);
     $("status").className = result.ok ? "ok" : "bad";
     $("error-panel").hidden = result.ok;
-    if (!result.ok) setText($("error"), `${result.error.name}: ${result.error.message}\n入力位置: ${result.error.tokenIndex}`);
+    if (!result.ok) setText($("error"), `${result.error.name}: ${result.error.message}\n停止位置: #${result.error.wordId} ${result.error.word}${result.error.sourceLine ? `（${result.error.sourceLine}行${result.error.sourceColumn}列）` : ""}${result.error.instructionIndex ? ` 命令${result.error.instructionIndex}` : ""}\n最上位入力位置: ${result.error.tokenIndex}`);
+    setText($("trace-summary"), result.traceSummary.omitted ? `${result.traceSummary.total}件中${result.traceSummary.recorded}件を表示（中間${result.traceSummary.omitted}件を省略）` : `${result.traceSummary.total}件をすべて表示`);
     const body = $("trace"); body.textContent = "";
     if (!result.words.length) {
-      const row = body.insertRow(); const cell = row.insertCell(); cell.colSpan = 6; cell.textContent = "記録なし";
+      const row = body.insertRow(); const cell = row.insertCell(); cell.colSpan = 7; cell.textContent = "記録なし";
     } else result.words.forEach(item => {
       const row = body.insertRow();
-      const location = item.scope === "colon" ? `${"  ".repeat(item.callDepth - 1)}${item.word} 呼出#${item.invocationId}` : item.scope === "definition" ? `${item.word} 定義` : "#0 MAIN";
-      [item.sequence, location, item.token, formatStack(item.dataBefore), formatStack(item.dataAfter || []), item.status === "error" ? `ERROR: ${item.error.name}` : "OK"].forEach(value => { const cell = row.insertCell(); cell.textContent = String(value); });
+      const location = item.scope === "colon" ? `${"  ".repeat(item.callDepth - 1)}#${item.wordId} ${item.word} 呼出#${item.invocationId}` : item.scope === "definition" ? `#${item.wordId} ${item.word} 定義` : "#0 MAIN";
+      const sourceLocation = item.sourceLine ? `${item.sourceLine}:${item.sourceColumn}` : "—";
+      [item.sequence, location, sourceLocation, item.token, formatStack(item.dataBefore), formatStack(item.dataAfter || []), item.status === "error" ? `ERROR: ${item.error.name}` : "OK"].forEach(value => { const cell = row.insertCell(); cell.textContent = String(value); });
     });
   }
   $("run").addEventListener("click", run);

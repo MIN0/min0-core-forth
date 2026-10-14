@@ -8,6 +8,7 @@
   const TRUE = 0xFFFFFFFF;
   const MAX_SOURCE_BYTES = 4096;
   const DEFAULT_MAX_STEPS = 100000;
+  const DEFAULT_MAX_TRACE_EVENTS = 2000;
   const MAX_CALL_DEPTH = 64;
 
   const cell = value => Number(value) >>> 0;
@@ -22,7 +23,23 @@
   class StepLimitExceeded extends ForthError {}
   class CallDepthExceeded extends ForthError {}
 
-  function tokenize(source) {
+  function sourcePosition(source, target) {
+    let line = 1;
+    let column = 1;
+    for (let index = 0; index < target; index += 1) {
+      if (source[index] === "\r") {
+        if (source[index + 1] === "\n") index += 1;
+        line += 1;
+        column = 1;
+      } else if (source[index] === "\n") {
+        line += 1;
+        column = 1;
+      } else column += 1;
+    }
+    return { line, column };
+  }
+
+  function tokenizeDetailed(source) {
     const tokens = [];
     let index = 0;
     while (index < source.length) {
@@ -46,6 +63,7 @@
         continue;
       }
       if (source.slice(index, index + 2) === '."') {
+        const tokenStart = index;
         index += 2;
         if (source[index] === " " || source[index] === "\t") index += 1;
         const start = index;
@@ -54,16 +72,18 @@
           index += 1;
         }
         if (index >= source.length) throw new CompileError('." string is missing closing quote');
-        tokens.push({ kind: "PRINT", text: source.slice(start, index), label: '."' });
+        tokens.push({ value: { kind: "PRINT", text: source.slice(start, index), label: '."' }, ...sourcePosition(source, tokenStart) });
         index += 1;
         continue;
       }
       const start = index;
       while (index < source.length && !/\s/.test(source[index]) && source[index] !== "\\") index += 1;
-      tokens.push(source.slice(start, index).toUpperCase());
+      tokens.push({ value: source.slice(start, index).toUpperCase(), ...sourcePosition(source, start) });
     }
     return tokens;
   }
+
+  function tokenize(source) { return tokenizeDetailed(source).map(token => token.value); }
 
   function parseNumber(token) {
     if (typeof token !== "string") return null;
@@ -84,20 +104,23 @@
       }
       return null;
     };
-    for (const token of tokens) {
+    for (const entry of tokens) {
+      const detailed = entry && typeof entry === "object" && Object.prototype.hasOwnProperty.call(entry, "value");
+      const token = detailed ? entry.value : entry;
+      const emit = instruction => code.push({ ...instruction, sourceLine: detailed ? entry.line : null, sourceColumn: detailed ? entry.column : null });
       if (typeof token === "object" && token.kind === "PRINT") {
-        code.push({ op: "PRINT", text: token.text });
+        emit({ op: "PRINT", text: token.text });
         continue;
       }
       const number = parseNumber(token);
-      if (number !== null) { code.push({ op: "LIT", value: number }); continue; }
+      if (number !== null) { emit({ op: "LIT", value: number }); continue; }
       if (token === "IF") {
-        code.push({ op: "JZ", target: null });
+        emit({ op: "JZ", target: null });
         control.push({ kind: "IF", index: code.length - 1 });
       } else if (token === "ELSE") {
         const mark = control.pop();
         if (!mark || mark.kind !== "IF") throw new CompileError("ELSE requires IF");
-        code.push({ op: "JUMP", target: null });
+        emit({ op: "JUMP", target: null });
         code[mark.index].target = code.length;
         control.push({ kind: "ELSE", index: code.length - 1 });
       } else if (token === "THEN") {
@@ -109,38 +132,38 @@
       } else if (token === "UNTIL" || token === "AGAIN") {
         const mark = control.pop();
         if (!mark || mark.kind !== "BEGIN") throw new CompileError(`${token} requires BEGIN`);
-        code.push({ op: token === "UNTIL" ? "JZ" : "JUMP", target: mark.start });
+        emit({ op: token === "UNTIL" ? "JZ" : "JUMP", target: mark.start });
       } else if (token === "WHILE") {
         const begin = control[control.length - 1];
         if (!begin || begin.kind !== "BEGIN") throw new CompileError("WHILE requires BEGIN");
-        code.push({ op: "JZ", target: null });
+        emit({ op: "JZ", target: null });
         control.push({ kind: "WHILE", index: code.length - 1, begin });
       } else if (token === "REPEAT") {
         const mark = control.pop();
         const begin = control.pop();
         if (!mark || mark.kind !== "WHILE" || !begin || begin !== mark.begin) throw new CompileError("REPEAT requires BEGIN WHILE");
-        code.push({ op: "JUMP", target: begin.start });
+        emit({ op: "JUMP", target: begin.start });
         code[mark.index].target = code.length;
       } else if (token === "DO" || token === "?DO") {
-        code.push({ op: token, target: null });
+        emit({ op: token, target: null });
         control.push({ kind: "DO", index: code.length - 1, start: code.length, leaves: [] });
       } else if (token === "LEAVE") {
         const mark = nearest("DO");
         if (!mark) throw new CompileError("LEAVE requires DO or ?DO");
-        code.push({ op: "LEAVE", target: null });
+        emit({ op: "LEAVE", target: null });
         mark.leaves.push(code.length - 1);
       } else if (token === "LOOP" || token === "+LOOP") {
         const mark = control.pop();
         if (!mark || mark.kind !== "DO") throw new CompileError(`${token} requires DO or ?DO`);
-        code.push({ op: token, target: mark.start });
+        emit({ op: token, target: mark.start });
         code[mark.index].target = code.length;
         for (const leave of mark.leaves) code[leave].target = code.length;
       } else if (token === "RECURSE") {
-        code.push({ op: "RECURSE" });
+        emit({ op: "RECURSE" });
       } else if (["IF", "ELSE", "THEN", "BEGIN", "UNTIL", "AGAIN", "WHILE", "REPEAT", "DO", "?DO", "LOOP", "+LOOP", "LEAVE"].includes(token)) {
         throw new CompileError(`unsupported structure ${token}`);
       } else {
-        code.push({ op: "WORD", name: token });
+        emit({ op: "WORD", name: token });
       }
     }
     if (control.length) throw new CompileError(`unresolved ${control[control.length - 1].kind}`);
@@ -150,6 +173,7 @@
   class MobileForth {
     constructor(options = {}) {
       this.maxSteps = options.maxSteps || DEFAULT_MAX_STEPS;
+      this.maxTraceEvents = Math.max(2, options.maxTraceEvents || DEFAULT_MAX_TRACE_EVENTS);
       this.reset();
     }
 
@@ -160,7 +184,14 @@
       this.output = "";
       this.steps = 0;
       this.dictionary = new Map();
+      this.wordIds = new Map();
+      this.nextWordId = 1;
       this.trace = [];
+      this.traceTail = new Array(Math.ceil(this.maxTraceEvents / 2));
+      this.traceTailCount = 0;
+      this.traceTailNext = 0;
+      this.traceSequence = 0;
+      this.omittedTraceEvents = 0;
       this.callFrames = [];
       this.nextInvocationId = 1;
     }
@@ -177,12 +208,15 @@
 
     beginTrace(fields) {
       const event = {
-        sequence: this.trace.length + 1,
+        sequence: this.traceSequence + 1,
         scope: fields.scope,
         word: fields.word,
+        wordId: fields.wordId,
         invocationId: fields.invocationId,
         callDepth: fields.callDepth,
         instructionIndex: fields.instructionIndex,
+        sourceLine: fields.sourceLine || null,
+        sourceColumn: fields.sourceColumn || null,
         token: fields.token,
         op: fields.op || null,
         dataBefore: this.stackSnapshot(),
@@ -197,8 +231,25 @@
         status: "running",
         error: null,
       };
-      this.trace.push(event);
+      this.traceSequence += 1;
+      const headLimit = Math.floor(this.maxTraceEvents / 2);
+      if (this.trace.length < headLimit) this.trace.push(event);
+      else if (this.traceTailCount < this.traceTail.length) {
+        this.traceTail[this.traceTailCount] = event;
+        this.traceTailCount += 1;
+      } else {
+        this.traceTail[this.traceTailNext] = event;
+        this.traceTailNext = (this.traceTailNext + 1) % this.traceTail.length;
+        this.omittedTraceEvents += 1;
+      }
       return event;
+    }
+
+    traceEvents() {
+      const tail = this.traceTailCount < this.traceTail.length
+        ? this.traceTail.slice(0, this.traceTailCount)
+        : [...this.traceTail.slice(this.traceTailNext), ...this.traceTail.slice(0, this.traceTailNext)];
+      return [...this.trace, ...tail];
     }
 
     finishTrace(event, error = null) {
@@ -229,7 +280,7 @@
 
     executeDefinition(name, code) {
       if (this.returnStack.length >= MAX_CALL_DEPTH) throw new CallDepthExceeded(`call depth ${MAX_CALL_DEPTH} exceeded`);
-      const frame = { word: name, invocationId: this.nextInvocationId, callDepth: this.callFrames.length + 1 };
+      const frame = { word: name, wordId: this.wordIds.get(name) || null, invocationId: this.nextInvocationId, callDepth: this.callFrames.length + 1 };
       this.nextInvocationId += 1;
       this.returnStack.push(name);
       this.callFrames.push(frame);
@@ -240,7 +291,7 @@
       let ip = 0;
       while (ip < code.length) {
         const instruction = code[ip];
-        const event = this.beginTrace({ scope: "colon", word: frame.word, invocationId: frame.invocationId, callDepth: frame.callDepth, instructionIndex: ip + 1, token: this.instructionLabel(instruction), op: instruction.op });
+        const event = this.beginTrace({ scope: "colon", word: frame.word, wordId: frame.wordId, invocationId: frame.invocationId, callDepth: frame.callDepth, instructionIndex: ip + 1, sourceLine: instruction.sourceLine, sourceColumn: instruction.sourceColumn, token: this.instructionLabel(instruction), op: instruction.op });
         let nextIp = ip + 1;
         try {
           this.step();
@@ -327,19 +378,23 @@
       let index = 0;
       try {
         if (new TextEncoder().encode(source).length > MAX_SOURCE_BYTES) throw new CompileError(`source exceeds ${MAX_SOURCE_BYTES} UTF-8 bytes`);
-        tokens = tokenize(source);
+        tokens = tokenizeDetailed(source);
         while (index < tokens.length) {
-          const token = tokens[index];
-          const event = this.beginTrace({ scope: "main", word: "#0 MAIN", invocationId: 0, callDepth: 0, instructionIndex: index + 1, token: typeof token === "object" ? '."' : token, op: token === ":" ? "DEFINE" : "TOKEN" });
+          const sourceToken = tokens[index];
+          const token = sourceToken.value;
+          const event = this.beginTrace({ scope: "main", word: "#0 MAIN", wordId: 0, invocationId: 0, callDepth: 0, instructionIndex: index + 1, sourceLine: sourceToken.line, sourceColumn: sourceToken.column, token: typeof token === "object" ? '."' : token, op: token === ":" ? "DEFINE" : "TOKEN" });
           try {
             if (token === ":") {
-              const name = tokens[index + 1];
+              const name = tokens[index + 1] && tokens[index + 1].value;
               if (typeof name !== "string" || [":", ";"].includes(name)) throw new CompileError(":" + " requires a word name");
               const body = [];
               index += 2;
-              while (index < tokens.length && tokens[index] !== ";") { body.push(tokens[index]); index += 1; }
+              while (index < tokens.length && tokens[index].value !== ";") { body.push(tokens[index]); index += 1; }
               if (index >= tokens.length) throw new CompileError(`definition ${name} is missing ;`);
               this.dictionary.set(name, compileBody(body));
+              this.wordIds.set(name, this.nextWordId);
+              event.wordId = this.nextWordId;
+              this.nextWordId += 1;
               event.token = `: ${name} ... ;`;
               event.word = name;
               event.scope = "definition";
@@ -362,14 +417,16 @@
         }
         return this.result(null);
       } catch (error) {
-        return this.result({ name: error.constructor.name, message: error.message, tokenIndex: index + 1 });
+        const stoppedAt = tokens[Math.min(index, Math.max(0, tokens.length - 1))];
+        const failureEvent = [...this.traceEvents()].reverse().find(event => event.status === "error");
+        return this.result({ name: error.constructor.name, message: error.message, tokenIndex: index + 1, sourceLine: failureEvent && failureEvent.sourceLine || stoppedAt && stoppedAt.line || null, sourceColumn: failureEvent && failureEvent.sourceColumn || stoppedAt && stoppedAt.column || null, word: failureEvent && failureEvent.word || "#0 MAIN", wordId: failureEvent && failureEvent.wordId !== null ? failureEvent.wordId : 0, instructionIndex: failureEvent && failureEvent.instructionIndex || null });
       }
     }
 
     result(error) {
-      return { ok: error === null, terminal: this.output, dataStack: this.stack.map(signed), returnStack: [...this.returnStack], loopStack: this.loopStack.map(frame => ({ limit: signed(frame.limit), index: signed(frame.index) })), steps: this.steps, words: [...this.trace], error };
+      return { ok: error === null, terminal: this.output, dataStack: this.stack.map(signed), returnStack: [...this.returnStack], loopStack: this.loopStack.map(frame => ({ limit: signed(frame.limit), index: signed(frame.index) })), steps: this.steps, words: this.traceEvents(), traceSummary: { limit: this.maxTraceEvents, recorded: Math.min(this.traceSequence, this.maxTraceEvents), omitted: this.omittedTraceEvents, total: this.traceSequence }, userWords: [...this.wordIds.entries()].map(([name, id]) => ({ id, name })).sort((left, right) => left.id - right.id), error };
     }
   }
 
-  return { MobileForth, tokenize, parseNumber, compileBody, signed, cell, MAX_SOURCE_BYTES };
+  return { MobileForth, tokenize, tokenizeDetailed, parseNumber, compileBody, signed, cell, MAX_SOURCE_BYTES, DEFAULT_MAX_TRACE_EVENTS };
 });
