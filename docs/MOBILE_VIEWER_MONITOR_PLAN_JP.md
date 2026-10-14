@@ -179,6 +179,10 @@ VM内部のstack、loop／return状態、辞書を実行前snapshotへrollback�
 error停止時を返し、新しい`finalDataStack`は安全復旧後を返す。端末へすでに表示した文字は外部作用なので
 取り消せないことも画面へ明記する。残るPhase AはPC／iPhoneでの実画面確認と最終評価である。
 
+2026-10-15、Windows PCの自己完結Mobile Viewerで正常例`2 3 +`とerror例`7 0 /MOD`を利用者が
+目視確認し、問題なしと判定した。Phase AのPC実装・自動試験・PC画面確認は完了とする。iPhoneでの
+同一表示確認は次の評価版を配置するときに行い、Phase Bはこの確認を待たず設計・実装を開始できる。
+
 ### Phase B―Monitor基盤
 
 1. interpreterを1 instructionずつ再開可能なstate machineへ分離する。
@@ -205,5 +209,6 @@ error停止時を返し、新しい`finalDataStack`は安全復旧後を返す�
 
 ## 次回の最初の作業
 
-PCの`viewer/mobile-forth.html`で正常終了例と`7 0 /MOD`のerror例を実行し、実行前、停止時、復旧後の
-表示を確認する。その後iPhoneのMobile Learningでも同じ2例を確認し、Phase Aの最終評価を行う。
+Phase Bの最初として、interpreterを1 instructionずつ再開可能なstate machineへ分離する前に、
+Run／Pause／Step／Continue／Stopの状態とsnapshot境界を小さな仕様・状態遷移試験として固定する。
+iPhoneのPhase A表示確認は次の評価版配置時に`2 3 +`と`7 0 /MOD`で行う。
