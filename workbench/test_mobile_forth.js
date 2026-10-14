@@ -45,6 +45,32 @@ const atomic = run("7 0 /MOD");
 assert.equal(atomic.ok, false);
 assert.equal(atomic.error.name, "DivisionByZero");
 assert.deepEqual(atomic.dataStack, [7, 0]);
+assert.equal(atomic.executionState, "error-rolled-back");
+assert.deepEqual(atomic.initialDataStack, []);
+assert.deepEqual(atomic.stoppedDataStack, [7, 0]);
+assert.deepEqual(atomic.recoveredDataStack, []);
+assert.deepEqual(atomic.finalDataStack, []);
+assert.equal(atomic.recovery.performed, true);
+assert.equal(atomic.recovery.outputReversible, false);
+
+const completedLifecycle = run("2 3 +");
+assert.equal(completedLifecycle.executionState, "completed");
+assert.deepEqual(completedLifecycle.initialDataStack, []);
+assert.equal(completedLifecycle.stoppedDataStack, null);
+assert.equal(completedLifecycle.recoveredDataStack, null);
+assert.deepEqual(completedLifecycle.finalDataStack, [5]);
+assert.equal(completedLifecycle.recovery.performed, false);
+
+const rollbackVm = new MobileForth();
+const rolledBack = rollbackVm.interpret(': TEMP 1 ; TEMP ." BEFORE" NOPE');
+assert.equal(rolledBack.ok, false);
+assert.equal(rolledBack.terminal, "BEFORE");
+assert.deepEqual(rolledBack.stoppedDataStack, [1]);
+assert.deepEqual(rolledBack.finalDataStack, []);
+assert.deepEqual(rollbackVm.stackSnapshot(), []);
+assert.equal(rollbackVm.dictionary.size, 0);
+assert.ok(rolledBack.wordCatalog.some(item => item.name === "TEMP"), "failed-run word catalog must remain available for diagnosis");
+assert.match(rolledBack.recovery.note, /端末出力は取り消せません/);
 
 const unknown = run("NO-SUCH-WORD");
 assert.equal(unknown.ok, false);

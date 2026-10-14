@@ -76,7 +76,15 @@
 
   <div class="grid">
     <section class="panel"><h2>端末出力</h2><pre id="terminal">（未実行）</pre></section>
-    <section class="panel"><h2>最終状態</h2><p id="status">（未実行）</p><p>データスタック</p><div id="stack" class="stack">&lt;0&gt;</div><p class="hint">左が底、右がトップです。</p></section>
+    <section class="panel">
+      <h2>実行状態</h2>
+      <p id="status">（未実行）</p>
+      <p>実行前</p><div id="stack-before" class="stack">&lt;0&gt;</div>
+      <div id="stack-stopped-row" hidden><p>エラー停止時</p><div id="stack-stopped" class="stack">&lt;0&gt;</div></div>
+      <p id="stack-final-label">実行後</p><div id="stack" class="stack">&lt;0&gt;</div>
+      <p id="recovery-note" class="hint">実行後の状態をここに表示します。</p>
+      <p class="hint">いずれも左がstack底、右がTOS（トップ）です。</p>
+    </section>
   </div>
 
   <section class="panel" id="error-panel" hidden><h2>エラー</h2><pre id="error" class="bad"></pre></section>
@@ -233,8 +241,13 @@
     const result = new Min0MobileForth.MobileForth().interpret($("source").value);
     lastResult = result;
     setText($("terminal"), result.terminal || "（出力なし）");
-    setText($("stack"), formatStack(result.dataStack));
-    setText($("status"), result.ok ? `正常終了 / ${result.steps} steps` : `停止 / ${result.steps} steps`);
+    setText($("stack-before"), formatStack(result.initialDataStack));
+    $("stack-stopped-row").hidden = result.ok;
+    if (!result.ok) setText($("stack-stopped"), formatStack(result.stoppedDataStack));
+    setText($("stack"), formatStack(result.finalDataStack));
+    setText($("stack-final-label"), result.ok ? "正常終了後" : "安全復旧後");
+    setText($("recovery-note"), result.recovery.note);
+    setText($("status"), result.ok ? `正常終了 / ${result.steps} steps` : `エラー停止 → stack／辞書復旧完了 / ${result.steps} steps`);
     $("status").className = result.ok ? "ok" : "bad";
     $("error-panel").hidden = result.ok;
     if (!result.ok) setText($("error"), `${result.error.name}: ${result.error.message}\n停止位置: #${result.error.wordId} ${result.error.word}${result.error.sourceLine ? `（${result.error.sourceLine}行${result.error.sourceColumn}列）` : ""}${result.error.instructionIndex ? ` 命令${result.error.instructionIndex}` : ""}\n最上位入力位置: ${result.error.tokenIndex}`);
@@ -249,7 +262,8 @@
     catch (_) { setText($("save-status"), "保存できませんでした。ソースをコピーして保管してください。"); }
   });
   $("copy").addEventListener("click", async () => {
-    const report = `SOURCE\n${$("source").value}\n\nOUTPUT\n${$("terminal").textContent}\n\nSTACK\n${$("stack").textContent}`;
+    const stopped = $("stack-stopped-row").hidden ? "" : `\nSTOPPED STACK\n${$("stack-stopped").textContent}\n`;
+    const report = `SOURCE\n${$("source").value}\n\nOUTPUT\n${$("terminal").textContent}\n\nINITIAL STACK\n${$("stack-before").textContent}\n${stopped}\nFINAL STACK\n${$("stack").textContent}`;
     try { await navigator.clipboard.writeText(report); setText($("save-status"), "ソース・出力・スタックをコピーしました。"); }
     catch (_) { setText($("save-status"), "自動コピーできません。各欄を長押ししてコピーしてください。"); }
   });

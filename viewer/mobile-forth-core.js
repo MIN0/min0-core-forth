@@ -262,6 +262,36 @@
     stackSnapshot() { return this.stack.map(signed); }
     loopSnapshot() { return this.loopStack.map((frame, depth) => ({ loopId: frame.loopId, depth: depth + 1, iteration: frame.iteration, limit: signed(frame.limit), index: signed(frame.index) })); }
 
+    captureTransactionalState() {
+      return {
+        stack: [...this.stack],
+        returnStack: [...this.returnStack],
+        loopStack: this.loopStack.map(frame => ({ ...frame })),
+        dictionary: new Map(this.dictionary),
+        wordIds: new Map(this.wordIds),
+        wordDefinitions: new Map([...this.wordDefinitions].map(([id, item]) => [id, { ...item }])),
+        wordRuntime: new Map([...this.wordRuntime].map(([id, item]) => [id, { ...item, lastDataBefore: [...item.lastDataBefore], lastDataAfter: [...item.lastDataAfter] }])),
+        nextLoopId: this.nextLoopId,
+        nextWordId: this.nextWordId,
+        nextInvocationId: this.nextInvocationId,
+        callFrames: this.callFrames.map(frame => ({ ...frame })),
+      };
+    }
+
+    restoreTransactionalState(state) {
+      this.stack = [...state.stack];
+      this.returnStack = [...state.returnStack];
+      this.loopStack = state.loopStack.map(frame => ({ ...frame }));
+      this.dictionary = new Map(state.dictionary);
+      this.wordIds = new Map(state.wordIds);
+      this.wordDefinitions = new Map([...state.wordDefinitions].map(([id, item]) => [id, { ...item }]));
+      this.wordRuntime = new Map([...state.wordRuntime].map(([id, item]) => [id, { ...item, lastDataBefore: [...item.lastDataBefore], lastDataAfter: [...item.lastDataAfter] }]));
+      this.nextLoopId = state.nextLoopId;
+      this.nextWordId = state.nextWordId;
+      this.nextInvocationId = state.nextInvocationId;
+      this.callFrames = state.callFrames.map(frame => ({ ...frame }));
+    }
+
     beginTrace(fields) {
       const event = {
         sequence: this.traceSequence + 1,
@@ -439,6 +469,10 @@
 
     interpret(source) {
       this.reset();
+      const initialState = this.captureTransactionalState();
+      const initialDataStack = this.stackSnapshot();
+      const initialReturnStack = [...this.returnStack];
+      const initialLoopStack = this.loopSnapshot();
       let tokens = [];
       let index = 0;
       try {
@@ -495,11 +529,52 @@
           }
           index += 1;
         }
-        return this.result(null);
+        return this.result(null, {
+          executionState: "completed",
+          initialDataStack,
+          initialReturnStack,
+          initialLoopStack,
+          stoppedDataStack: null,
+          stoppedReturnStack: null,
+          stoppedLoopStack: null,
+          recoveredDataStack: null,
+          recoveredReturnStack: null,
+          recoveredLoopStack: null,
+          finalDataStack: this.stackSnapshot(),
+          finalReturnStack: [...this.returnStack],
+          finalLoopStack: this.loopSnapshot(),
+          recovery: { performed: false, outputReversible: false, note: "正常終了したためrollbackは行っていません。" },
+        });
       } catch (error) {
         const stoppedAt = tokens[Math.min(index, Math.max(0, tokens.length - 1))];
         const failureEvent = [...this.traceEvents()].reverse().find(event => event.status === "error");
-        return this.result({ name: error.constructor.name, message: error.message, tokenIndex: index + 1, sourceLine: failureEvent && failureEvent.sourceLine || stoppedAt && stoppedAt.line || null, sourceColumn: failureEvent && failureEvent.sourceColumn || stoppedAt && stoppedAt.column || null, word: failureEvent && failureEvent.word || "#0 MAIN", wordId: failureEvent && failureEvent.wordId !== null ? failureEvent.wordId : 0, instructionIndex: failureEvent && failureEvent.instructionIndex || null });
+        const stoppedDataStack = this.stackSnapshot();
+        const stoppedReturnStack = [...this.returnStack];
+        const stoppedLoopStack = this.loopSnapshot();
+        const diagnosticUserWords = [...this.wordDefinitions.values()].map(item => ({ id: item.id, name: item.name })).sort((left, right) => left.id - right.id);
+        const diagnosticWordCatalog = this.wordCatalog();
+        this.restoreTransactionalState(initialState);
+        return this.result({ name: error.constructor.name, message: error.message, tokenIndex: index + 1, sourceLine: failureEvent && failureEvent.sourceLine || stoppedAt && stoppedAt.line || null, sourceColumn: failureEvent && failureEvent.sourceColumn || stoppedAt && stoppedAt.column || null, word: failureEvent && failureEvent.word || "#0 MAIN", wordId: failureEvent && failureEvent.wordId !== null ? failureEvent.wordId : 0, instructionIndex: failureEvent && failureEvent.instructionIndex || null }, {
+          executionState: "error-rolled-back",
+          initialDataStack,
+          initialReturnStack,
+          initialLoopStack,
+          stoppedDataStack,
+          stoppedReturnStack,
+          stoppedLoopStack,
+          recoveredDataStack: this.stackSnapshot(),
+          recoveredReturnStack: [...this.returnStack],
+          recoveredLoopStack: this.loopSnapshot(),
+          finalDataStack: this.stackSnapshot(),
+          finalReturnStack: [...this.returnStack],
+          finalLoopStack: this.loopSnapshot(),
+          recovery: { performed: true, outputReversible: false, note: "stackと辞書は実行前へ復旧しました。すでに表示した端末出力は取り消せません。" },
+          legacyDataStack: stoppedDataStack,
+          legacyReturnStack: stoppedReturnStack,
+          legacyLoopStack: stoppedLoopStack,
+          userWords: diagnosticUserWords,
+          wordCatalog: diagnosticWordCatalog,
+        });
       }
     }
 
@@ -512,9 +587,12 @@
       return [...builtins, ...definitions];
     }
 
-    result(error) {
-      const userWords = [...this.wordDefinitions.values()].map(item => ({ id: item.id, name: item.name })).sort((left, right) => left.id - right.id);
-      return { ok: error === null, terminal: this.output, dataStack: this.stack.map(signed), returnStack: [...this.returnStack], loopStack: this.loopSnapshot(), steps: this.steps, words: this.traceEvents(), traceSummary: { limit: this.maxTraceEvents, recorded: Math.min(this.traceSequence, this.maxTraceEvents), omitted: this.omittedTraceEvents, total: this.traceSequence }, userWords, wordCatalog: this.wordCatalog(), error };
+    result(error, lifecycle = {}) {
+      const userWords = lifecycle.userWords || [...this.wordDefinitions.values()].map(item => ({ id: item.id, name: item.name })).sort((left, right) => left.id - right.id);
+      const dataStack = lifecycle.legacyDataStack || this.stackSnapshot();
+      const returnStack = lifecycle.legacyReturnStack || [...this.returnStack];
+      const loopStack = lifecycle.legacyLoopStack || this.loopSnapshot();
+      return { ok: error === null, terminal: this.output, dataStack, returnStack, loopStack, steps: this.steps, words: this.traceEvents(), traceSummary: { limit: this.maxTraceEvents, recorded: Math.min(this.traceSequence, this.maxTraceEvents), omitted: this.omittedTraceEvents, total: this.traceSequence }, userWords, wordCatalog: lifecycle.wordCatalog || this.wordCatalog(), executionState: lifecycle.executionState || (error ? "error" : "completed"), initialDataStack: lifecycle.initialDataStack || [], initialReturnStack: lifecycle.initialReturnStack || [], initialLoopStack: lifecycle.initialLoopStack || [], stoppedDataStack: lifecycle.stoppedDataStack || null, stoppedReturnStack: lifecycle.stoppedReturnStack || null, stoppedLoopStack: lifecycle.stoppedLoopStack || null, recoveredDataStack: lifecycle.recoveredDataStack || null, recoveredReturnStack: lifecycle.recoveredReturnStack || null, recoveredLoopStack: lifecycle.recoveredLoopStack || null, finalDataStack: lifecycle.finalDataStack || this.stackSnapshot(), finalReturnStack: lifecycle.finalReturnStack || [...this.returnStack], finalLoopStack: lifecycle.finalLoopStack || this.loopSnapshot(), recovery: lifecycle.recovery || { performed: false, outputReversible: false, note: "" }, error };
     }
   }
 

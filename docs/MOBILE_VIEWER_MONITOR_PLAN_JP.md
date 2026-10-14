@@ -171,8 +171,13 @@ word／invocation選択UI、短いワード辞典は未実装であり、次の�
 続いてbuiltin／制御wordの共有metadataと検索可能なワード辞典UIを追加した。名前、分類、stack effect、
 短い説明、利用可能な局面を表示する。利用者定義wordでは定義名直後の`( ... -- ... )`commentを抽出し、
 通し番号、source、呼出し回数、直近の入出力stackも表示する。commentがなければ推測せず「未記載」とする。
-`WORDS`も同じbuiltin metadataを名前一覧の正本として利用する。残るPhase Aは、実行前・error停止時・
-復旧後／正常終了stackを結果objectと画面でさらに明確に分けること、およびiPhone実画面確認である。
+`WORDS`も同じbuiltin metadataを名前一覧の正本として利用する。
+
+さらに実行状態を、正常時は「実行前→正常終了後」、error時は「実行前→エラー停止時→安全復旧後」として
+結果objectと画面の両方で分離した。error発生時は停止stackと辞書・word情報を診断用結果へ保存した後、
+VM内部のstack、loop／return状態、辞書を実行前snapshotへrollbackする。従来の`dataStack`は互換性のため
+error停止時を返し、新しい`finalDataStack`は安全復旧後を返す。端末へすでに表示した文字は外部作用なので
+取り消せないことも画面へ明記する。残るPhase AはPC／iPhoneでの実画面確認と最終評価である。
 
 ### Phase B―Monitor基盤
 
@@ -200,5 +205,5 @@ word／invocation選択UI、短いワード辞典は未実装であり、次の�
 
 ## 次回の最初の作業
 
-`viewer/mobile-forth-core.js`のtraceを、top-level tokenだけでなく`executeDefinition`／`runCode`内部でも
-記録できるevent形式へ変更する。その前に、現行source例とerror rollbackを固定する回帰試験を追加する。
+PCの`viewer/mobile-forth.html`で正常終了例と`7 0 /MOD`のerror例を実行し、実行前、停止時、復旧後の
+表示を確認する。その後iPhoneのMobile Learningでも同じ2例を確認し、Phase Aの最終評価を行う。
