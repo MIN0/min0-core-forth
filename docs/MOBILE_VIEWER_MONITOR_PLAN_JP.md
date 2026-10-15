@@ -201,6 +201,11 @@ Stepは1命令後に再停止する。Stopは現在snapshotを保持し、Abort�
 FORTH sourceでPause→Step→Continue、Stop、Abort、error観察後Abortを確認した。次はbrowser event loopへ
 制御を返すchunk schedulerを追加し、その後Viewerの操作ボタンへ接続する。
 
+さらに`viewer/mobile-forth-scheduler.js`を追加し、1 chunkの命令数を制限してchunk間でbrowser event loopへ
+制御を返すようにした。fake schedulerで無限LOOPを動かしながらPause、Step、Continue、Stopを受理し、
+全chunkが設定上限以内であることを確認した。Abortでは途中辞書とstackを復旧し、出力済み文字は保持した。
+次はこのschedulerをViewerの操作ボタン、状態表示、現在位置／呼出し履歴paneへ接続する。
+
 ### Phase C―入力と変数操作
 
 1. `KEY?`と入力queueを実装する。
@@ -218,7 +223,7 @@ FORTH sourceでPause→Step→Continue、Stop、Abort、error観察後Abortを�
 
 ## 次回の最初の作業
 
-再開可能sessionをbrowser event loopへ接続するchunk schedulerを追加する。1 chunkの命令数に上限を設け、
-chunk間でPause／Stop／Abort要求と画面描画を受理できることをfake timer試験で固定する。その後Viewerへ
-Run／Pause／Step／Continue／Stop／Abortボタンを追加する。iPhoneのPhase A表示確認は次の評価版配置時に
-`2 3 +`と`7 0 /MOD`で行う。
+自己完結Mobile ViewerへMonitor状態、session、schedulerを組み込み、Run／Pause／Step／Continue／Stop／
+Abortボタンを追加する。schedulerの更新eventごとに状態、確定snapshot、現在word／命令位置、call frameを
+表示し、実行中objectを画面から直接読まない。iPhoneのPhase A表示確認は次の評価版配置時に`2 3 +`と
+`7 0 /MOD`で行う。

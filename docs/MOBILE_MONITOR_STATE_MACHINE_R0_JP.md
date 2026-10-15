@@ -65,5 +65,13 @@ Node.js回帰試験では、算術、colon word、分岐、LOOP、再帰につ�
 端末出力、step数が一致することを確認する。また、colon word内部でPauseし、Stepで1命令進め、Continueで
 完了できること、Stopが現在状態を保持すること、Abortが開始前のstackと辞書へ戻すことを確認する。
 
-まだMobile ViewerのボタンとWeb Workerには接続していない。次はsessionを小さな非同期chunkで駆動し、
-ブラウザの描画・入力eventへ制御を返しながらPause要求を受け取れるschedulerを追加する。
+`viewer/mobile-forth-scheduler.js`はsessionを既定100命令、設定可能な上限以内のchunkで駆動し、chunk間で
+`setTimeout(..., 0)`を使ってbrowser event loopへ制御を返す。同じchunkを重複予約せず、Pause、Stop、
+Abort要求があれば次の命令境界で受理する。Step中はchunk上限にかかわらず1命令で再停止する。
+
+fake scheduler回帰試験では、4命令chunkで無限LOOPを実行し、1 chunk後にPauseを要求して次の1命令で
+停止できること、Stepが1命令、Continue後も各chunkが4命令以内であること、Stopが途中stackを保持する
+ことを確認する。別の実行ではAbortが途中辞書とstackを復旧しながら表示済み出力を残すことも確認する。
+
+まだMobile ViewerのボタンとWeb Workerには接続していない。次はschedulerの更新eventを画面へ接続し、
+Run／Pause／Step／Continue／Stop／Abortと現在位置paneを追加する。
