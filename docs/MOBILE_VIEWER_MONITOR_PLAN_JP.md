@@ -209,6 +209,11 @@ FORTH sourceでPause→Step→Continue、Stop、Abort、error観察後Abortを�
 source編集と再Runを無効化し、traceとワード辞典はPauseなどの確定停止点で更新する。次はPC画面確認後、
 Web Workerへの分離とmessage protocol固定へ進む。
 
+2026-10-15、利用者がPCで画面操作を確認し、問題なしと判定した。Worker通信規約R0、message validator、
+session／schedulerへ接続するWorker engineを追加した。commandはsession IDと厳密な連番で検査し、古いsession、
+再送、順序違反、状態に合わない操作を実行せず`rejected`として返す。fake message port試験まで完了した。
+次は自己完結HTML内にWorker sourceを組み立て、Blob Workerを起動するbrowser adapterを追加する。
+
 ### Phase C―入力と変数操作
 
 1. `KEY?`と入力queueを実装する。
@@ -226,6 +231,6 @@ Web Workerへの分離とmessage protocol固定へ進む。
 
 ## 次回の最初の作業
 
-自己完結Mobile ViewerでRun／Pause／Step／Continue／Stop／Abortと現在位置／呼出し履歴をPC目視確認する。
-確認後、schedulerをWeb Workerへ分離するためのmessage protocolを固定する。iPhoneのPhase A表示確認は
-次の評価版配置時に`2 3 +`と`7 0 /MOD`で行う。
+自己完結Mobile Viewer内にBlob Workerを起動するbrowser adapterを追加する。現在のmain-thread schedulerは
+Worker非対応時のfallbackとして残す。iPhoneのPhase A表示確認は次の評価版配置時に`2 3 +`と
+`7 0 /MOD`で行う。

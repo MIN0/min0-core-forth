@@ -76,3 +76,8 @@ fake scheduler回帰試験では、4命令chunkで無限LOOPを実行し、1 chu
 Mobile Viewerにはschedulerを直接接続し、Run／Pause／Step／Continue／Stop／Abort、現在位置、
 呼出し履歴、chunk進捗を表示する。画面が参照するのは命令境界で確定したsnapshotだけである。
 Web Workerへの分離は次段階とし、この段階ではchunk間の`setTimeout(..., 0)`でbrowserへ制御を返す。
+
+2026-10-15、利用者がPC画面で6操作と表示を確認し、問題なしと判定した。続いて
+`docs/MOBILE_WORKER_PROTOCOL_R0_JP.md`へWorker通信規約を固定し、protocol validatorとWorker engineを追加した。
+session IDとcommand／event連番により、再送message、順序違反、古いsessionの混入を拒否する。fake port上で
+Pause、Step、Continue、Stop、Inspect、Abortと新sessionへの切替を確認した。まだ実ブラウザWorkerは起動しない。
