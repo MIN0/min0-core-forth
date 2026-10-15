@@ -90,3 +90,7 @@ Run時にBlob URLを作ってWorkerを起動し、終了時には`terminate()`�
 
 PCブラウザで「Worker分離モード」と6操作を目視確認する。続いてGitHub Pages評価版を作り、iPhone Safariでも
 Worker分離モード、Pause、Step、Continue、Stop、Abortを確認する。
+
+2026-10-15、利用者がPCの自己完結Viewerで無限LOOPを実行し、chunk進行、現在命令位置、確定stack、
+`CALL_RETURN`呼出し履歴と6操作を確認し、問題なしと判定した。PC評価は合格とし、次はGitHub Pages評価版と
+iPhone Safari確認へ進む。

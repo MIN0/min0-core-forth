@@ -219,6 +219,10 @@ commandを送り、session ID不一致と重複・逆行eventを破棄する。W
 main-thread互換モードへ移る。埋込みsourceはNode.jsの実Worker threadで`2 3 +`を実行し、stack `[5]`を
 返すことを確認した。次はPCブラウザで実際の「Worker分離モード」と6操作を目視確認する。
 
+2026-10-15、利用者がPC画面で無限LOOPのchunk進行、現在位置、`CALL_RETURN`履歴と6操作を確認し、
+問題なしと判定した。Blob Worker版のPC実装・自動試験・実画面確認は完了した。次はGitHub Pages用評価版を
+準備し、iPhone Safariで同じ操作と表示を確認する。
+
 ### Phase C―入力と変数操作
 
 1. `KEY?`と入力queueを実装する。
@@ -236,5 +240,5 @@ main-thread互換モードへ移る。埋込みsourceはNode.jsの実Worker thre
 
 ## 次回の最初の作業
 
-自己完結Mobile ViewerをPCブラウザで再読込みし、「Worker分離モード」とRun／Pause／Step／Continue／Stop／
-Abortを目視確認する。iPhoneのPhase A表示確認は次の評価版配置時に`2 3 +`と`7 0 /MOD`で行う。
+GitHub Pages用評価版を準備し、iPhone SafariでWorker分離モード、Run／Pause／Step／Continue／Stop／Abort、
+`2 3 +`、`7 0 /MOD`を確認する。公開済みreleaseは評価合格まで変更しない。
