@@ -192,6 +192,12 @@ error停止時を返し、新しい`finalDataStack`は安全復旧後を返す�
 5. Web Workerへ移し、停止snapshotを含むmessage protocolを固定する。
 6. `YIELD`と自動yieldを実装する。
 
+2026-10-15進捗：Run／Pause／Step／Continue／Stop／Abortの状態遷移を
+`docs/MOBILE_MONITOR_STATE_MACHINE_R0_JP.md`へ固定し、VMから独立した
+`viewer/mobile-monitor-state.js`と回帰試験を追加した。Pause、Stop、Abortの要求は次の命令境界で受理し、
+Stepは1命令後に再停止する。Stopは現在snapshotを保持し、Abortは開始前snapshotへ復旧する。
+次は現行interpreterから1命令単位の実行処理を分離し、この状態機械へ接続する。
+
 ### Phase C―入力と変数操作
 
 1. `KEY?`と入力queueを実装する。

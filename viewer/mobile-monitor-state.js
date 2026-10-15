@@ -1,0 +1,163 @@
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === "object" && module.exports) module.exports = api;
+  else root.Min0MobileMonitor = api;
+})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  "use strict";
+
+  const STATES = Object.freeze({
+    IDLE: "idle",
+    RUNNING: "running",
+    PAUSE_REQUESTED: "pause-requested",
+    PAUSED: "paused",
+    STEPPING: "stepping",
+    STOP_REQUESTED: "stop-requested",
+    STOPPED: "stopped",
+    ABORT_REQUESTED: "abort-requested",
+    ABORTED: "aborted",
+    COMPLETED: "completed",
+    FAILED: "failed",
+  });
+
+  class MonitorTransitionError extends Error {}
+
+  function clone(value) {
+    return value === null || value === undefined ? value : JSON.parse(JSON.stringify(value));
+  }
+
+  class MonitorExecutionControl {
+    constructor() {
+      this.state = STATES.IDLE;
+      this.initialSnapshot = null;
+      this.currentSnapshot = null;
+      this.stopReason = null;
+      this.sequence = 0;
+      this.transitions = [];
+    }
+
+    record(action, from, to, details = {}) {
+      this.sequence += 1;
+      this.transitions.push({ sequence: this.sequence, action, from, to, ...clone(details) });
+    }
+
+    require(allowed, action) {
+      if (!allowed.includes(this.state)) {
+        throw new MonitorTransitionError(`${action} is not allowed while ${this.state}`);
+      }
+    }
+
+    move(action, nextState, details = {}) {
+      const previous = this.state;
+      this.state = nextState;
+      this.record(action, previous, nextState, details);
+    }
+
+    start(initialSnapshot) {
+      this.require([STATES.IDLE], "start");
+      this.initialSnapshot = clone(initialSnapshot);
+      this.currentSnapshot = clone(initialSnapshot);
+      this.stopReason = null;
+      this.move("start", STATES.RUNNING);
+      return this.status();
+    }
+
+    requestPause() {
+      this.require([STATES.RUNNING], "requestPause");
+      this.move("request-pause", STATES.PAUSE_REQUESTED);
+      return this.status();
+    }
+
+    continueExecution() {
+      this.require([STATES.PAUSED], "continueExecution");
+      this.stopReason = null;
+      this.move("continue", STATES.RUNNING);
+      return this.status();
+    }
+
+    step() {
+      this.require([STATES.PAUSED], "step");
+      this.stopReason = null;
+      this.move("step", STATES.STEPPING);
+      return this.status();
+    }
+
+    requestStop() {
+      this.require([STATES.RUNNING, STATES.PAUSE_REQUESTED, STATES.STEPPING, STATES.PAUSED], "requestStop");
+      if (this.state === STATES.PAUSED) {
+        this.stopReason = "stop";
+        this.move("stop-at-paused-boundary", STATES.STOPPED);
+      } else {
+        this.move("request-stop", STATES.STOP_REQUESTED);
+      }
+      return this.status();
+    }
+
+    requestAbort() {
+      this.require([STATES.RUNNING, STATES.PAUSE_REQUESTED, STATES.STEPPING, STATES.PAUSED, STATES.STOPPED, STATES.FAILED, STATES.COMPLETED], "requestAbort");
+      if ([STATES.PAUSED, STATES.STOPPED, STATES.FAILED, STATES.COMPLETED].includes(this.state)) {
+        this.currentSnapshot = clone(this.initialSnapshot);
+        this.stopReason = "abort-rollback";
+        this.move("abort-at-safe-boundary", STATES.ABORTED, { rollback: true });
+      } else {
+        this.move("request-abort", STATES.ABORT_REQUESTED);
+      }
+      return this.status();
+    }
+
+    atInstructionBoundary(snapshot) {
+      this.require([STATES.RUNNING, STATES.PAUSE_REQUESTED, STATES.STEPPING, STATES.STOP_REQUESTED, STATES.ABORT_REQUESTED], "atInstructionBoundary");
+      this.currentSnapshot = clone(snapshot);
+      if (this.state === STATES.PAUSE_REQUESTED) {
+        this.stopReason = "pause";
+        this.move("accept-pause", STATES.PAUSED, { boundary: true });
+        return "paused";
+      }
+      if (this.state === STATES.STEPPING) {
+        this.stopReason = "step-complete";
+        this.move("complete-step", STATES.PAUSED, { boundary: true });
+        return "paused";
+      }
+      if (this.state === STATES.STOP_REQUESTED) {
+        this.stopReason = "stop";
+        this.move("accept-stop", STATES.STOPPED, { boundary: true });
+        return "stopped";
+      }
+      if (this.state === STATES.ABORT_REQUESTED) {
+        this.currentSnapshot = clone(this.initialSnapshot);
+        this.stopReason = "abort-rollback";
+        this.move("accept-abort", STATES.ABORTED, { boundary: true, rollback: true });
+        return "aborted";
+      }
+      this.record("instruction-boundary", this.state, this.state, { boundary: true });
+      return "continue";
+    }
+
+    complete(snapshot) {
+      this.require([STATES.RUNNING, STATES.STEPPING], "complete");
+      this.currentSnapshot = clone(snapshot);
+      this.stopReason = "completed";
+      this.move("complete", STATES.COMPLETED, { boundary: true });
+      return this.status();
+    }
+
+    fail(snapshot, error) {
+      this.require([STATES.RUNNING, STATES.PAUSE_REQUESTED, STATES.STEPPING, STATES.STOP_REQUESTED, STATES.ABORT_REQUESTED], "fail");
+      this.currentSnapshot = clone(snapshot);
+      this.stopReason = "error";
+      this.move("fail", STATES.FAILED, { boundary: true, error: clone(error) });
+      return this.status();
+    }
+
+    status() {
+      return {
+        state: this.state,
+        stopReason: this.stopReason,
+        initialSnapshot: clone(this.initialSnapshot),
+        currentSnapshot: clone(this.currentSnapshot),
+        transitions: clone(this.transitions),
+      };
+    }
+  }
+
+  return { STATES, MonitorTransitionError, MonitorExecutionControl };
+});
