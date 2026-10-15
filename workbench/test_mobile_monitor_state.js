@@ -44,6 +44,8 @@ assert.equal(abort.atInstructionBoundary(snapshot([7, 8], "WORK", 2)), "aborted"
 assert.equal(abort.state, STATES.ABORTED);
 assert.deepEqual(abort.currentSnapshot.dataStack, [7]);
 assert.deepEqual(abort.initialSnapshot.dataStack, [7]);
+abort.confirmRollback({ ...snapshot([7]), output: "already visible" });
+assert.equal(abort.currentSnapshot.output, "already visible");
 
 const pausedAbort = new MonitorExecutionControl();
 pausedAbort.start(snapshot([4]));

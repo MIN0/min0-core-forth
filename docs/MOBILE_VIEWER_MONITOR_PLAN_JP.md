@@ -196,7 +196,10 @@ error停止時を返し、新しい`finalDataStack`は安全復旧後を返す�
 `docs/MOBILE_MONITOR_STATE_MACHINE_R0_JP.md`へ固定し、VMから独立した
 `viewer/mobile-monitor-state.js`と回帰試験を追加した。Pause、Stop、Abortの要求は次の命令境界で受理し、
 Stepは1命令後に再停止する。Stopは現在snapshotを保持し、Abortは開始前snapshotへ復旧する。
-次は現行interpreterから1命令単位の実行処理を分離し、この状態機械へ接続する。
+続いて`viewer/mobile-forth-session.js`へtop-level／colon内部を1命令ずつ進める実行cursorを分離し、
+この状態機械へ接続した。同期実行と算術、colon、分岐、LOOP、再帰の結果・出力・step数が一致し、実際の
+FORTH sourceでPause→Step→Continue、Stop、Abort、error観察後Abortを確認した。次はbrowser event loopへ
+制御を返すchunk schedulerを追加し、その後Viewerの操作ボタンへ接続する。
 
 ### Phase C―入力と変数操作
 
@@ -215,6 +218,7 @@ Stepは1命令後に再停止する。Stopは現在snapshotを保持し、Abort�
 
 ## 次回の最初の作業
 
-Phase Bの最初として、interpreterを1 instructionずつ再開可能なstate machineへ分離する前に、
-Run／Pause／Step／Continue／Stopの状態とsnapshot境界を小さな仕様・状態遷移試験として固定する。
-iPhoneのPhase A表示確認は次の評価版配置時に`2 3 +`と`7 0 /MOD`で行う。
+再開可能sessionをbrowser event loopへ接続するchunk schedulerを追加する。1 chunkの命令数に上限を設け、
+chunk間でPause／Stop／Abort要求と画面描画を受理できることをfake timer試験で固定する。その後Viewerへ
+Run／Pause／Step／Continue／Stop／Abortボタンを追加する。iPhoneのPhase A表示確認は次の評価版配置時に
+`2 3 +`と`7 0 /MOD`で行う。

@@ -57,6 +57,13 @@ data stack、return／loop frame、辞書など、明示的にtransaction対象�
 
 ## この段階の実装範囲
 
-`viewer/mobile-monitor-state.js`はVMから独立した状態遷移の正本である。まだMobile Viewerのボタンや
-interpreterには接続していない。次の段階で、現行interpreterから「1命令を実行して次の境界を返す」処理を
-分離し、この状態機械がその処理を駆動する。
+`viewer/mobile-monitor-state.js`はVMから独立した状態遷移の正本である。
+`viewer/mobile-forth-session.js`は現行MobileForthを利用しながら、top-level tokenとcolon内部命令を
+1命令ずつ進める再開cursorを持つ。状態機械は各命令完了後のsnapshotだけを受け取る。
+
+Node.js回帰試験では、算術、colon word、分岐、LOOP、再帰について従来の同期`interpret()`と最終stack、
+端末出力、step数が一致することを確認する。また、colon word内部でPauseし、Stepで1命令進め、Continueで
+完了できること、Stopが現在状態を保持すること、Abortが開始前のstackと辞書へ戻すことを確認する。
+
+まだMobile ViewerのボタンとWeb Workerには接続していない。次はsessionを小さな非同期chunkで駆動し、
+ブラウザの描画・入力eventへ制御を返しながらPause要求を受け取れるschedulerを追加する。

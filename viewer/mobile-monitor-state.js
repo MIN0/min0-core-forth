@@ -104,6 +104,13 @@
       return this.status();
     }
 
+    confirmRollback(snapshot) {
+      this.require([STATES.ABORTED], "confirmRollback");
+      this.currentSnapshot = clone(snapshot);
+      this.record("confirm-rollback", this.state, this.state, { boundary: true });
+      return this.status();
+    }
+
     atInstructionBoundary(snapshot) {
       this.require([STATES.RUNNING, STATES.PAUSE_REQUESTED, STATES.STEPPING, STATES.STOP_REQUESTED, STATES.ABORT_REQUESTED], "atInstructionBoundary");
       this.currentSnapshot = clone(snapshot);

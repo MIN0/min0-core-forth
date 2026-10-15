@@ -596,5 +596,5 @@
     }
   }
 
-  return { MobileForth, tokenize, tokenizeDetailed, parseNumber, compileBody, signed, cell, WORD_METADATA, MAX_SOURCE_BYTES, DEFAULT_MAX_TRACE_EVENTS };
+  return { MobileForth, tokenize, tokenizeDetailed, parseNumber, compileBody, signed, cell, WORD_METADATA, MAX_SOURCE_BYTES, DEFAULT_MAX_TRACE_EVENTS, MAX_CALL_DEPTH, errors: { ForthError, UnknownWord, StackUnderflow, DivisionByZero, DivisionOverflow, CompileError, StepLimitExceeded, CallDepthExceeded } };
 });
