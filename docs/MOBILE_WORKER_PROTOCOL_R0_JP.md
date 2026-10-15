@@ -72,6 +72,21 @@ fake message port試験では、無限LOOPを4命令chunkで動かし、Pause、
 messageだけで操作する。さらに再送連番と古いsessionを拒否し、終了後に新sessionを連番1から開始できることを
 確認する。
 
+## Browser clientとfallback
+
+`viewer/mobile-forth-worker-client.js`がBlob URL、Worker、session ID、command／event連番を管理する。画面へ渡すのは
+現在sessionと一致し、直前より大きいevent連番だけである。Worker constructorまたはBlob URL作成が利用できない
+場合は、同じWorker engineをmain thread上で起動する互換モードへ移る。このため画面側のcommand／event処理は
+二重実装しない。
+
+実行途中のWorker異常では、確定前のVM状態を別実行器へ安全に移せない。したがって途中からfallbackで継続せず、
+`fatal`として診断停止する。次のRunでは新しいsessionとしてWorkerを作り直せる。
+
+自己完結HTMLにはprotocol、VM、session、scheduler、engineを結合したWorker sourceを文字列として埋め込む。
+Run時にBlob URLを作ってWorkerを起動し、終了時には`terminate()`と`revokeObjectURL()`で資源を解放する。
+埋込みsourceはNode.jsの別threadでも起動し、message経由の`2 3 +`がstack `[5]`で完了することを確認する。
+
 ## 次段階
 
-自己完結HTML内でBlob URLからWorkerを起動し、Worker非対応時だけ現在のmain-thread schedulerへ戻す。
+PCブラウザで「Worker分離モード」と6操作を目視確認する。続いてGitHub Pages評価版を作り、iPhone Safariでも
+Worker分離モード、Pause、Step、Continue、Stop、Abortを確認する。

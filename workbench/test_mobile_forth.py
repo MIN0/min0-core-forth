@@ -28,6 +28,8 @@ class MobileForthTests(unittest.TestCase):
             self.assertIn("class MonitorExecutionControl", text)
             self.assertIn("class MobileForthSession", text)
             self.assertIn("class MobileForthScheduler", text)
+            self.assertIn("class MobileForthWorkerEngine", text)
+            self.assertIn("class MobileForthWorkerClient", text)
             self.assertIn('id="pause"', text)
             self.assertIn('id="step"', text)
             self.assertIn('id="continue"', text)
@@ -35,6 +37,7 @@ class MobileForthTests(unittest.TestCase):
             self.assertIn('id="abort"', text)
             self.assertIn('id="current-location"', text)
             self.assertIn('id="call-history"', text)
+            self.assertIn('id="execution-mode"', text)
             self.assertIn('id="trace-word"', text)
             self.assertIn('id="trace-invocation"', text)
             self.assertIn('id="trace-all-loops"', text)
@@ -50,6 +53,10 @@ class MobileForthTests(unittest.TestCase):
             self.assertNotIn(BUILDER.MONITOR_MARKER, text)
             self.assertNotIn(BUILDER.SESSION_MARKER, text)
             self.assertNotIn(BUILDER.SCHEDULER_MARKER, text)
+            self.assertNotIn(BUILDER.PROTOCOL_MARKER, text)
+            self.assertNotIn(BUILDER.ENGINE_MARKER, text)
+            self.assertNotIn(BUILDER.CLIENT_MARKER, text)
+            self.assertNotIn(BUILDER.WORKER_SOURCE_MARKER, text)
             self.assertNotIn(BUILDER.REVISION_MARKER, text)
             self.assertNotIn("fetch(", text)
             self.assertNotIn("http://", text)
@@ -57,7 +64,7 @@ class MobileForthTests(unittest.TestCase):
             self.assertNotIn("<script src=", text.lower())
             if shutil.which("node"):
                 scripts = re.findall(r"<script>([\s\S]*?)</script>", text)
-                self.assertEqual(len(scripts), 5)
+                self.assertEqual(len(scripts), 8)
                 for index, script in enumerate(scripts):
                     script_path = Path(directory) / f"inline-{index}.js"
                     script_path.write_text(script, encoding="utf-8")
@@ -69,6 +76,20 @@ class MobileForthTests(unittest.TestCase):
                         result.returncode, 0,
                         f"inline script {index}:\n{result.stdout}{result.stderr}",
                     )
+                worker_path = Path(directory) / "embedded-worker.js"
+                worker_path.write_text(BUILDER.worker_source(ROOT), encoding="utf-8")
+                result = subprocess.run(
+                    ["node", "--check", str(worker_path)],
+                    text=True, capture_output=True, check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn("min0WorkerEngine.receive", worker_path.read_text(encoding="utf-8"))
+                result = subprocess.run(
+                    ["node", "workbench/test_embedded_mobile_worker.js", str(worker_path)],
+                    cwd=ROOT, text=True, capture_output=True, check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn("PASS", result.stdout)
 
     def test_committed_html_is_current(self) -> None:
         committed = (ROOT / "viewer" / "mobile-forth.html").read_text(encoding="utf-8")

@@ -214,6 +214,11 @@ session／schedulerへ接続するWorker engineを追加した。commandはsessi
 再送、順序違反、状態に合わない操作を実行せず`rejected`として返す。fake message port試験まで完了した。
 次は自己完結HTML内にWorker sourceを組み立て、Blob Workerを起動するbrowser adapterを追加する。
 
+続いてBlob Worker clientを追加し、自己完結HTMLへWorker sourceを埋め込んだ。画面はWorker client経由で
+commandを送り、session ID不一致と重複・逆行eventを破棄する。Worker作成不可の場合は同じengineを使う
+main-thread互換モードへ移る。埋込みsourceはNode.jsの実Worker threadで`2 3 +`を実行し、stack `[5]`を
+返すことを確認した。次はPCブラウザで実際の「Worker分離モード」と6操作を目視確認する。
+
 ### Phase C―入力と変数操作
 
 1. `KEY?`と入力queueを実装する。
@@ -231,6 +236,5 @@ session／schedulerへ接続するWorker engineを追加した。commandはsessi
 
 ## 次回の最初の作業
 
-自己完結Mobile Viewer内にBlob Workerを起動するbrowser adapterを追加する。現在のmain-thread schedulerは
-Worker非対応時のfallbackとして残す。iPhoneのPhase A表示確認は次の評価版配置時に`2 3 +`と
-`7 0 /MOD`で行う。
+自己完結Mobile ViewerをPCブラウザで再読込みし、「Worker分離モード」とRun／Pause／Step／Continue／Stop／
+Abortを目視確認する。iPhoneのPhase A表示確認は次の評価版配置時に`2 3 +`と`7 0 /MOD`で行う。

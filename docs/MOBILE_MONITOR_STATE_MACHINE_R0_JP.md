@@ -80,4 +80,9 @@ Web Workerへの分離は次段階とし、この段階ではchunk間の`setTime
 2026-10-15、利用者がPC画面で6操作と表示を確認し、問題なしと判定した。続いて
 `docs/MOBILE_WORKER_PROTOCOL_R0_JP.md`へWorker通信規約を固定し、protocol validatorとWorker engineを追加した。
 session IDとcommand／event連番により、再送message、順序違反、古いsessionの混入を拒否する。fake port上で
-Pause、Step、Continue、Stop、Inspect、Abortと新sessionへの切替を確認した。まだ実ブラウザWorkerは起動しない。
+Pause、Step、Continue、Stop、Inspect、Abortと新sessionへの切替を確認した。この時点では実ブラウザWorkerを
+まだ起動していなかった。
+
+続いてBlob Worker clientと自己完結HTMLへのWorker source埋込みを実装した。Worker作成不可なら同じengineを
+main thread互換モードで動かす。埋込みsourceはNode.jsの実Worker threadで起動・実行確認済みである。
+実ブラウザでの目視確認は未実施で、次の確認点とする。

@@ -81,6 +81,7 @@
       <button id="clear">消去</button>
     </div>
     <p id="save-status" class="hint" aria-live="polite">ソースは、このブラウザ内だけに保存できます。</p>
+    <p id="execution-mode" class="hint" aria-live="polite">実行環境は最初のRunで判定します。</p>
   </section>
 
   <div class="grid">
@@ -147,9 +148,19 @@
 /*__MIN0_MOBILE_SCHEDULER__*/
 </script>
 <script>
+/*__MIN0_WORKER_PROTOCOL__*/
+</script>
+<script>
+/*__MIN0_WORKER_ENGINE__*/
+</script>
+<script>
+/*__MIN0_WORKER_CLIENT__*/
+</script>
+<script>
 (() => {
   "use strict";
   const $ = id => document.getElementById(id);
+  const embeddedWorkerSource = __MIN0_EMBEDDED_WORKER_SOURCE__;
   const storageKey = "min0-core-forth-mobile-source-v1";
   const examples = {
     square: ": SQUARE DUP * ;\n7 SQUARE . CR\n5 SQUARE .S",
@@ -161,8 +172,8 @@
   };
   const formatStack = stack => `<${stack.length}>${stack.length ? " " + stack.join(" ") : ""}`;
   let lastResult = null;
-  let currentSession = null;
-  let currentScheduler = null;
+  let lastMonitorState = "idle";
+  let workerClient = null;
   const stateLabels = { idle: "未開始", running: "実行中", "pause-requested": "一時停止要求中", paused: "一時停止", stepping: "1命令実行中", "stop-requested": "安全停止要求中", stopped: "安全停止", "abort-requested": "復旧要求中", aborted: "実行前へ復旧", completed: "正常終了", failed: "エラー停止" };
   function setText(node, value) { node.textContent = value; }
   function loadDraft() {
@@ -303,6 +314,7 @@
   }
   function renderMonitor(event) {
     const state = event.status.state;
+    lastMonitorState = state;
     const snapshot = event.status.currentSnapshot || event.status.initialSnapshot;
     const initial = event.status.initialSnapshot || snapshot;
     const diagnostics = event.diagnostics;
@@ -332,23 +344,39 @@
     setControls(state);
   }
   function showControlError(error) {
-    $("error-panel").hidden = false; setText($("error"), `${error.constructor.name}: ${error.message}`); setText($("status"), "操作できませんでした"); $("status").className = "bad"; setControls(currentSession ? currentSession.state : "idle");
+    $("error-panel").hidden = false; setText($("error"), `${error.constructor.name}: ${error.message}`); setText($("status"), "操作できませんでした"); $("status").className = "bad"; setControls(lastMonitorState);
+  }
+  function handleWorkerEvent(event) {
+    if (event.name === "update") renderMonitor({ ...event.payload.scheduler, status: event.payload.status, diagnostics: event.payload.diagnostics });
+    else if (event.name === "rejected") showControlError(new Error(event.payload.reason));
+    else if (event.name === "fatal") showControlError(new Error(event.payload.reason || "Worker execution failed"));
+  }
+  function ensureWorkerClient() {
+    if (workerClient) return workerClient;
+    workerClient = new Min0MobileWorkerClient.MobileForthWorkerClient({
+      workerSource: embeddedWorkerSource,
+      onEvent: handleWorkerEvent,
+      onMode: event => {
+        const labels = { worker: "Worker分離モード", "main-thread-fallback": "互換モード（main thread）", "worker-failed": "Worker異常停止", disconnected: "未接続" };
+        setText($("execution-mode"), `${labels[event.mode] || event.mode}${event.reason ? `：${event.reason}` : ""}`);
+      },
+    });
+    return workerClient;
   }
   function run() {
     try {
       lastResult = null;
+      lastMonitorState = "idle";
       resetDiagnosticDisplay();
-      currentSession = new Min0MobileForthSession.MobileForthSession($("source").value);
-      currentScheduler = new Min0MobileForthScheduler.MobileForthScheduler(currentSession, { chunkSize: 100, onUpdate: renderMonitor });
-      currentScheduler.start();
-    } catch (error) { currentSession = null; currentScheduler = null; showControlError(error); }
+      ensureWorkerClient().run($("source").value, 100);
+    } catch (error) { showControlError(error); }
   }
   $("run").addEventListener("click", run);
-  $("pause").addEventListener("click", () => { try { currentScheduler.requestPause(); } catch (error) { showControlError(error); } });
-  $("step").addEventListener("click", () => { try { currentScheduler.step(); } catch (error) { showControlError(error); } });
-  $("continue").addEventListener("click", () => { try { currentScheduler.continueExecution(); } catch (error) { showControlError(error); } });
-  $("stop").addEventListener("click", () => { try { currentScheduler.requestStop(); } catch (error) { showControlError(error); } });
-  $("abort").addEventListener("click", () => { try { currentScheduler.requestAbort(); } catch (error) { showControlError(error); } });
+  $("pause").addEventListener("click", () => { try { workerClient.pause(); } catch (error) { showControlError(error); } });
+  $("step").addEventListener("click", () => { try { workerClient.step(); } catch (error) { showControlError(error); } });
+  $("continue").addEventListener("click", () => { try { workerClient.continueExecution(); } catch (error) { showControlError(error); } });
+  $("stop").addEventListener("click", () => { try { workerClient.stop(); } catch (error) { showControlError(error); } });
+  $("abort").addEventListener("click", () => { try { workerClient.abort(); } catch (error) { showControlError(error); } });
   $("save").addEventListener("click", () => {
     try { localStorage.setItem(storageKey, $("source").value); setText($("save-status"), "この端末内に保存しました。"); }
     catch (_) { setText($("save-status"), "保存できませんでした。ソースをコピーして保管してください。"); }
