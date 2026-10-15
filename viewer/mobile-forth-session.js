@@ -23,6 +23,8 @@
       this.mainIndex = 0;
       this.frames = [];
       this.error = null;
+      this.failureSnapshot = null;
+      this.preRollbackDiagnostics = null;
       this.lastBoundary = null;
       this.control = new MonitorExecutionControl();
       if (new TextEncoder().encode(source).length > MAX_SOURCE_BYTES) throw new CompileError(`source exceeds ${MAX_SOURCE_BYTES} UTF-8 bytes`);
@@ -94,12 +96,28 @@
     }
 
     rollback() {
+      if (!this.preRollbackDiagnostics) this.preRollbackDiagnostics = this.buildDiagnostics();
       this.vm.restoreTransactionalState(this.initialState);
       this.frames = [];
       this.mainIndex = 0;
       this.lastBoundary = this.snapshot("abort-rollback");
       this.control.confirmRollback(this.lastBoundary);
     }
+
+    buildDiagnostics() {
+      const clone = value => JSON.parse(JSON.stringify(value));
+      const userWords = [...this.vm.wordDefinitions.values()].map(item => ({ id: item.id, name: item.name })).sort((left, right) => left.id - right.id);
+      return {
+        words: clone(this.vm.traceEvents()),
+        traceSummary: { limit: this.vm.maxTraceEvents, recorded: Math.min(this.vm.traceSequence, this.vm.maxTraceEvents), omitted: this.vm.omittedTraceEvents, total: this.vm.traceSequence },
+        userWords,
+        wordCatalog: clone(this.vm.wordCatalog()),
+        error: clone(this.error),
+        failureSnapshot: clone(this.failureSnapshot),
+      };
+    }
+
+    diagnostics() { return this.preRollbackDiagnostics || this.buildDiagnostics(); }
 
     enterDefinition(name, code, pendingEvent) {
       if (this.vm.returnStack.length >= MAX_CALL_DEPTH) throw new CallDepthExceeded(`call depth ${MAX_CALL_DEPTH} exceeded`);
@@ -293,6 +311,7 @@
         return this.control.status();
       } catch (error) {
         const failureSnapshot = this.snapshot("error");
+        this.failureSnapshot = failureSnapshot;
         this.unwindFailedFrames(error);
         this.lastBoundary = failureSnapshot;
         this.error = { name: error.constructor.name, message: error.message, location: this.lastBoundary.location };

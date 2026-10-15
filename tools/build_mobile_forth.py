@@ -9,6 +9,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CORE_MARKER = "/*__MIN0_MOBILE_CORE__*/"
+MONITOR_MARKER = "/*__MIN0_MONITOR_STATE__*/"
+SESSION_MARKER = "/*__MIN0_MOBILE_SESSION__*/"
+SCHEDULER_MARKER = "/*__MIN0_MOBILE_SCHEDULER__*/"
 REVISION_MARKER = "__MIN0_REVISION__"
 
 
@@ -22,10 +25,18 @@ def current_revision(root: Path = ROOT) -> str:
 
 def build(output: Path, *, root: Path = ROOT, revision: str | None = None) -> Path:
     template = (root / "viewer" / "mobile-forth-template.html").read_text(encoding="utf-8")
-    core = (root / "viewer" / "mobile-forth-core.js").read_text(encoding="utf-8")
-    if template.count(CORE_MARKER) != 1 or template.count(REVISION_MARKER) != 1:
+    modules = {
+        CORE_MARKER: root / "viewer" / "mobile-forth-core.js",
+        MONITOR_MARKER: root / "viewer" / "mobile-monitor-state.js",
+        SESSION_MARKER: root / "viewer" / "mobile-forth-session.js",
+        SCHEDULER_MARKER: root / "viewer" / "mobile-forth-scheduler.js",
+    }
+    if any(template.count(marker) != 1 for marker in modules) or template.count(REVISION_MARKER) != 1:
         raise ValueError("mobile template markers are missing or duplicated")
-    rendered = template.replace(CORE_MARKER, core).replace(REVISION_MARKER, revision or current_revision(root))
+    rendered = template
+    for marker, path in modules.items():
+        rendered = rendered.replace(marker, path.read_text(encoding="utf-8"))
+    rendered = rendered.replace(REVISION_MARKER, revision or current_revision(root))
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(rendered, encoding="utf-8", newline="\n")
     return output

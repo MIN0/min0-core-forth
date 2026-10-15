@@ -25,6 +25,16 @@ class MobileForthTests(unittest.TestCase):
             self.assertIn("MIN0 CORE FORTH", text)
             self.assertIn("test-revision", text)
             self.assertIn("class MobileForth", text)
+            self.assertIn("class MonitorExecutionControl", text)
+            self.assertIn("class MobileForthSession", text)
+            self.assertIn("class MobileForthScheduler", text)
+            self.assertIn('id="pause"', text)
+            self.assertIn('id="step"', text)
+            self.assertIn('id="continue"', text)
+            self.assertIn('id="stop"', text)
+            self.assertIn('id="abort"', text)
+            self.assertIn('id="current-location"', text)
+            self.assertIn('id="call-history"', text)
             self.assertIn('id="trace-word"', text)
             self.assertIn('id="trace-invocation"', text)
             self.assertIn('id="trace-all-loops"', text)
@@ -37,11 +47,28 @@ class MobileForthTests(unittest.TestCase):
             self.assertIn('id="stack-final-label"', text)
             self.assertIn('id="recovery-note"', text)
             self.assertNotIn(BUILDER.CORE_MARKER, text)
+            self.assertNotIn(BUILDER.MONITOR_MARKER, text)
+            self.assertNotIn(BUILDER.SESSION_MARKER, text)
+            self.assertNotIn(BUILDER.SCHEDULER_MARKER, text)
             self.assertNotIn(BUILDER.REVISION_MARKER, text)
             self.assertNotIn("fetch(", text)
             self.assertNotIn("http://", text)
             self.assertNotIn("https://", text)
             self.assertNotIn("<script src=", text.lower())
+            if shutil.which("node"):
+                scripts = re.findall(r"<script>([\s\S]*?)</script>", text)
+                self.assertEqual(len(scripts), 5)
+                for index, script in enumerate(scripts):
+                    script_path = Path(directory) / f"inline-{index}.js"
+                    script_path.write_text(script, encoding="utf-8")
+                    result = subprocess.run(
+                        ["node", "--check", str(script_path)],
+                        text=True, capture_output=True, check=False,
+                    )
+                    self.assertEqual(
+                        result.returncode, 0,
+                        f"inline script {index}:\n{result.stdout}{result.stderr}",
+                    )
 
     def test_committed_html_is_current(self) -> None:
         committed = (ROOT / "viewer" / "mobile-forth.html").read_text(encoding="utf-8")

@@ -73,5 +73,6 @@ fake scheduler回帰試験では、4命令chunkで無限LOOPを実行し、1 chu
 停止できること、Stepが1命令、Continue後も各chunkが4命令以内であること、Stopが途中stackを保持する
 ことを確認する。別の実行ではAbortが途中辞書とstackを復旧しながら表示済み出力を残すことも確認する。
 
-まだMobile ViewerのボタンとWeb Workerには接続していない。次はschedulerの更新eventを画面へ接続し、
-Run／Pause／Step／Continue／Stop／Abortと現在位置paneを追加する。
+Mobile Viewerにはschedulerを直接接続し、Run／Pause／Step／Continue／Stop／Abort、現在位置、
+呼出し履歴、chunk進捗を表示する。画面が参照するのは命令境界で確定したsnapshotだけである。
+Web Workerへの分離は次段階とし、この段階ではchunk間の`setTimeout(..., 0)`でbrowserへ制御を返す。

@@ -204,7 +204,10 @@ FORTH sourceでPause→Step→Continue、Stop、Abort、error観察後Abortを�
 さらに`viewer/mobile-forth-scheduler.js`を追加し、1 chunkの命令数を制限してchunk間でbrowser event loopへ
 制御を返すようにした。fake schedulerで無限LOOPを動かしながらPause、Step、Continue、Stopを受理し、
 全chunkが設定上限以内であることを確認した。Abortでは途中辞書とstackを復旧し、出力済み文字は保持した。
-次はこのschedulerをViewerの操作ボタン、状態表示、現在位置／呼出し履歴paneへ接続する。
+続いてschedulerを自己完結Mobile Viewerへ接続した。Run／Pause／Step／Continue／Stop／Abort、状態、
+実行前／現在／error停止時stack、現在word・命令位置、型付きcall frame、chunk進捗を表示する。実行中は
+source編集と再Runを無効化し、traceとワード辞典はPauseなどの確定停止点で更新する。次はPC画面確認後、
+Web Workerへの分離とmessage protocol固定へ進む。
 
 ### Phase C―入力と変数操作
 
@@ -223,7 +226,6 @@ FORTH sourceでPause→Step→Continue、Stop、Abort、error観察後Abortを�
 
 ## 次回の最初の作業
 
-自己完結Mobile ViewerへMonitor状態、session、schedulerを組み込み、Run／Pause／Step／Continue／Stop／
-Abortボタンを追加する。schedulerの更新eventごとに状態、確定snapshot、現在word／命令位置、call frameを
-表示し、実行中objectを画面から直接読まない。iPhoneのPhase A表示確認は次の評価版配置時に`2 3 +`と
-`7 0 /MOD`で行う。
+自己完結Mobile ViewerでRun／Pause／Step／Continue／Stop／Abortと現在位置／呼出し履歴をPC目視確認する。
+確認後、schedulerをWeb Workerへ分離するためのmessage protocolを固定する。iPhoneのPhase A表示確認は
+次の評価版配置時に`2 3 +`と`7 0 /MOD`で行う。

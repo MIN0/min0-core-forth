@@ -22,8 +22,10 @@
     select { width:100%; color:var(--text); background:#0d1c22; border:1px solid #4b6e79; padding:8px; }
     input[type="search"] { width:100%; min-height:44px; color:var(--text); background:#0d1c22; border:1px solid #4b6e79; border-radius:9px; padding:8px; font-size:16px; }
     .buttons { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:10px; }
+    .monitor-buttons { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:10px; }
     button { border:1px solid #526d76; background:#203842; color:var(--text); padding:9px 12px; font-weight:700; }
     button.primary { background:var(--accent); border-color:var(--accent); color:#1d1b12; }
+    button:disabled { opacity:.42; transform:none; }
     button:active { transform:translateY(1px); }
     pre { white-space:pre-wrap; overflow-wrap:anywhere; margin:0; min-height:2.4rem; font:15px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace; }
     .grid { display:grid; gap:12px; }
@@ -39,7 +41,7 @@
     .check-label input { width:22px; height:22px; }
     details { margin-top:12px; } summary { cursor:pointer; font-weight:700; }
     code { color:var(--accent); }
-    @media (min-width:680px) { .grid { grid-template-columns:1fr 1fr; } .buttons { grid-template-columns:repeat(4,1fr); } .trace-controls { grid-template-columns:1fr 1fr 1fr; align-items:end; } }
+    @media (min-width:680px) { .grid { grid-template-columns:1fr 1fr; } .buttons { grid-template-columns:repeat(3,1fr); } .monitor-buttons { grid-template-columns:repeat(6,1fr); } .trace-controls { grid-template-columns:1fr 1fr 1fr; align-items:end; } }
   </style>
 </head>
 <body>
@@ -65,8 +67,15 @@
 2 3 4 * + . CR
 5 SQUARE . CR
 10 3 /MOD .S</textarea>
-    <div class="buttons">
+    <div class="monitor-buttons">
       <button id="run" class="primary">実行</button>
+      <button id="pause" disabled>一時停止</button>
+      <button id="step" disabled>1命令</button>
+      <button id="continue" disabled>継続</button>
+      <button id="stop" disabled>安全停止</button>
+      <button id="abort" disabled>実行前へ復旧</button>
+    </div>
+    <div class="buttons">
       <button id="save">端末に保存</button>
       <button id="copy">結果をコピー</button>
       <button id="clear">消去</button>
@@ -88,6 +97,12 @@
   </div>
 
   <section class="panel" id="error-panel" hidden><h2>エラー</h2><pre id="error" class="bad"></pre></section>
+  <section class="panel">
+    <h2>現在位置／呼出し履歴</h2>
+    <p id="current-location">（未実行）</p>
+    <p id="chunk-status" class="hint">実行すると確定した命令境界を表示します。</p>
+    <div class="table-wrap"><table><thead><tr><th>深さ</th><th>種類</th><th>ワード</th><th>次の命令</th></tr></thead><tbody id="call-history"><tr><td colspan="4">（未実行）</td></tr></tbody></table></div>
+  </section>
   <section class="panel">
     <h2>ワードごとのスタック遷移</h2>
     <p id="trace-summary" class="hint">（未実行）</p>
@@ -123,6 +138,15 @@
 /*__MIN0_MOBILE_CORE__*/
 </script>
 <script>
+/*__MIN0_MONITOR_STATE__*/
+</script>
+<script>
+/*__MIN0_MOBILE_SESSION__*/
+</script>
+<script>
+/*__MIN0_MOBILE_SCHEDULER__*/
+</script>
+<script>
 (() => {
   "use strict";
   const $ = id => document.getElementById(id);
@@ -137,6 +161,9 @@
   };
   const formatStack = stack => `<${stack.length}>${stack.length ? " " + stack.join(" ") : ""}`;
   let lastResult = null;
+  let currentSession = null;
+  let currentScheduler = null;
+  const stateLabels = { idle: "未開始", running: "実行中", "pause-requested": "一時停止要求中", paused: "一時停止", stepping: "1命令実行中", "stop-requested": "安全停止要求中", stopped: "安全停止", "abort-requested": "復旧要求中", aborted: "実行前へ復旧", completed: "正常終了", failed: "エラー停止" };
   function setText(node, value) { node.textContent = value; }
   function loadDraft() {
     try { const saved = localStorage.getItem(storageKey); if (saved !== null) $("source").value = saved; }
@@ -212,7 +239,7 @@
       const loopFrames = event.loopStackBefore || [];
       const loopFrame = loopFrames[loopFrames.length - 1];
       const token = loopFrame ? `${event.token} 〔L${loopFrame.loopId} 反復${loopFrame.iteration} I=${loopFrame.index}〕` : event.token;
-      [event.sequence, location, sourceLocation, token, formatStack(event.dataBefore), formatStack(event.dataAfter || []), event.status === "error" ? `ERROR: ${event.error.name}` : "OK"].forEach(value => { const cell = row.insertCell(); cell.textContent = String(value); });
+      [event.sequence, location, sourceLocation, token, formatStack(event.dataBefore), formatStack(event.dataAfter || []), event.status === "error" ? `ERROR: ${event.error.name}` : event.status === "running" ? "停止中" : "OK"].forEach(value => { const cell = row.insertCell(); cell.textContent = String(value); });
     });
   }
   function renderWordCatalog() {
@@ -237,26 +264,91 @@
       row.insertCell().textContent = item.type === "colon" ? `${item.availability}／呼出${item.invocationCount}回／${formatStack(item.lastDataBefore)} → ${formatStack(item.lastDataAfter)}` : item.availability;
     });
   }
+  function setControls(state) {
+    const active = ["running", "pause-requested", "paused", "stepping", "stop-requested", "abort-requested"].includes(state);
+    $("source").disabled = active;
+    $("run").disabled = active;
+    $("pause").disabled = state !== "running";
+    $("step").disabled = state !== "paused";
+    $("continue").disabled = state !== "paused";
+    $("stop").disabled = !["running", "pause-requested", "paused", "stepping"].includes(state);
+    $("abort").disabled = !["running", "pause-requested", "paused", "stepping", "stopped", "completed", "failed"].includes(state);
+  }
+  function renderCallHistory(snapshot) {
+    const body = $("call-history"); body.textContent = "";
+    const frames = [...(snapshot.callFrames || [])].reverse();
+    if (!frames.length) {
+      const row = body.insertRow(); [0, "MAIN", "#0 MAIN", snapshot.location && snapshot.location.instructionIndex || "終了"].forEach(value => row.insertCell().textContent = String(value)); return;
+    }
+    frames.forEach(frame => {
+      const row = body.insertRow(); [frame.callDepth, frame.type, `#${frame.wordId} ${frame.word}／呼出#${frame.invocationId}`, frame.nextInstruction].forEach(value => row.insertCell().textContent = String(value));
+    });
+  }
+  function monitorResult(diagnostics) {
+    return diagnostics ? { words: diagnostics.words, traceSummary: diagnostics.traceSummary, userWords: diagnostics.userWords, wordCatalog: diagnostics.wordCatalog } : null;
+  }
+  function resetDiagnosticDisplay() {
+    $("error-panel").hidden = true;
+    $("stack-stopped-row").hidden = true;
+    $("trace-summary").textContent = "実行中です。確定した停止点で表示します。";
+    $("trace").innerHTML = '<tr><td colspan="7">（実行中）</td></tr>';
+    $("trace-word").innerHTML = '<option value="all">すべて</option>';
+    $("trace-invocation").innerHTML = '<option value="all">すべて</option>';
+    $("trace-word").disabled = true;
+    $("trace-invocation").disabled = true;
+    $("trace-all-loops").disabled = true;
+    $("word-search").disabled = true;
+    $("word-summary").textContent = "実行中です。確定した停止点で利用できます。";
+    $("word-catalog").innerHTML = '<tr><td colspan="5">（実行中）</td></tr>';
+  }
+  function renderMonitor(event) {
+    const state = event.status.state;
+    const snapshot = event.status.currentSnapshot || event.status.initialSnapshot;
+    const initial = event.status.initialSnapshot || snapshot;
+    const diagnostics = event.diagnostics;
+    setText($("terminal"), snapshot.output || "（出力なし）");
+    setText($("stack-before"), formatStack(initial.dataStack || []));
+    const failedSnapshot = diagnostics && diagnostics.failureSnapshot;
+    $("stack-stopped-row").hidden = !failedSnapshot;
+    if (failedSnapshot) setText($("stack-stopped"), formatStack(failedSnapshot.dataStack));
+    setText($("stack"), formatStack(snapshot.dataStack || []));
+    const finalLabels = { running: "直近の命令境界", "pause-requested": "直近の命令境界", paused: "一時停止時", stepping: "直近の命令境界", "stop-requested": "直近の命令境界", stopped: "安全停止時", "abort-requested": "直近の命令境界", aborted: "安全復旧後", completed: "正常終了後", failed: "エラー停止時" };
+    setText($("stack-final-label"), finalLabels[state] || "現在の確定状態");
+    const notes = { paused: "確定した命令境界で一時停止しています。", stopped: "現在状態を保持して安全停止しました。", aborted: "stackと辞書を実行前へ復旧しました。表示済み出力は取り消しません。", failed: "失敗時snapshotを保持しています。確認後に実行前へ復旧できます。", completed: "正常終了しました。" };
+    setText($("recovery-note"), notes[state] || "実行中objectではなく、直近の確定snapshotを表示しています。");
+    setText($("status"), `${stateLabels[state] || state} / ${snapshot.steps} steps`);
+    $("status").className = state === "failed" ? "bad" : ["completed", "aborted", "stopped", "paused"].includes(state) ? "ok" : "";
+    const location = snapshot.location || {};
+    setText($("current-location"), `${location.word || "#0 MAIN"}${location.wordId === null || location.wordId === undefined ? "" : ` (#${location.wordId})`}／命令 ${location.instructionIndex || "終了"}／${location.sourceLine ? `${location.sourceLine}行${location.sourceColumn}列` : "source位置なし"}／次: ${location.token || "end"}`);
+    setText($("chunk-status"), `chunk #${event.chunkSequence}：${event.executed}命令境界／累計${event.totalBoundaries}境界${event.scheduled ? "／次chunk予約済み" : ""}`);
+    renderCallHistory(snapshot);
+    const error = diagnostics && diagnostics.error;
+    $("error-panel").hidden = !error;
+    if (error) setText($("error"), `${error.name}: ${error.message}\n停止位置: ${error.location.word}／命令 ${error.location.instructionIndex || "不明"}${error.location.sourceLine ? `／${error.location.sourceLine}行${error.location.sourceColumn}列` : ""}`);
+    if (diagnostics) {
+      lastResult = monitorResult(diagnostics);
+      configureTraceChoices(lastResult); renderTrace(); $("word-search").disabled = false; renderWordCatalog();
+    }
+    setControls(state);
+  }
+  function showControlError(error) {
+    $("error-panel").hidden = false; setText($("error"), `${error.constructor.name}: ${error.message}`); setText($("status"), "操作できませんでした"); $("status").className = "bad"; setControls(currentSession ? currentSession.state : "idle");
+  }
   function run() {
-    const result = new Min0MobileForth.MobileForth().interpret($("source").value);
-    lastResult = result;
-    setText($("terminal"), result.terminal || "（出力なし）");
-    setText($("stack-before"), formatStack(result.initialDataStack));
-    $("stack-stopped-row").hidden = result.ok;
-    if (!result.ok) setText($("stack-stopped"), formatStack(result.stoppedDataStack));
-    setText($("stack"), formatStack(result.finalDataStack));
-    setText($("stack-final-label"), result.ok ? "正常終了後" : "安全復旧後");
-    setText($("recovery-note"), result.recovery.note);
-    setText($("status"), result.ok ? `正常終了 / ${result.steps} steps` : `エラー停止 → stack／辞書復旧完了 / ${result.steps} steps`);
-    $("status").className = result.ok ? "ok" : "bad";
-    $("error-panel").hidden = result.ok;
-    if (!result.ok) setText($("error"), `${result.error.name}: ${result.error.message}\n停止位置: #${result.error.wordId} ${result.error.word}${result.error.sourceLine ? `（${result.error.sourceLine}行${result.error.sourceColumn}列）` : ""}${result.error.instructionIndex ? ` 命令${result.error.instructionIndex}` : ""}\n最上位入力位置: ${result.error.tokenIndex}`);
-    configureTraceChoices(result);
-    renderTrace();
-    $("word-search").disabled = false;
-    renderWordCatalog();
+    try {
+      lastResult = null;
+      resetDiagnosticDisplay();
+      currentSession = new Min0MobileForthSession.MobileForthSession($("source").value);
+      currentScheduler = new Min0MobileForthScheduler.MobileForthScheduler(currentSession, { chunkSize: 100, onUpdate: renderMonitor });
+      currentScheduler.start();
+    } catch (error) { currentSession = null; currentScheduler = null; showControlError(error); }
   }
   $("run").addEventListener("click", run);
+  $("pause").addEventListener("click", () => { try { currentScheduler.requestPause(); } catch (error) { showControlError(error); } });
+  $("step").addEventListener("click", () => { try { currentScheduler.step(); } catch (error) { showControlError(error); } });
+  $("continue").addEventListener("click", () => { try { currentScheduler.continueExecution(); } catch (error) { showControlError(error); } });
+  $("stop").addEventListener("click", () => { try { currentScheduler.requestStop(); } catch (error) { showControlError(error); } });
+  $("abort").addEventListener("click", () => { try { currentScheduler.requestAbort(); } catch (error) { showControlError(error); } });
   $("save").addEventListener("click", () => {
     try { localStorage.setItem(storageKey, $("source").value); setText($("save-status"), "この端末内に保存しました。"); }
     catch (_) { setText($("save-status"), "保存できませんでした。ソースをコピーして保管してください。"); }

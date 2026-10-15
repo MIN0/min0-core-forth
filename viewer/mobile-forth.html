@@ -22,8 +22,10 @@
     select { width:100%; color:var(--text); background:#0d1c22; border:1px solid #4b6e79; padding:8px; }
     input[type="search"] { width:100%; min-height:44px; color:var(--text); background:#0d1c22; border:1px solid #4b6e79; border-radius:9px; padding:8px; font-size:16px; }
     .buttons { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:10px; }
+    .monitor-buttons { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:10px; }
     button { border:1px solid #526d76; background:#203842; color:var(--text); padding:9px 12px; font-weight:700; }
     button.primary { background:var(--accent); border-color:var(--accent); color:#1d1b12; }
+    button:disabled { opacity:.42; transform:none; }
     button:active { transform:translateY(1px); }
     pre { white-space:pre-wrap; overflow-wrap:anywhere; margin:0; min-height:2.4rem; font:15px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace; }
     .grid { display:grid; gap:12px; }
@@ -39,14 +41,14 @@
     .check-label input { width:22px; height:22px; }
     details { margin-top:12px; } summary { cursor:pointer; font-weight:700; }
     code { color:var(--accent); }
-    @media (min-width:680px) { .grid { grid-template-columns:1fr 1fr; } .buttons { grid-template-columns:repeat(4,1fr); } .trace-controls { grid-template-columns:1fr 1fr 1fr; align-items:end; } }
+    @media (min-width:680px) { .grid { grid-template-columns:1fr 1fr; } .buttons { grid-template-columns:repeat(3,1fr); } .monitor-buttons { grid-template-columns:repeat(6,1fr); } .trace-controls { grid-template-columns:1fr 1fr 1fr; align-items:end; } }
   </style>
 </head>
 <body>
 <main>
   <noscript><div class="notice">この表示方法ではJavaScriptが停止しているため、実行ボタンは動作しません。Safariで開けるWebアプリ版を使用してください。</div></noscript>
   <h1>MIN0 CORE FORTH<br>Mobile Learning</h1>
-  <p class="meta">個人学習用・オフライン試作版 / build <span id="revision">2dd50a2</span></p>
+  <p class="meta">個人学習用・オフライン試作版 / build <span id="revision">aa4bbd1</span></p>
   <div class="notice">これは正式COREの代替ではなく、スマホ学習用の小さな互換サブセットです。各「実行」は新しいVMから始まります。</div>
 
   <section class="panel">
@@ -65,8 +67,15 @@
 2 3 4 * + . CR
 5 SQUARE . CR
 10 3 /MOD .S</textarea>
-    <div class="buttons">
+    <div class="monitor-buttons">
       <button id="run" class="primary">実行</button>
+      <button id="pause" disabled>一時停止</button>
+      <button id="step" disabled>1命令</button>
+      <button id="continue" disabled>継続</button>
+      <button id="stop" disabled>安全停止</button>
+      <button id="abort" disabled>実行前へ復旧</button>
+    </div>
+    <div class="buttons">
       <button id="save">端末に保存</button>
       <button id="copy">結果をコピー</button>
       <button id="clear">消去</button>
@@ -88,6 +97,12 @@
   </div>
 
   <section class="panel" id="error-panel" hidden><h2>エラー</h2><pre id="error" class="bad"></pre></section>
+  <section class="panel">
+    <h2>現在位置／呼出し履歴</h2>
+    <p id="current-location">（未実行）</p>
+    <p id="chunk-status" class="hint">実行すると確定した命令境界を表示します。</p>
+    <div class="table-wrap"><table><thead><tr><th>深さ</th><th>種類</th><th>ワード</th><th>次の命令</th></tr></thead><tbody id="call-history"><tr><td colspan="4">（未実行）</td></tr></tbody></table></div>
+  </section>
   <section class="panel">
     <h2>ワードごとのスタック遷移</h2>
     <p id="trace-summary" class="hint">（未実行）</p>
@@ -723,6 +738,641 @@
 
 </script>
 <script>
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === "object" && module.exports) module.exports = api;
+  else root.Min0MobileMonitor = api;
+})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  "use strict";
+
+  const STATES = Object.freeze({
+    IDLE: "idle",
+    RUNNING: "running",
+    PAUSE_REQUESTED: "pause-requested",
+    PAUSED: "paused",
+    STEPPING: "stepping",
+    STOP_REQUESTED: "stop-requested",
+    STOPPED: "stopped",
+    ABORT_REQUESTED: "abort-requested",
+    ABORTED: "aborted",
+    COMPLETED: "completed",
+    FAILED: "failed",
+  });
+
+  class MonitorTransitionError extends Error {}
+
+  function clone(value) {
+    return value === null || value === undefined ? value : JSON.parse(JSON.stringify(value));
+  }
+
+  class MonitorExecutionControl {
+    constructor() {
+      this.state = STATES.IDLE;
+      this.initialSnapshot = null;
+      this.currentSnapshot = null;
+      this.stopReason = null;
+      this.sequence = 0;
+      this.transitions = [];
+    }
+
+    record(action, from, to, details = {}) {
+      this.sequence += 1;
+      this.transitions.push({ sequence: this.sequence, action, from, to, ...clone(details) });
+    }
+
+    require(allowed, action) {
+      if (!allowed.includes(this.state)) {
+        throw new MonitorTransitionError(`${action} is not allowed while ${this.state}`);
+      }
+    }
+
+    move(action, nextState, details = {}) {
+      const previous = this.state;
+      this.state = nextState;
+      this.record(action, previous, nextState, details);
+    }
+
+    start(initialSnapshot) {
+      this.require([STATES.IDLE], "start");
+      this.initialSnapshot = clone(initialSnapshot);
+      this.currentSnapshot = clone(initialSnapshot);
+      this.stopReason = null;
+      this.move("start", STATES.RUNNING);
+      return this.status();
+    }
+
+    requestPause() {
+      this.require([STATES.RUNNING], "requestPause");
+      this.move("request-pause", STATES.PAUSE_REQUESTED);
+      return this.status();
+    }
+
+    continueExecution() {
+      this.require([STATES.PAUSED], "continueExecution");
+      this.stopReason = null;
+      this.move("continue", STATES.RUNNING);
+      return this.status();
+    }
+
+    step() {
+      this.require([STATES.PAUSED], "step");
+      this.stopReason = null;
+      this.move("step", STATES.STEPPING);
+      return this.status();
+    }
+
+    requestStop() {
+      this.require([STATES.RUNNING, STATES.PAUSE_REQUESTED, STATES.STEPPING, STATES.PAUSED], "requestStop");
+      if (this.state === STATES.PAUSED) {
+        this.stopReason = "stop";
+        this.move("stop-at-paused-boundary", STATES.STOPPED);
+      } else {
+        this.move("request-stop", STATES.STOP_REQUESTED);
+      }
+      return this.status();
+    }
+
+    requestAbort() {
+      this.require([STATES.RUNNING, STATES.PAUSE_REQUESTED, STATES.STEPPING, STATES.PAUSED, STATES.STOPPED, STATES.FAILED, STATES.COMPLETED], "requestAbort");
+      if ([STATES.PAUSED, STATES.STOPPED, STATES.FAILED, STATES.COMPLETED].includes(this.state)) {
+        this.currentSnapshot = clone(this.initialSnapshot);
+        this.stopReason = "abort-rollback";
+        this.move("abort-at-safe-boundary", STATES.ABORTED, { rollback: true });
+      } else {
+        this.move("request-abort", STATES.ABORT_REQUESTED);
+      }
+      return this.status();
+    }
+
+    confirmRollback(snapshot) {
+      this.require([STATES.ABORTED], "confirmRollback");
+      this.currentSnapshot = clone(snapshot);
+      this.record("confirm-rollback", this.state, this.state, { boundary: true });
+      return this.status();
+    }
+
+    atInstructionBoundary(snapshot) {
+      this.require([STATES.RUNNING, STATES.PAUSE_REQUESTED, STATES.STEPPING, STATES.STOP_REQUESTED, STATES.ABORT_REQUESTED], "atInstructionBoundary");
+      this.currentSnapshot = clone(snapshot);
+      if (this.state === STATES.PAUSE_REQUESTED) {
+        this.stopReason = "pause";
+        this.move("accept-pause", STATES.PAUSED, { boundary: true });
+        return "paused";
+      }
+      if (this.state === STATES.STEPPING) {
+        this.stopReason = "step-complete";
+        this.move("complete-step", STATES.PAUSED, { boundary: true });
+        return "paused";
+      }
+      if (this.state === STATES.STOP_REQUESTED) {
+        this.stopReason = "stop";
+        this.move("accept-stop", STATES.STOPPED, { boundary: true });
+        return "stopped";
+      }
+      if (this.state === STATES.ABORT_REQUESTED) {
+        this.currentSnapshot = clone(this.initialSnapshot);
+        this.stopReason = "abort-rollback";
+        this.move("accept-abort", STATES.ABORTED, { boundary: true, rollback: true });
+        return "aborted";
+      }
+      this.record("instruction-boundary", this.state, this.state, { boundary: true });
+      return "continue";
+    }
+
+    complete(snapshot) {
+      this.require([STATES.RUNNING, STATES.STEPPING], "complete");
+      this.currentSnapshot = clone(snapshot);
+      this.stopReason = "completed";
+      this.move("complete", STATES.COMPLETED, { boundary: true });
+      return this.status();
+    }
+
+    fail(snapshot, error) {
+      this.require([STATES.RUNNING, STATES.PAUSE_REQUESTED, STATES.STEPPING, STATES.STOP_REQUESTED, STATES.ABORT_REQUESTED], "fail");
+      this.currentSnapshot = clone(snapshot);
+      this.stopReason = "error";
+      this.move("fail", STATES.FAILED, { boundary: true, error: clone(error) });
+      return this.status();
+    }
+
+    status() {
+      return {
+        state: this.state,
+        stopReason: this.stopReason,
+        initialSnapshot: clone(this.initialSnapshot),
+        currentSnapshot: clone(this.currentSnapshot),
+        transitions: clone(this.transitions),
+      };
+    }
+  }
+
+  return { STATES, MonitorTransitionError, MonitorExecutionControl };
+});
+
+</script>
+<script>
+(function (root, factory) {
+  if (typeof module === "object" && module.exports) {
+    module.exports = factory(require("./mobile-forth-core.js"), require("./mobile-monitor-state.js"));
+  } else {
+    root.Min0MobileForthSession = factory(root.Min0MobileForth, root.Min0MobileMonitor);
+  }
+})(typeof globalThis !== "undefined" ? globalThis : this, function (core, monitor) {
+  "use strict";
+
+  if (!core || !monitor) throw new Error("MobileForth core and Monitor state modules are required");
+
+  const { MobileForth, tokenizeDetailed, parseNumber, compileBody, signed, MAX_SOURCE_BYTES, MAX_CALL_DEPTH, errors } = core;
+  const { STATES, MonitorExecutionControl, MonitorTransitionError } = monitor;
+  const { UnknownWord, StackUnderflow, CompileError, CallDepthExceeded } = errors;
+  const COMPILE_ONLY = [";", "IF", "ELSE", "THEN", "BEGIN", "UNTIL", "AGAIN", "WHILE", "REPEAT", "DO", "?DO", "LOOP", "+LOOP", "LEAVE", "RECURSE"];
+
+  class MobileForthSession {
+    constructor(source, options = {}) {
+      this.source = source;
+      this.vm = new MobileForth(options);
+      this.initialState = this.vm.captureTransactionalState();
+      this.tokens = [];
+      this.mainIndex = 0;
+      this.frames = [];
+      this.error = null;
+      this.failureSnapshot = null;
+      this.preRollbackDiagnostics = null;
+      this.lastBoundary = null;
+      this.control = new MonitorExecutionControl();
+      if (new TextEncoder().encode(source).length > MAX_SOURCE_BYTES) throw new CompileError(`source exceeds ${MAX_SOURCE_BYTES} UTF-8 bytes`);
+      this.tokens = tokenizeDetailed(source);
+      this.control.start(this.snapshot("start"));
+    }
+
+    get state() { return this.control.state; }
+
+    activeFrame() { return this.frames.length ? this.frames[this.frames.length - 1] : null; }
+
+    location() {
+      const frame = this.activeFrame();
+      if (frame) {
+        const instruction = frame.code[frame.ip] || null;
+        return {
+          word: frame.word,
+          wordId: frame.wordId,
+          invocationId: frame.invocationId,
+          callDepth: frame.callDepth,
+          instructionIndex: instruction ? frame.ip + 1 : null,
+          sourceLine: instruction && instruction.sourceLine || null,
+          sourceColumn: instruction && instruction.sourceColumn || null,
+          token: instruction ? this.vm.instructionLabel(instruction) : "return",
+        };
+      }
+      const sourceToken = this.tokens[this.mainIndex] || null;
+      return {
+        word: "#0 MAIN",
+        wordId: 0,
+        invocationId: 0,
+        callDepth: 0,
+        instructionIndex: sourceToken ? this.mainIndex + 1 : null,
+        sourceLine: sourceToken && sourceToken.line || null,
+        sourceColumn: sourceToken && sourceToken.column || null,
+        token: sourceToken ? (typeof sourceToken.value === "object" ? '."' : sourceToken.value) : "end",
+      };
+    }
+
+    snapshot(reason = "instruction-boundary") {
+      return {
+        reason,
+        steps: this.vm.steps,
+        dataStack: this.vm.stackSnapshot(),
+        returnStack: [...this.vm.returnStack],
+        loopStack: this.vm.loopSnapshot(),
+        output: this.vm.output,
+        location: this.location(),
+        callFrames: this.frames.map(frame => ({
+          type: "CALL_RETURN",
+          word: frame.word,
+          wordId: frame.wordId,
+          invocationId: frame.invocationId,
+          callDepth: frame.callDepth,
+          nextInstruction: frame.ip + 1,
+        })),
+      };
+    }
+
+    requestPause() { return this.control.requestPause(); }
+    continueExecution() { return this.control.continueExecution(); }
+    step() { return this.control.step(); }
+    requestStop() { return this.control.requestStop(); }
+
+    requestAbort() {
+      this.control.requestAbort();
+      if (this.control.state === STATES.ABORTED) this.rollback();
+      return this.control.status();
+    }
+
+    rollback() {
+      if (!this.preRollbackDiagnostics) this.preRollbackDiagnostics = this.buildDiagnostics();
+      this.vm.restoreTransactionalState(this.initialState);
+      this.frames = [];
+      this.mainIndex = 0;
+      this.lastBoundary = this.snapshot("abort-rollback");
+      this.control.confirmRollback(this.lastBoundary);
+    }
+
+    buildDiagnostics() {
+      const clone = value => JSON.parse(JSON.stringify(value));
+      const userWords = [...this.vm.wordDefinitions.values()].map(item => ({ id: item.id, name: item.name })).sort((left, right) => left.id - right.id);
+      return {
+        words: clone(this.vm.traceEvents()),
+        traceSummary: { limit: this.vm.maxTraceEvents, recorded: Math.min(this.vm.traceSequence, this.vm.maxTraceEvents), omitted: this.vm.omittedTraceEvents, total: this.vm.traceSequence },
+        userWords,
+        wordCatalog: clone(this.vm.wordCatalog()),
+        error: clone(this.error),
+        failureSnapshot: clone(this.failureSnapshot),
+      };
+    }
+
+    diagnostics() { return this.preRollbackDiagnostics || this.buildDiagnostics(); }
+
+    enterDefinition(name, code, pendingEvent) {
+      if (this.vm.returnStack.length >= MAX_CALL_DEPTH) throw new CallDepthExceeded(`call depth ${MAX_CALL_DEPTH} exceeded`);
+      const frame = { word: name, wordId: this.vm.wordIds.get(name) || null, invocationId: this.vm.nextInvocationId, callDepth: this.frames.length + 1, code, ip: 0, pendingEvent };
+      this.vm.nextInvocationId += 1;
+      const runtime = this.vm.wordRuntime.get(frame.wordId) || { invocationCount: 0, lastDataBefore: [], lastDataAfter: [] };
+      runtime.invocationCount += 1;
+      runtime.lastDataBefore = this.vm.stackSnapshot();
+      this.vm.wordRuntime.set(frame.wordId, runtime);
+      frame.runtime = runtime;
+      this.vm.returnStack.push(name);
+      this.vm.callFrames.push({ word: name, wordId: frame.wordId, invocationId: frame.invocationId, callDepth: frame.callDepth });
+      this.frames.push(frame);
+    }
+
+    settleCompletedFrames() {
+      while (this.frames.length) {
+        const frame = this.activeFrame();
+        if (frame.ip < frame.code.length) break;
+        frame.runtime.lastDataAfter = this.vm.stackSnapshot();
+        this.frames.pop();
+        this.vm.callFrames.pop();
+        this.vm.returnStack.pop();
+        if (frame.pendingEvent) this.vm.finishTrace(frame.pendingEvent);
+      }
+    }
+
+    unwindFailedFrames(error) {
+      while (this.frames.length) {
+        const frame = this.frames.pop();
+        frame.runtime.lastDataAfter = this.vm.stackSnapshot();
+        this.vm.callFrames.pop();
+        this.vm.returnStack.pop();
+        if (frame.pendingEvent && frame.pendingEvent.status === "running") this.vm.finishTrace(frame.pendingEvent, error);
+      }
+    }
+
+    defineAtMain(event) {
+      const sourceToken = this.tokens[this.mainIndex];
+      const nameToken = this.tokens[this.mainIndex + 1];
+      const name = nameToken && nameToken.value;
+      if (typeof name !== "string" || [":", ";"].includes(name)) throw new CompileError(":" + " requires a word name");
+      const body = [];
+      let index = this.mainIndex + 2;
+      while (index < this.tokens.length && this.tokens[index].value !== ";") { body.push(this.tokens[index]); index += 1; }
+      if (index >= this.tokens.length) throw new CompileError(`definition ${name} is missing ;`);
+      this.vm.dictionary.set(name, compileBody(body));
+      this.vm.wordIds.set(name, this.vm.nextWordId);
+      event.wordId = this.vm.nextWordId;
+      const terminator = this.tokens[index];
+      const firstBodyStart = body.length ? body[0].start : terminator.start;
+      const stackComment = this.source.slice(nameToken.end, firstBodyStart).match(/\(\s*([^)]*--[^)]*)\)/s);
+      this.vm.wordDefinitions.set(this.vm.nextWordId, {
+        id: this.vm.nextWordId,
+        name,
+        type: "colon",
+        category: "利用者定義",
+        stackEffect: stackComment ? `( ${stackComment[1].trim().replace(/\s+/g, " ")} )` : "未記載",
+        description: "このsourceで登録したcolon wordです。",
+        availability: "実行・定義内",
+        source: this.source.slice(sourceToken.start, terminator.end),
+      });
+      this.vm.nextWordId += 1;
+      event.token = `: ${name} ... ;`;
+      event.word = name;
+      event.scope = "definition";
+      this.mainIndex = index + 1;
+    }
+
+    dispatchWord(name, pendingEvent, recurseCode = null) {
+      if (recurseCode) {
+        const currentName = this.vm.returnStack[this.vm.returnStack.length - 1];
+        if (!currentName) throw new CompileError("RECURSE requires a colon definition");
+        this.enterDefinition(currentName, recurseCode, pendingEvent);
+        return "entered";
+      }
+      this.vm.step();
+      const builtin = this.vm.builtins()[name];
+      if (builtin) { builtin(); return "completed"; }
+      const code = this.vm.dictionary.get(name);
+      if (!code) throw new UnknownWord(`unknown word ${name}`);
+      this.enterDefinition(name, code, pendingEvent);
+      return "entered";
+    }
+
+    executeMainInstruction() {
+      const sourceToken = this.tokens[this.mainIndex];
+      const token = sourceToken.value;
+      const event = this.vm.beginTrace({ scope: "main", word: "#0 MAIN", wordId: 0, invocationId: 0, callDepth: 0, instructionIndex: this.mainIndex + 1, sourceLine: sourceToken.line, sourceColumn: sourceToken.column, token: typeof token === "object" ? '."' : token, op: token === ":" ? "DEFINE" : "TOKEN" });
+      let pending = false;
+      try {
+        if (token === ":") this.defineAtMain(event);
+        else {
+          this.mainIndex += 1;
+          if (typeof token === "object" && token.kind === "PRINT") { this.vm.step(); this.vm.output += token.text; }
+          else {
+            const number = parseNumber(token);
+            if (number !== null) { this.vm.step(); this.vm.push(number); }
+            else {
+              if (COMPILE_ONLY.includes(token)) throw new CompileError(`${token} is compile-only`);
+              pending = this.dispatchWord(token, event) === "entered";
+            }
+          }
+        }
+        if (!pending) this.vm.finishTrace(event);
+      } catch (error) {
+        this.vm.finishTrace(event, error);
+        throw error;
+      }
+    }
+
+    executeColonInstruction(frame) {
+      const instruction = frame.code[frame.ip];
+      const event = this.vm.beginTrace({ scope: "colon", word: frame.word, wordId: frame.wordId, invocationId: frame.invocationId, callDepth: frame.callDepth, instructionIndex: frame.ip + 1, sourceLine: instruction.sourceLine, sourceColumn: instruction.sourceColumn, token: this.vm.instructionLabel(instruction), op: instruction.op });
+      let nextIp = frame.ip + 1;
+      let pending = false;
+      try {
+        this.vm.step();
+        if (instruction.op === "LIT") this.vm.push(instruction.value);
+        else if (instruction.op === "PRINT") this.vm.output += instruction.text;
+        else if (instruction.op === "WORD") pending = this.dispatchWord(instruction.name, event) === "entered";
+        else if (instruction.op === "RECURSE") pending = this.dispatchWord(null, event, frame.code) === "entered";
+        else if (instruction.op === "JUMP") nextIp = instruction.target;
+        else if (instruction.op === "JZ") { if (this.vm.pop("branch") === 0) nextIp = instruction.target; }
+        else if (instruction.op === "DO" || instruction.op === "?DO") {
+          this.vm.need(2, instruction.op);
+          const start = this.vm.stack[this.vm.stack.length - 1];
+          const limit = this.vm.stack[this.vm.stack.length - 2];
+          this.vm.stack.splice(-2, 2);
+          if (instruction.op === "?DO" && start === limit) nextIp = instruction.target;
+          else {
+            this.vm.loopStack.push({ loopId: this.vm.nextLoopId, iteration: 0, limit, index: start });
+            this.vm.nextLoopId += 1;
+          }
+        } else if (instruction.op === "LOOP") {
+          if (!this.vm.loopStack.length) throw new StackUnderflow("LOOP needs a loop frame");
+          const loopFrame = this.vm.loopStack[this.vm.loopStack.length - 1];
+          loopFrame.index = core.cell(loopFrame.index + 1);
+          if (loopFrame.index === loopFrame.limit) this.vm.loopStack.pop();
+          else { loopFrame.iteration += 1; nextIp = instruction.target; }
+        } else if (instruction.op === "+LOOP") {
+          if (!this.vm.loopStack.length) throw new StackUnderflow("+LOOP needs a loop frame");
+          const increment = signed(this.vm.pop("+LOOP"));
+          const loopFrame = this.vm.loopStack[this.vm.loopStack.length - 1];
+          const oldDelta = signed(loopFrame.index - loopFrame.limit);
+          loopFrame.index = core.cell(loopFrame.index + increment);
+          const newDelta = signed(loopFrame.index - loopFrame.limit);
+          const crossed = (increment > 0 && oldDelta < 0 && newDelta >= 0) || (increment < 0 && oldDelta > 0 && newDelta <= 0);
+          if (crossed) this.vm.loopStack.pop();
+          else { loopFrame.iteration += 1; nextIp = instruction.target; }
+        } else if (instruction.op === "LEAVE") {
+          if (!this.vm.loopStack.length) throw new StackUnderflow("LEAVE needs a loop frame");
+          this.vm.loopStack.pop(); nextIp = instruction.target;
+        } else throw new CompileError(`invalid instruction ${instruction.op}`);
+        frame.ip = nextIp;
+        if (!pending) this.vm.finishTrace(event);
+      } catch (error) {
+        this.vm.finishTrace(event, error);
+        throw error;
+      }
+    }
+
+    isProgramComplete() { return this.frames.length === 0 && this.mainIndex >= this.tokens.length; }
+
+    advance() {
+      if (![STATES.RUNNING, STATES.PAUSE_REQUESTED, STATES.STEPPING, STATES.STOP_REQUESTED, STATES.ABORT_REQUESTED].includes(this.state)) {
+        throw new MonitorTransitionError(`advance is not allowed while ${this.state}`);
+      }
+      try {
+        this.settleCompletedFrames();
+        if (this.isProgramComplete()) {
+          this.lastBoundary = this.snapshot("completed");
+          if ([STATES.RUNNING, STATES.STEPPING].includes(this.state)) this.control.complete(this.lastBoundary);
+          else {
+            const outcome = this.control.atInstructionBoundary(this.lastBoundary);
+            if (outcome === "aborted") this.rollback();
+          }
+          return this.control.status();
+        }
+        const frame = this.activeFrame();
+        if (frame) this.executeColonInstruction(frame);
+        else this.executeMainInstruction();
+        this.settleCompletedFrames();
+        this.lastBoundary = this.snapshot("instruction-boundary");
+        const complete = this.isProgramComplete();
+        if (complete && [STATES.RUNNING, STATES.STEPPING].includes(this.state)) this.control.complete(this.lastBoundary);
+        else {
+          const outcome = this.control.atInstructionBoundary(this.lastBoundary);
+          if (outcome === "aborted") this.rollback();
+        }
+        return this.control.status();
+      } catch (error) {
+        const failureSnapshot = this.snapshot("error");
+        this.failureSnapshot = failureSnapshot;
+        this.unwindFailedFrames(error);
+        this.lastBoundary = failureSnapshot;
+        this.error = { name: error.constructor.name, message: error.message, location: this.lastBoundary.location };
+        this.control.fail(this.lastBoundary, this.error);
+        return this.control.status();
+      }
+    }
+
+    runUntilBlocked(maxBoundaries = 100000) {
+      let count = 0;
+      while ([STATES.RUNNING, STATES.PAUSE_REQUESTED, STATES.STEPPING, STATES.STOP_REQUESTED, STATES.ABORT_REQUESTED].includes(this.state)) {
+        this.advance();
+        count += 1;
+        if (count > maxBoundaries) throw new Error(`boundary limit ${maxBoundaries} exceeded`);
+      }
+      return this.control.status();
+    }
+
+    status() { return this.control.status(); }
+  }
+
+  return { MobileForthSession };
+});
+
+</script>
+<script>
+(function (root, factory) {
+  if (typeof module === "object" && module.exports) {
+    module.exports = factory(require("./mobile-monitor-state.js"));
+  } else {
+    root.Min0MobileForthScheduler = factory(root.Min0MobileMonitor);
+  }
+})(typeof globalThis !== "undefined" ? globalThis : this, function (monitor) {
+  "use strict";
+
+  if (!monitor) throw new Error("Mobile Monitor state module is required");
+
+  const { STATES } = monitor;
+  const RUNNABLE = new Set([
+    STATES.RUNNING,
+    STATES.PAUSE_REQUESTED,
+    STATES.STEPPING,
+    STATES.STOP_REQUESTED,
+    STATES.ABORT_REQUESTED,
+  ]);
+
+  class MobileForthScheduler {
+    constructor(session, options = {}) {
+      if (!session || typeof session.advance !== "function") throw new TypeError("a MobileForthSession is required");
+      this.session = session;
+      this.chunkSize = options.chunkSize === undefined ? 100 : Number(options.chunkSize);
+      if (!Number.isSafeInteger(this.chunkSize) || this.chunkSize < 1) throw new RangeError("chunkSize must be a positive safe integer");
+      this.schedule = options.schedule || (callback => setTimeout(callback, 0));
+      this.onUpdate = options.onUpdate || (() => {});
+      this.started = false;
+      this.scheduled = false;
+      this.chunkSequence = 0;
+      this.totalBoundaries = 0;
+    }
+
+    isRunnable() { return RUNNABLE.has(this.session.state); }
+
+    update(kind, executed = 0) {
+      const event = {
+        kind,
+        chunkSequence: this.chunkSequence,
+        executed,
+        totalBoundaries: this.totalBoundaries,
+        scheduled: this.scheduled,
+        status: this.session.status(),
+        diagnostics: this.isRunnable() ? null : this.session.diagnostics(),
+      };
+      this.onUpdate(event);
+      return event;
+    }
+
+    start() {
+      if (this.started) throw new Error("scheduler has already started");
+      this.started = true;
+      this.update("start");
+      this.scheduleNext();
+    }
+
+    scheduleNext() {
+      if (!this.started || this.scheduled || !this.isRunnable()) return false;
+      this.scheduled = true;
+      this.schedule(() => {
+        this.scheduled = false;
+        this.runChunk();
+      });
+      return true;
+    }
+
+    runChunk() {
+      if (!this.started || !this.isRunnable()) return this.update("idle-chunk");
+      this.chunkSequence += 1;
+      let executed = 0;
+      while (executed < this.chunkSize && this.isRunnable()) {
+        this.session.advance();
+        executed += 1;
+      }
+      this.totalBoundaries += executed;
+      const event = this.update("chunk", executed);
+      this.scheduleNext();
+      return event;
+    }
+
+    requestPause() {
+      this.session.requestPause();
+      const event = this.update("pause-requested");
+      this.scheduleNext();
+      return event;
+    }
+
+    continueExecution() {
+      this.session.continueExecution();
+      const event = this.update("continued");
+      this.scheduleNext();
+      return event;
+    }
+
+    step() {
+      this.session.step();
+      const event = this.update("step-requested");
+      this.scheduleNext();
+      return event;
+    }
+
+    requestStop() {
+      this.session.requestStop();
+      const event = this.update("stop-requested");
+      this.scheduleNext();
+      return event;
+    }
+
+    requestAbort() {
+      this.session.requestAbort();
+      const event = this.update("abort-requested");
+      this.scheduleNext();
+      return event;
+    }
+  }
+
+  return { MobileForthScheduler, RUNNABLE };
+});
+
+</script>
+<script>
 (() => {
   "use strict";
   const $ = id => document.getElementById(id);
@@ -737,6 +1387,9 @@
   };
   const formatStack = stack => `<${stack.length}>${stack.length ? " " + stack.join(" ") : ""}`;
   let lastResult = null;
+  let currentSession = null;
+  let currentScheduler = null;
+  const stateLabels = { idle: "未開始", running: "実行中", "pause-requested": "一時停止要求中", paused: "一時停止", stepping: "1命令実行中", "stop-requested": "安全停止要求中", stopped: "安全停止", "abort-requested": "復旧要求中", aborted: "実行前へ復旧", completed: "正常終了", failed: "エラー停止" };
   function setText(node, value) { node.textContent = value; }
   function loadDraft() {
     try { const saved = localStorage.getItem(storageKey); if (saved !== null) $("source").value = saved; }
@@ -812,7 +1465,7 @@
       const loopFrames = event.loopStackBefore || [];
       const loopFrame = loopFrames[loopFrames.length - 1];
       const token = loopFrame ? `${event.token} 〔L${loopFrame.loopId} 反復${loopFrame.iteration} I=${loopFrame.index}〕` : event.token;
-      [event.sequence, location, sourceLocation, token, formatStack(event.dataBefore), formatStack(event.dataAfter || []), event.status === "error" ? `ERROR: ${event.error.name}` : "OK"].forEach(value => { const cell = row.insertCell(); cell.textContent = String(value); });
+      [event.sequence, location, sourceLocation, token, formatStack(event.dataBefore), formatStack(event.dataAfter || []), event.status === "error" ? `ERROR: ${event.error.name}` : event.status === "running" ? "停止中" : "OK"].forEach(value => { const cell = row.insertCell(); cell.textContent = String(value); });
     });
   }
   function renderWordCatalog() {
@@ -837,26 +1490,91 @@
       row.insertCell().textContent = item.type === "colon" ? `${item.availability}／呼出${item.invocationCount}回／${formatStack(item.lastDataBefore)} → ${formatStack(item.lastDataAfter)}` : item.availability;
     });
   }
+  function setControls(state) {
+    const active = ["running", "pause-requested", "paused", "stepping", "stop-requested", "abort-requested"].includes(state);
+    $("source").disabled = active;
+    $("run").disabled = active;
+    $("pause").disabled = state !== "running";
+    $("step").disabled = state !== "paused";
+    $("continue").disabled = state !== "paused";
+    $("stop").disabled = !["running", "pause-requested", "paused", "stepping"].includes(state);
+    $("abort").disabled = !["running", "pause-requested", "paused", "stepping", "stopped", "completed", "failed"].includes(state);
+  }
+  function renderCallHistory(snapshot) {
+    const body = $("call-history"); body.textContent = "";
+    const frames = [...(snapshot.callFrames || [])].reverse();
+    if (!frames.length) {
+      const row = body.insertRow(); [0, "MAIN", "#0 MAIN", snapshot.location && snapshot.location.instructionIndex || "終了"].forEach(value => row.insertCell().textContent = String(value)); return;
+    }
+    frames.forEach(frame => {
+      const row = body.insertRow(); [frame.callDepth, frame.type, `#${frame.wordId} ${frame.word}／呼出#${frame.invocationId}`, frame.nextInstruction].forEach(value => row.insertCell().textContent = String(value));
+    });
+  }
+  function monitorResult(diagnostics) {
+    return diagnostics ? { words: diagnostics.words, traceSummary: diagnostics.traceSummary, userWords: diagnostics.userWords, wordCatalog: diagnostics.wordCatalog } : null;
+  }
+  function resetDiagnosticDisplay() {
+    $("error-panel").hidden = true;
+    $("stack-stopped-row").hidden = true;
+    $("trace-summary").textContent = "実行中です。確定した停止点で表示します。";
+    $("trace").innerHTML = '<tr><td colspan="7">（実行中）</td></tr>';
+    $("trace-word").innerHTML = '<option value="all">すべて</option>';
+    $("trace-invocation").innerHTML = '<option value="all">すべて</option>';
+    $("trace-word").disabled = true;
+    $("trace-invocation").disabled = true;
+    $("trace-all-loops").disabled = true;
+    $("word-search").disabled = true;
+    $("word-summary").textContent = "実行中です。確定した停止点で利用できます。";
+    $("word-catalog").innerHTML = '<tr><td colspan="5">（実行中）</td></tr>';
+  }
+  function renderMonitor(event) {
+    const state = event.status.state;
+    const snapshot = event.status.currentSnapshot || event.status.initialSnapshot;
+    const initial = event.status.initialSnapshot || snapshot;
+    const diagnostics = event.diagnostics;
+    setText($("terminal"), snapshot.output || "（出力なし）");
+    setText($("stack-before"), formatStack(initial.dataStack || []));
+    const failedSnapshot = diagnostics && diagnostics.failureSnapshot;
+    $("stack-stopped-row").hidden = !failedSnapshot;
+    if (failedSnapshot) setText($("stack-stopped"), formatStack(failedSnapshot.dataStack));
+    setText($("stack"), formatStack(snapshot.dataStack || []));
+    const finalLabels = { running: "直近の命令境界", "pause-requested": "直近の命令境界", paused: "一時停止時", stepping: "直近の命令境界", "stop-requested": "直近の命令境界", stopped: "安全停止時", "abort-requested": "直近の命令境界", aborted: "安全復旧後", completed: "正常終了後", failed: "エラー停止時" };
+    setText($("stack-final-label"), finalLabels[state] || "現在の確定状態");
+    const notes = { paused: "確定した命令境界で一時停止しています。", stopped: "現在状態を保持して安全停止しました。", aborted: "stackと辞書を実行前へ復旧しました。表示済み出力は取り消しません。", failed: "失敗時snapshotを保持しています。確認後に実行前へ復旧できます。", completed: "正常終了しました。" };
+    setText($("recovery-note"), notes[state] || "実行中objectではなく、直近の確定snapshotを表示しています。");
+    setText($("status"), `${stateLabels[state] || state} / ${snapshot.steps} steps`);
+    $("status").className = state === "failed" ? "bad" : ["completed", "aborted", "stopped", "paused"].includes(state) ? "ok" : "";
+    const location = snapshot.location || {};
+    setText($("current-location"), `${location.word || "#0 MAIN"}${location.wordId === null || location.wordId === undefined ? "" : ` (#${location.wordId})`}／命令 ${location.instructionIndex || "終了"}／${location.sourceLine ? `${location.sourceLine}行${location.sourceColumn}列` : "source位置なし"}／次: ${location.token || "end"}`);
+    setText($("chunk-status"), `chunk #${event.chunkSequence}：${event.executed}命令境界／累計${event.totalBoundaries}境界${event.scheduled ? "／次chunk予約済み" : ""}`);
+    renderCallHistory(snapshot);
+    const error = diagnostics && diagnostics.error;
+    $("error-panel").hidden = !error;
+    if (error) setText($("error"), `${error.name}: ${error.message}\n停止位置: ${error.location.word}／命令 ${error.location.instructionIndex || "不明"}${error.location.sourceLine ? `／${error.location.sourceLine}行${error.location.sourceColumn}列` : ""}`);
+    if (diagnostics) {
+      lastResult = monitorResult(diagnostics);
+      configureTraceChoices(lastResult); renderTrace(); $("word-search").disabled = false; renderWordCatalog();
+    }
+    setControls(state);
+  }
+  function showControlError(error) {
+    $("error-panel").hidden = false; setText($("error"), `${error.constructor.name}: ${error.message}`); setText($("status"), "操作できませんでした"); $("status").className = "bad"; setControls(currentSession ? currentSession.state : "idle");
+  }
   function run() {
-    const result = new Min0MobileForth.MobileForth().interpret($("source").value);
-    lastResult = result;
-    setText($("terminal"), result.terminal || "（出力なし）");
-    setText($("stack-before"), formatStack(result.initialDataStack));
-    $("stack-stopped-row").hidden = result.ok;
-    if (!result.ok) setText($("stack-stopped"), formatStack(result.stoppedDataStack));
-    setText($("stack"), formatStack(result.finalDataStack));
-    setText($("stack-final-label"), result.ok ? "正常終了後" : "安全復旧後");
-    setText($("recovery-note"), result.recovery.note);
-    setText($("status"), result.ok ? `正常終了 / ${result.steps} steps` : `エラー停止 → stack／辞書復旧完了 / ${result.steps} steps`);
-    $("status").className = result.ok ? "ok" : "bad";
-    $("error-panel").hidden = result.ok;
-    if (!result.ok) setText($("error"), `${result.error.name}: ${result.error.message}\n停止位置: #${result.error.wordId} ${result.error.word}${result.error.sourceLine ? `（${result.error.sourceLine}行${result.error.sourceColumn}列）` : ""}${result.error.instructionIndex ? ` 命令${result.error.instructionIndex}` : ""}\n最上位入力位置: ${result.error.tokenIndex}`);
-    configureTraceChoices(result);
-    renderTrace();
-    $("word-search").disabled = false;
-    renderWordCatalog();
+    try {
+      lastResult = null;
+      resetDiagnosticDisplay();
+      currentSession = new Min0MobileForthSession.MobileForthSession($("source").value);
+      currentScheduler = new Min0MobileForthScheduler.MobileForthScheduler(currentSession, { chunkSize: 100, onUpdate: renderMonitor });
+      currentScheduler.start();
+    } catch (error) { currentSession = null; currentScheduler = null; showControlError(error); }
   }
   $("run").addEventListener("click", run);
+  $("pause").addEventListener("click", () => { try { currentScheduler.requestPause(); } catch (error) { showControlError(error); } });
+  $("step").addEventListener("click", () => { try { currentScheduler.step(); } catch (error) { showControlError(error); } });
+  $("continue").addEventListener("click", () => { try { currentScheduler.continueExecution(); } catch (error) { showControlError(error); } });
+  $("stop").addEventListener("click", () => { try { currentScheduler.requestStop(); } catch (error) { showControlError(error); } });
+  $("abort").addEventListener("click", () => { try { currentScheduler.requestAbort(); } catch (error) { showControlError(error); } });
   $("save").addEventListener("click", () => {
     try { localStorage.setItem(storageKey, $("source").value); setText($("save-status"), "この端末内に保存しました。"); }
     catch (_) { setText($("save-status"), "保存できませんでした。ソースをコピーして保管してください。"); }

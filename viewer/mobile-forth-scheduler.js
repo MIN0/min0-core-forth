@@ -42,6 +42,7 @@
         totalBoundaries: this.totalBoundaries,
         scheduled: this.scheduled,
         status: this.session.status(),
+        diagnostics: this.isRunnable() ? null : this.session.diagnostics(),
       };
       this.onUpdate(event);
       return event;

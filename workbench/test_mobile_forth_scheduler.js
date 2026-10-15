@@ -41,6 +41,7 @@ queue.flushOne();
 assert.equal(looping.state, STATES.PAUSED);
 assert.equal(looping.vm.steps - beforePause, 1, "pause is accepted at the next instruction boundary");
 assert.equal(queue.length, 0);
+assert.ok(updates.at(-1).diagnostics);
 
 const beforeStep = looping.vm.steps;
 scheduler.step();
@@ -73,6 +74,7 @@ assert.equal(abortSession.state, STATES.ABORTED);
 assert.equal(abortSession.vm.dictionary.size, 0);
 assert.deepEqual(abortSession.vm.stackSnapshot(), []);
 assert.equal(abortSession.vm.output, "VISIBLE", "already visible output is not transactional");
+assert.ok(abortScheduler.update("inspect").diagnostics.wordCatalog.some(item => item.name === "TEMP"));
 
 const completeQueue = fakeQueue();
 const completeSession = new MobileForthSession("2 3 +");
