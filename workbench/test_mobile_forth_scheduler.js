@@ -88,6 +88,21 @@ assert.equal(completeSession.state, STATES.COMPLETED);
 assert.deepEqual(completeSession.vm.stackSnapshot(), [5]);
 assert.equal(completeQueue.length, 0);
 
+const inputScheduleQueue = fakeQueue();
+const waitingSession = new MobileForthSession("KEY 1+");
+const waitingScheduler = new MobileForthScheduler(waitingSession, { chunkSize: 4, schedule: callback => inputScheduleQueue.schedule(callback) });
+waitingScheduler.start();
+inputScheduleQueue.flushOne();
+assert.equal(waitingSession.state, STATES.WAITING_INPUT);
+assert.equal(inputScheduleQueue.length, 0, "waiting-input must not busy-loop");
+const inputUpdate = waitingScheduler.enqueueInput("A");
+assert.equal(inputUpdate.count, 1);
+assert.equal(waitingSession.state, STATES.RUNNING);
+assert.equal(inputScheduleQueue.length, 1, "input arrival schedules resumed execution");
+inputScheduleQueue.flushOne();
+assert.equal(waitingSession.state, STATES.COMPLETED);
+assert.deepEqual(waitingSession.vm.stackSnapshot(), [66]);
+
 assert.throws(() => new MobileForthScheduler(new MobileForthSession(""), { chunkSize: 0 }), RangeError);
 assert.throws(() => scheduler.start(), /already started/);
 

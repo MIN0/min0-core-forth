@@ -27,11 +27,16 @@ assert.equal(inputVm.enqueueInput("Aあ"), 4, "input queue stores UTF-8 bytes");
 inputVm.executeWord("KEY?");
 assert.deepEqual(inputVm.stackSnapshot(), [-1]);
 assert.equal(inputVm.inputQueue.length, 4, "KEY? must not consume input");
-assert.throws(() => inputVm.enqueueInput("x".repeat(253)), /input queue exceeds 256 UTF-8 bytes/);
+inputVm.stack.length = 0;
+inputVm.executeWord("KEY");
+assert.deepEqual(inputVm.stackSnapshot(), [65]);
+assert.equal(inputVm.inputQueue.length, 3, "KEY consumes exactly one UTF-8 byte");
+assert.throws(() => inputVm.enqueueInput("x".repeat(254)), /input queue exceeds 256 UTF-8 bytes/);
 const inputState = inputVm.captureTransactionalState();
 inputVm.inputQueue.length = 0;
 inputVm.restoreTransactionalState(inputState);
-assert.equal(inputVm.inputQueue.length, 4, "input queue participates in rollback state");
+assert.equal(inputVm.inputQueue.length, 3, "input queue participates in rollback state");
+assert.throws(() => new MobileForth().executeWord("KEY"), /KEY needs one queued input byte/);
 
 ok("2 3 4 * + . CR", [], "14\n");
 ok("1 2 3 ROT", [2, 3, 1]);

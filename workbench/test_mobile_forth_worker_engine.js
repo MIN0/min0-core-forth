@@ -85,4 +85,18 @@ assert.equal(inputEngine.session.state, "completed");
 assert.deepEqual(inputEngine.session.vm.stackSnapshot(), [-1]);
 assert.equal(inputEngine.session.vm.inputQueue.length, 1, "KEY? leaves the byte queued");
 
+const keyEvents = [];
+const keyQueue = fakeQueue();
+const keyEngine = new MobileForthWorkerEngine(event => keyEvents.push(event), { schedule: callback => keyQueue.schedule(callback) });
+const keyCommand = (sequence, name, payload = {}) => protocol.createCommand("key-session", sequence, name, payload);
+keyEngine.receive(keyCommand(1, "run", { source: "KEY 1+", chunkSize: 4 }));
+keyQueue.flushOne();
+assert.equal(keyEngine.session.state, "waiting-input");
+assert.equal(keyQueue.length, 0, "Worker must remain idle while input is empty");
+keyEngine.receive(keyCommand(2, "input", { text: "A" }));
+assert.equal(keyQueue.length, 1);
+keyQueue.flushOne();
+assert.equal(keyEngine.session.state, "completed");
+assert.deepEqual(keyEngine.session.vm.stackSnapshot(), [66]);
+
 console.log("mobile forth worker engine tests: PASS");

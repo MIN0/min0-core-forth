@@ -48,6 +48,7 @@
     wordMeta('."', "( -- )", "出力", "終端quoteまでの文字列を出力します。", "解釈・compile"),
     wordMeta("WORDS", "( -- )", "辞書", "利用可能なword名を表示します。"),
     wordMeta("KEY?", "( -- flag )", "入力", "入力queueに1バイト以上あればtrueを返します。入力は消費しません。"),
+    wordMeta("KEY", "( -- byte )", "入力", "入力queueの先頭UTF-8 byteを取り出します。空ならsession版は安全な入力待ちへ入ります。"),
     wordMeta("I", "( -- n )", "LOOP", "現在のLOOP indexを積みます。", "定義内"),
     wordMeta("J", "( -- n )", "LOOP", "1段外側のLOOP indexを積みます。", "定義内"),
     wordMeta("UNLOOP", "( -- )", "LOOP", "現在のLOOP frameを破棄します。", "定義内"),
@@ -78,6 +79,7 @@
   class StepLimitExceeded extends ForthError {}
   class CallDepthExceeded extends ForthError {}
   class InputQueueOverflow extends ForthError {}
+  class InputUnavailable extends ForthError {}
 
   function sourcePosition(source, target) {
     let line = 1;
@@ -481,6 +483,10 @@
         "UNLOOP": () => { if (!this.loopStack.length) throw new StackUnderflow("UNLOOP needs a loop frame"); this.loopStack.pop(); },
         "WORDS": () => { this.output += [...WORD_METADATA.map(item => item.name), ...this.dictionary.keys()].sort().join(" "); },
         "KEY?": () => { this.push(this.inputQueue.length ? TRUE : 0); },
+        "KEY": () => {
+          if (!this.inputQueue.length) throw new InputUnavailable("KEY needs one queued input byte");
+          this.push(this.inputQueue.shift());
+        },
       };
       return this._builtins;
     }
@@ -614,5 +620,5 @@
     }
   }
 
-  return { MobileForth, tokenize, tokenizeDetailed, parseNumber, compileBody, signed, cell, WORD_METADATA, MAX_SOURCE_BYTES, DEFAULT_MAX_TRACE_EVENTS, MAX_CALL_DEPTH, DEFAULT_MAX_INPUT_BYTES, errors: { ForthError, UnknownWord, StackUnderflow, DivisionByZero, DivisionOverflow, CompileError, StepLimitExceeded, CallDepthExceeded, InputQueueOverflow } };
+  return { MobileForth, tokenize, tokenizeDetailed, parseNumber, compileBody, signed, cell, WORD_METADATA, MAX_SOURCE_BYTES, DEFAULT_MAX_TRACE_EVENTS, MAX_CALL_DEPTH, DEFAULT_MAX_INPUT_BYTES, errors: { ForthError, UnknownWord, StackUnderflow, DivisionByZero, DivisionOverflow, CompileError, StepLimitExceeded, CallDepthExceeded, InputQueueOverflow, InputUnavailable } };
 });

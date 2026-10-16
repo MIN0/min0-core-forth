@@ -21,13 +21,13 @@
   const { MobileForthScheduler } = schedulerModule;
   const TERMINAL = new Set(["stopped", "aborted", "completed", "failed"]);
   const ALLOWED_STATES = Object.freeze({
-    pause: new Set(["running"]),
+    pause: new Set(["running", "waiting-input"]),
     step: new Set(["paused"]),
     continue: new Set(["paused"]),
-    stop: new Set(["running", "pause-requested", "stepping", "paused"]),
-    abort: new Set(["running", "pause-requested", "stepping", "paused", "stopped", "failed", "completed"]),
-    inspect: new Set(["running", "pause-requested", "paused", "stepping", "stop-requested", "stopped", "abort-requested", "aborted", "completed", "failed"]),
-    input: new Set(["running", "pause-requested", "paused", "stepping"]),
+    stop: new Set(["running", "pause-requested", "stepping", "waiting-input", "paused"]),
+    abort: new Set(["running", "pause-requested", "stepping", "waiting-input", "paused", "stopped", "failed", "completed"]),
+    inspect: new Set(["running", "pause-requested", "paused", "stepping", "waiting-input", "stop-requested", "stopped", "abort-requested", "aborted", "completed", "failed"]),
+    input: new Set(["running", "pause-requested", "paused", "stepping", "waiting-input"]),
   });
 
   class MobileForthWorkerEngine {
@@ -111,8 +111,7 @@
         abort: () => this.scheduler.requestAbort(),
         inspect: () => this.scheduler.update("inspect"),
         input: () => {
-          this.session.enqueueInput(command.payload.text);
-          return this.scheduler.update("input-enqueued");
+          return this.scheduler.enqueueInput(command.payload.text);
         },
       };
       actions[command.name]();

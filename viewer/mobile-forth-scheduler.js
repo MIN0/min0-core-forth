@@ -113,6 +113,13 @@
       this.scheduleNext();
       return event;
     }
+
+    enqueueInput(text) {
+      const count = this.session.enqueueInput(text);
+      const event = this.update("input-enqueued");
+      this.scheduleNext();
+      return { count, event };
+    }
   }
 
   return { MobileForthScheduler, RUNNABLE };

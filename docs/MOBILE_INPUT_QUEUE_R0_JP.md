@@ -35,8 +35,26 @@ input { text: string }
 `running`、`pause-requested`、`paused`、`stepping`で受理できる。受理時はUTF-8 byteをqueueへ追加し、
 `input-enqueued` updateを返す。入力追加だけでPause中の処理を勝手に再開しない。
 
+## `KEY`と`waiting-input`
+
+```forth
+KEY  ( -- byte )
+```
+
+queueに入力があれば先頭のUTF-8 byteを1つ取り出す。空の場合、session版は命令位置とstep数を進めず
+`waiting-input`停止点へ入る。schedulerは次chunkを予約しないためbusy loopにならない。
+
+- Runから待った場合、入力到着後はRunへ戻る。
+- Stepから待った場合、入力到着後に`KEY`を1命令だけ実行してPauseへ戻る。
+- 待機中もPause、Stop、Abortを受理する。
+- Pause中に入力した場合は自動再開せず、ContinueまたはStepを待つ。
+
+Viewerには入力欄、送信button、queue byte数を追加した。Enter keyまたはbuttonで1～256 UTF-8 byteを
+送信できる。例題`実行中の入力（KEY）`は、`A`を送ると数値`65`と文字`A`を表示する。日本語は1文字ではなく
+UTF-8の複数byteとして順番に返す。
+
 ## 次段階
 
-次は`KEY`を「queueが空ならWorkerをblockせず、`waiting-input`停止点へ入る」wordとして設計する。
-画面に入力欄と送信buttonを追加するのは、この待機・再開規則と監査表示を試験で固定した後に行う。
+次は複数回の`KEY`、Pause中入力、容量超過、Stop／AbortをPC画面で目視確認する。その後、安全な
+`VARIABLE`、`@`、`!`へ進む。
 

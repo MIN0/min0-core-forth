@@ -85,7 +85,12 @@
       };
     }
 
-    enqueueInput(text) { return this.vm.enqueueInput(text); }
+    enqueueInput(text) {
+      const count = this.vm.enqueueInput(text);
+      if (this.state === STATES.WAITING_INPUT) this.control.inputAvailable(this.snapshot("input-available"));
+      else this.control.observe(this.snapshot("input-enqueued"), "input-enqueued");
+      return count;
+    }
 
     requestPause() { return this.control.requestPause(); }
     continueExecution() { return this.control.continueExecution(); }
@@ -206,9 +211,20 @@
       return "entered";
     }
 
+    waitForInput() {
+      const snapshot = this.snapshot("waiting-input");
+      if ([STATES.PAUSE_REQUESTED, STATES.STOP_REQUESTED, STATES.ABORT_REQUESTED].includes(this.state)) {
+        const outcome = this.control.atInstructionBoundary(snapshot);
+        if (outcome === "aborted") this.rollback();
+      } else this.control.waitForInput(snapshot);
+      this.lastBoundary = this.control.currentSnapshot;
+      return "waiting-input";
+    }
+
     executeMainInstruction() {
       const sourceToken = this.tokens[this.mainIndex];
       const token = sourceToken.value;
+      if (token === "KEY" && !this.vm.inputQueue.length) return this.waitForInput();
       const event = this.vm.beginTrace({ scope: "main", word: "#0 MAIN", wordId: 0, invocationId: 0, callDepth: 0, instructionIndex: this.mainIndex + 1, sourceLine: sourceToken.line, sourceColumn: sourceToken.column, token: typeof token === "object" ? '."' : token, op: token === ":" ? "DEFINE" : "TOKEN" });
       let pending = false;
       try {
@@ -234,6 +250,7 @@
 
     executeColonInstruction(frame) {
       const instruction = frame.code[frame.ip];
+      if (instruction.op === "WORD" && instruction.name === "KEY" && !this.vm.inputQueue.length) return this.waitForInput();
       const event = this.vm.beginTrace({ scope: "colon", word: frame.word, wordId: frame.wordId, invocationId: frame.invocationId, callDepth: frame.callDepth, instructionIndex: frame.ip + 1, sourceLine: instruction.sourceLine, sourceColumn: instruction.sourceColumn, token: this.vm.instructionLabel(instruction), op: instruction.op });
       let nextIp = frame.ip + 1;
       let pending = false;
@@ -301,8 +318,8 @@
           return this.control.status();
         }
         const frame = this.activeFrame();
-        if (frame) this.executeColonInstruction(frame);
-        else this.executeMainInstruction();
+        const outcome = frame ? this.executeColonInstruction(frame) : this.executeMainInstruction();
+        if (outcome === "waiting-input") return this.control.status();
         this.settleCompletedFrames();
         this.lastBoundary = this.snapshot("instruction-boundary");
         const complete = this.isProgramComplete();

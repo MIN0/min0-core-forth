@@ -55,6 +55,31 @@ pausedAbort.requestAbort();
 assert.equal(pausedAbort.state, STATES.ABORTED);
 assert.deepEqual(pausedAbort.currentSnapshot.dataStack, [4]);
 
+const inputWait = new MonitorExecutionControl();
+inputWait.start(snapshot([]));
+inputWait.waitForInput(snapshot([], "READ", 2));
+assert.equal(inputWait.state, STATES.WAITING_INPUT);
+assert.equal(inputWait.stopReason, "input-empty");
+assert.equal(inputWait.inputResumeState, STATES.RUNNING);
+inputWait.inputAvailable(snapshot([], "READ", 2));
+assert.equal(inputWait.state, STATES.RUNNING);
+
+const steppedInputWait = new MonitorExecutionControl();
+steppedInputWait.start(snapshot([]));
+steppedInputWait.requestPause();
+steppedInputWait.atInstructionBoundary(snapshot([]));
+steppedInputWait.step();
+steppedInputWait.waitForInput(snapshot([], "READ", 2));
+assert.equal(steppedInputWait.inputResumeState, STATES.STEPPING);
+steppedInputWait.inputAvailable(snapshot([], "READ", 2));
+assert.equal(steppedInputWait.state, STATES.STEPPING);
+
+const stoppedInputWait = new MonitorExecutionControl();
+stoppedInputWait.start(snapshot([]));
+stoppedInputWait.waitForInput(snapshot([], "READ", 2));
+stoppedInputWait.requestStop();
+assert.equal(stoppedInputWait.state, STATES.STOPPED);
+
 const completed = new MonitorExecutionControl();
 completed.start(snapshot([]));
 completed.complete(snapshot([5]));

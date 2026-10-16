@@ -11,6 +11,7 @@
     PAUSE_REQUESTED: "pause-requested",
     PAUSED: "paused",
     STEPPING: "stepping",
+    WAITING_INPUT: "waiting-input",
     STOP_REQUESTED: "stop-requested",
     STOPPED: "stopped",
     ABORT_REQUESTED: "abort-requested",
@@ -33,6 +34,7 @@
       this.stopReason = null;
       this.sequence = 0;
       this.transitions = [];
+      this.inputResumeState = null;
     }
 
     record(action, from, to, details = {}) {
@@ -62,7 +64,13 @@
     }
 
     requestPause() {
-      this.require([STATES.RUNNING], "requestPause");
+      this.require([STATES.RUNNING, STATES.WAITING_INPUT], "requestPause");
+      if (this.state === STATES.WAITING_INPUT) {
+        this.inputResumeState = null;
+        this.stopReason = "pause";
+        this.move("pause-at-input-boundary", STATES.PAUSED, { boundary: true });
+        return this.status();
+      }
       this.move("request-pause", STATES.PAUSE_REQUESTED);
       return this.status();
     }
@@ -82,8 +90,9 @@
     }
 
     requestStop() {
-      this.require([STATES.RUNNING, STATES.PAUSE_REQUESTED, STATES.STEPPING, STATES.PAUSED], "requestStop");
-      if (this.state === STATES.PAUSED) {
+      this.require([STATES.RUNNING, STATES.PAUSE_REQUESTED, STATES.STEPPING, STATES.WAITING_INPUT, STATES.PAUSED], "requestStop");
+      if ([STATES.PAUSED, STATES.WAITING_INPUT].includes(this.state)) {
+        this.inputResumeState = null;
         this.stopReason = "stop";
         this.move("stop-at-paused-boundary", STATES.STOPPED);
       } else {
@@ -93,8 +102,9 @@
     }
 
     requestAbort() {
-      this.require([STATES.RUNNING, STATES.PAUSE_REQUESTED, STATES.STEPPING, STATES.PAUSED, STATES.STOPPED, STATES.FAILED, STATES.COMPLETED], "requestAbort");
-      if ([STATES.PAUSED, STATES.STOPPED, STATES.FAILED, STATES.COMPLETED].includes(this.state)) {
+      this.require([STATES.RUNNING, STATES.PAUSE_REQUESTED, STATES.STEPPING, STATES.WAITING_INPUT, STATES.PAUSED, STATES.STOPPED, STATES.FAILED, STATES.COMPLETED], "requestAbort");
+      if ([STATES.WAITING_INPUT, STATES.PAUSED, STATES.STOPPED, STATES.FAILED, STATES.COMPLETED].includes(this.state)) {
+        this.inputResumeState = null;
         this.currentSnapshot = clone(this.initialSnapshot);
         this.stopReason = "abort-rollback";
         this.move("abort-at-safe-boundary", STATES.ABORTED, { rollback: true });
@@ -108,6 +118,31 @@
       this.require([STATES.ABORTED], "confirmRollback");
       this.currentSnapshot = clone(snapshot);
       this.record("confirm-rollback", this.state, this.state, { boundary: true });
+      return this.status();
+    }
+
+    waitForInput(snapshot) {
+      this.require([STATES.RUNNING, STATES.STEPPING], "waitForInput");
+      this.currentSnapshot = clone(snapshot);
+      this.inputResumeState = this.state;
+      this.stopReason = "input-empty";
+      this.move("wait-for-input", STATES.WAITING_INPUT, { boundary: true, resumeState: this.inputResumeState });
+      return this.status();
+    }
+
+    inputAvailable(snapshot) {
+      this.require([STATES.WAITING_INPUT], "inputAvailable");
+      this.currentSnapshot = clone(snapshot);
+      const next = this.inputResumeState || STATES.RUNNING;
+      this.inputResumeState = null;
+      this.stopReason = null;
+      this.move("input-available", next, { boundary: true });
+      return this.status();
+    }
+
+    observe(snapshot, action = "observe") {
+      this.currentSnapshot = clone(snapshot);
+      this.record(action, this.state, this.state, { boundary: true });
       return this.status();
     }
 
@@ -162,6 +197,7 @@
         initialSnapshot: clone(this.initialSnapshot),
         currentSnapshot: clone(this.currentSnapshot),
         transitions: clone(this.transitions),
+        inputResumeState: this.inputResumeState,
       };
     }
   }

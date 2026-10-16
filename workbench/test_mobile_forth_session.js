@@ -59,6 +59,32 @@ assert.deepEqual(inputReady.vm.stackSnapshot(), [-1]);
 assert.equal(inputReady.vm.inputQueue.length, 1, "KEY? does not consume queued input");
 assert.equal(inputReady.status().currentSnapshot.inputDepth, 1);
 
+const inputWaiting = new MobileForthSession(": READ KEY ; READ 1+");
+inputWaiting.runUntilBlocked();
+assert.equal(inputWaiting.state, STATES.WAITING_INPUT);
+assert.equal(inputWaiting.vm.steps, 1, "READ entry executes, while the empty KEY consumes no step");
+assert.equal(inputWaiting.status().currentSnapshot.location.word, "READ");
+assert.equal(inputWaiting.status().currentSnapshot.location.token, "KEY");
+inputWaiting.enqueueInput("A");
+assert.equal(inputWaiting.state, STATES.RUNNING);
+inputWaiting.runUntilBlocked();
+assert.equal(inputWaiting.state, STATES.COMPLETED);
+assert.deepEqual(inputWaiting.vm.stackSnapshot(), [66]);
+assert.equal(inputWaiting.vm.inputQueue.length, 0);
+
+const steppedKey = new MobileForthSession("KEY 1+");
+steppedKey.requestPause();
+steppedKey.advance();
+assert.equal(steppedKey.state, STATES.PAUSED);
+steppedKey.step();
+steppedKey.advance();
+assert.equal(steppedKey.state, STATES.WAITING_INPUT);
+steppedKey.enqueueInput("A");
+assert.equal(steppedKey.state, STATES.STEPPING);
+steppedKey.advance();
+assert.equal(steppedKey.state, STATES.PAUSED);
+assert.deepEqual(steppedKey.vm.stackSnapshot(), [65]);
+
 const aborted = new MobileForthSession(": KEEP 99 ; 7 KEEP");
 aborted.advance();
 aborted.advance();

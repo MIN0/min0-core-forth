@@ -101,3 +101,7 @@ iPhone Safari確認へ進む。
 Phase Cではprotocolを`min0-mobile-monitor/0.2`へ更新し、上限付き`input { text }` commandを追加した。
 入力追加はVMを自動再開せず、同じsessionのUTF-8 byte queueへ検査付きで格納する。詳細は
 `MOBILE_INPUT_QUEUE_R0_JP.md`に定める。
+
+`KEY`が空queueへ到達すると、sessionは命令位置とstep数を保持して`waiting-input`へ移る。schedulerは
+chunkを予約せず停止する。`input`到着時は、Run由来ならRunへ、Step由来ならStepへ復帰する。待機中の
+Pause／Stop／Abortも有効であり、入力待ちを理由にMonitor操作を失わない。

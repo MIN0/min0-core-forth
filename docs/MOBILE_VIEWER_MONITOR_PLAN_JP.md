@@ -241,6 +241,10 @@ main-thread互換モードへ移る。埋込みsourceはNode.jsの実Worker thre
 `KEY? ( -- flag )`、Worker protocol 0.2の`input` commandを追加した。まだ待機型`KEY`と画面入力欄は
 未実装である。次はWorkerをblockしない`waiting-input`停止点を定義する。
 
+続いて`KEY ( -- byte )`、`waiting-input`停止点、入力後のRun／Step復帰、待機中のPause／Stop／Abort、
+Viewer入力欄、送信button、queue byte数表示を追加した。空queueでは命令位置とstep数を進めず、次chunkも
+予約しない。内部自動試験後、次はPC画面で目視確認する。
+
 ## Release方針
 
 - Phase Aを次の評価候補として先に完成させる。
@@ -250,5 +254,5 @@ main-thread互換モードへ移る。埋込みsourceはNode.jsの実Worker thre
 
 ## 次回の最初の作業
 
-Phase Cの最初の小単位として、入力queueと`KEY?`の責務、上限、Worker commandを試験から定義する。
-公開済みreleaseはPhase Cの評価合格まで変更しない。
+Phase C入力欄をPC画面で目視確認する。例題`実行中の入力（KEY）`をRunし、`waiting-input`、`A`送信後の
+数値`65`と文字`A`、Pause中入力、Stop／Abortを確認する。公開済みreleaseはPhase Cの評価合格まで変更しない。
