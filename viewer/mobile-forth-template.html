@@ -41,14 +41,24 @@
     .check-label input { width:22px; height:22px; }
     details { margin-top:12px; } summary { cursor:pointer; font-weight:700; }
     code { color:var(--accent); }
+    .print-only { display:none; }
     @media (min-width:680px) { .grid { grid-template-columns:1fr 1fr; } .buttons { grid-template-columns:repeat(3,1fr); } .monitor-buttons { grid-template-columns:repeat(6,1fr); } .trace-controls { grid-template-columns:1fr 1fr 1fr; align-items:end; } }
+    @media print {
+      :root { color-scheme:light; --bg:#fff; --panel:#fff; --line:#31505b; --text:#17252b; --muted:#52676f; --accent:#8a6200; --ok:#16703a; --bad:#b42323; }
+      body { padding:0; }
+      main { max-width:none; padding:0; }
+      .monitor-buttons,.buttons,.trace-controls { display:none; }
+      .trace-panel .table-wrap,.word-catalog-panel .table-wrap,.word-catalog-panel label,.word-catalog-panel input { display:none; }
+      .print-only { display:block; }
+      .panel { break-inside:avoid; }
+    }
   </style>
 </head>
 <body>
 <main>
   <noscript><div class="notice">この表示方法ではJavaScriptが停止しているため、実行ボタンは動作しません。Safariで開けるWebアプリ版を使用してください。</div></noscript>
   <h1>MIN0 CORE FORTH<br>Mobile Learning</h1>
-  <p class="meta">個人学習用・オフライン試作版 / build <span id="revision">__MIN0_REVISION__</span></p>
+  <p class="meta">個人学習用・オフライン試作版 / source build <span id="revision">__MIN0_REVISION__</span></p>
   <div class="notice">これは正式COREの代替ではなく、スマホ学習用の小さな互換サブセットです。各「実行」は新しいVMから始まります。</div>
 
   <section class="panel">
@@ -104,9 +114,10 @@
     <p id="chunk-status" class="hint">実行すると確定した命令境界を表示します。</p>
     <div class="table-wrap"><table><thead><tr><th>深さ</th><th>種類</th><th>ワード</th><th>次の命令</th></tr></thead><tbody id="call-history"><tr><td colspan="4">（未実行）</td></tr></tbody></table></div>
   </section>
-  <section class="panel">
+  <section class="panel trace-panel">
     <h2>ワードごとのスタック遷移</h2>
     <p id="trace-summary" class="hint">（未実行）</p>
+    <p class="hint print-only">詳細な命令履歴は画面上で確認してください。印刷時は概要だけを収録します。</p>
     <div class="trace-controls">
       <label for="trace-word">表示するワード<select id="trace-word" disabled><option value="all">すべて</option></select></label>
       <label for="trace-invocation">呼出し番号<select id="trace-invocation" disabled><option value="all">すべて</option></select></label>
@@ -115,8 +126,9 @@
     <div class="table-wrap"><table><thead><tr><th>#</th><th>場所</th><th>ソース</th><th>入力／命令</th><th>実行前</th><th>実行後</th><th>結果</th></tr></thead><tbody id="trace"><tr><td colspan="7">（未実行）</td></tr></tbody></table></div>
   </section>
 
-  <section class="panel">
+  <section class="panel word-catalog-panel">
     <h2>ワード辞典</h2>
+    <p class="hint print-only">ワード辞典の全表は画面上で確認してください。</p>
     <label for="word-search">名前・分類・説明を検索</label>
     <input id="word-search" type="search" placeholder="例：DUP、スタック、LOOP" disabled>
     <p id="word-summary" class="hint">実行後に利用できます。</p>

@@ -94,3 +94,6 @@ Worker分離モード、Pause、Step、Continue、Stop、Abortを確認する。
 2026-10-15、利用者がPCの自己完結Viewerで無限LOOPを実行し、chunk進行、現在命令位置、確定stack、
 `CALL_RETURN`呼出し履歴と6操作を確認し、問題なしと判定した。PC評価は合格とし、次はGitHub Pages評価版と
 iPhone Safari確認へ進む。
+
+2026-10-17、GitHub Pages上のiPhone Safariで`Worker分離モード`、6操作、安全な0除算停止、現在位置、
+`CALL_RETURN`履歴、実行前への復旧を確認した。iPhone実機評価も合格とする。

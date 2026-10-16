@@ -223,6 +223,12 @@ main-thread互換モードへ移る。埋込みsourceはNode.jsの実Worker thre
 問題なしと判定した。Blob Worker版のPC実装・自動試験・実画面確認は完了した。次はGitHub Pages用評価版を
 準備し、iPhone Safariで同じ操作と表示を確認する。
 
+2026-10-17、GitHub Pages上のiPhone Safari実機試験で`Worker分離モード`を確認した。正常加算、0除算の
+安全なerror停止、無限LOOPのRun／Pause／Step／Continue／Stop／Abort、`SPIN`の現在位置、
+`CALL_RETURN`履歴、実行前stackへの復旧がすべて期待どおり動作した。これによりPhase BのPC／iPhone
+実画面確認を合格とする。確認用PDFが命令履歴2000行により79ページになったため、印刷時は実行状態と
+呼出し履歴を残し、詳細traceとword辞典表を省略する。画面上の情報は省略しない。
+
 ### Phase C―入力と変数操作
 
 1. `KEY?`と入力queueを実装する。
@@ -240,5 +246,5 @@ main-thread互換モードへ移る。埋込みsourceはNode.jsの実Worker thre
 
 ## 次回の最初の作業
 
-GitHub Pages用評価版を準備し、iPhone SafariでWorker分離モード、Run／Pause／Step／Continue／Stop／Abort、
-`2 3 +`、`7 0 /MOD`を確認する。公開済みreleaseは評価合格まで変更しない。
+Phase Cの最初の小単位として、入力queueと`KEY?`の責務、上限、Worker commandを試験から定義する。
+公開済みreleaseはPhase Cの評価合格まで変更しない。
