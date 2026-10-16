@@ -27,6 +27,7 @@
     stop: new Set(["running", "pause-requested", "stepping", "paused"]),
     abort: new Set(["running", "pause-requested", "stepping", "paused", "stopped", "failed", "completed"]),
     inspect: new Set(["running", "pause-requested", "paused", "stepping", "stop-requested", "stopped", "abort-requested", "aborted", "completed", "failed"]),
+    input: new Set(["running", "pause-requested", "paused", "stepping"]),
   });
 
   class MobileForthWorkerEngine {
@@ -109,6 +110,10 @@
         stop: () => this.scheduler.requestStop(),
         abort: () => this.scheduler.requestAbort(),
         inspect: () => this.scheduler.update("inspect"),
+        input: () => {
+          this.session.enqueueInput(command.payload.text);
+          return this.scheduler.update("input-enqueued");
+        },
       };
       actions[command.name]();
     }

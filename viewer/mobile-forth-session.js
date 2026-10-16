@@ -81,8 +81,11 @@
           callDepth: frame.callDepth,
           nextInstruction: frame.ip + 1,
         })),
+        inputDepth: this.vm.inputQueue.length,
       };
     }
+
+    enqueueInput(text) { return this.vm.enqueueInput(text); }
 
     requestPause() { return this.control.requestPause(); }
     continueExecution() { return this.control.continueExecution(); }

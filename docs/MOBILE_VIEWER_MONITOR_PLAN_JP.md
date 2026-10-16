@@ -237,6 +237,10 @@ main-thread互換モードへ移る。埋込みsourceはNode.jsの実Worker thre
 4. 停止中の変数観察・検査付き変更を実装する。
 5. `BREAK`とMonitor auditを追加する。
 
+2026-10-17、Phase Cの最初の小単位として、最大256 UTF-8 byteのtransactional入力queue、非消費型
+`KEY? ( -- flag )`、Worker protocol 0.2の`input` commandを追加した。まだ待機型`KEY`と画面入力欄は
+未実装である。次はWorkerをblockしない`waiting-input`停止点を定義する。
+
 ## Release方針
 
 - Phase Aを次の評価候補として先に完成させる。

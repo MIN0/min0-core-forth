@@ -72,4 +72,17 @@ assert.match(events.at(-1).payload.reason, /not allowed while completed/);
 engine.receive(protocol.createCommand("session-2", 3, "inspect"));
 assert.equal(events.at(-1).name, "update", "a rejected operation consumes its valid command sequence");
 
+const inputEvents = [];
+const inputQueue = fakeQueue();
+const inputEngine = new MobileForthWorkerEngine(event => inputEvents.push(event), { schedule: callback => inputQueue.schedule(callback) });
+const inputCommand = (sequence, name, payload = {}) => protocol.createCommand("input-session", sequence, name, payload);
+inputEngine.receive(inputCommand(1, "run", { source: "KEY?", chunkSize: 2 }));
+inputEngine.receive(inputCommand(2, "input", { text: "A" }));
+assert.equal(inputEngine.session.vm.inputQueue.length, 1);
+assert.equal(inputEvents.at(-1).payload.scheduler.kind, "input-enqueued");
+while (inputQueue.length) inputQueue.flushOne();
+assert.equal(inputEngine.session.state, "completed");
+assert.deepEqual(inputEngine.session.vm.stackSnapshot(), [-1]);
+assert.equal(inputEngine.session.vm.inputQueue.length, 1, "KEY? leaves the byte queued");
+
 console.log("mobile forth worker engine tests: PASS");

@@ -5,10 +5,11 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  const VERSION = "min0-mobile-monitor/0.1";
+  const VERSION = "min0-mobile-monitor/0.2";
   const MAX_SOURCE_BYTES = 4096;
   const MAX_CHUNK_SIZE = 10000;
-  const COMMANDS = Object.freeze(["run", "pause", "step", "continue", "stop", "abort", "inspect"]);
+  const MAX_INPUT_BYTES = 256;
+  const COMMANDS = Object.freeze(["run", "pause", "step", "continue", "stop", "abort", "inspect", "input"]);
   const EVENTS = Object.freeze(["ready", "accepted", "update", "rejected", "fatal"]);
   const commandNames = new Set(COMMANDS);
   const eventNames = new Set(EVENTS);
@@ -68,6 +69,14 @@
 
   function validateCommandPayload(name, payload) {
     if (name === "run") validateRunPayload(payload);
+    else if (name === "input") {
+      if (typeof payload.text !== "string") throw new ProtocolError("input payload.text must be a string");
+      const length = new TextEncoder().encode(payload.text).length;
+      if (length < 1 || length > MAX_INPUT_BYTES) throw new ProtocolError(`input payload.text must use 1-${MAX_INPUT_BYTES} UTF-8 bytes`);
+      for (const key of Object.keys(payload)) {
+        if (key !== "text") throw new ProtocolError(`input payload.${key} is not allowed`);
+      }
+    }
     else if (Object.keys(payload).length) throw new ProtocolError(`${name} payload must be empty`);
   }
 
@@ -103,7 +112,7 @@
   }
 
   return {
-    VERSION, MAX_SOURCE_BYTES, MAX_CHUNK_SIZE, COMMANDS, EVENTS, ProtocolError,
+    VERSION, MAX_SOURCE_BYTES, MAX_CHUNK_SIZE, MAX_INPUT_BYTES, COMMANDS, EVENTS, ProtocolError,
     createCommand, readCommand, createEvent, readEvent,
   };
 });

@@ -97,3 +97,7 @@ iPhone Safari確認へ進む。
 
 2026-10-17、GitHub Pages上のiPhone Safariで`Worker分離モード`、6操作、安全な0除算停止、現在位置、
 `CALL_RETURN`履歴、実行前への復旧を確認した。iPhone実機評価も合格とする。
+
+Phase Cではprotocolを`min0-mobile-monitor/0.2`へ更新し、上限付き`input { text }` commandを追加した。
+入力追加はVMを自動再開せず、同じsessionのUTF-8 byte queueへ検査付きで格納する。詳細は
+`MOBILE_INPUT_QUEUE_R0_JP.md`に定める。

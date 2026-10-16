@@ -10,6 +10,7 @@
   const DEFAULT_MAX_STEPS = 100000;
   const DEFAULT_MAX_TRACE_EVENTS = 2000;
   const MAX_CALL_DEPTH = 64;
+  const DEFAULT_MAX_INPUT_BYTES = 256;
 
   const cell = value => Number(value) >>> 0;
   const signed = value => Number(value) | 0;
@@ -46,6 +47,7 @@
     wordMeta("CR", "( -- )", "出力", "改行を出力します。"),
     wordMeta('."', "( -- )", "出力", "終端quoteまでの文字列を出力します。", "解釈・compile"),
     wordMeta("WORDS", "( -- )", "辞書", "利用可能なword名を表示します。"),
+    wordMeta("KEY?", "( -- flag )", "入力", "入力queueに1バイト以上あればtrueを返します。入力は消費しません。"),
     wordMeta("I", "( -- n )", "LOOP", "現在のLOOP indexを積みます。", "定義内"),
     wordMeta("J", "( -- n )", "LOOP", "1段外側のLOOP indexを積みます。", "定義内"),
     wordMeta("UNLOOP", "( -- )", "LOOP", "現在のLOOP frameを破棄します。", "定義内"),
@@ -75,6 +77,7 @@
   class CompileError extends ForthError {}
   class StepLimitExceeded extends ForthError {}
   class CallDepthExceeded extends ForthError {}
+  class InputQueueOverflow extends ForthError {}
 
   function sourcePosition(source, target) {
     let line = 1;
@@ -227,6 +230,7 @@
     constructor(options = {}) {
       this.maxSteps = options.maxSteps || DEFAULT_MAX_STEPS;
       this.maxTraceEvents = Math.max(2, options.maxTraceEvents || DEFAULT_MAX_TRACE_EVENTS);
+      this.maxInputBytes = options.maxInputBytes || DEFAULT_MAX_INPUT_BYTES;
       this.reset();
     }
 
@@ -250,6 +254,7 @@
       this.omittedTraceEvents = 0;
       this.callFrames = [];
       this.nextInvocationId = 1;
+      this.inputQueue = [];
     }
 
     need(count, word) {
@@ -258,6 +263,16 @@
     pop(word) { this.need(1, word); return this.stack.pop(); }
     push(value) { this.stack.push(cell(value)); }
     step() { this.steps += 1; if (this.steps > this.maxSteps) throw new StepLimitExceeded(`step limit ${this.maxSteps} exceeded`); }
+
+    enqueueInput(text) {
+      if (typeof text !== "string") throw new TypeError("input must be a string");
+      const bytes = [...new TextEncoder().encode(text)];
+      if (this.inputQueue.length + bytes.length > this.maxInputBytes) {
+        throw new InputQueueOverflow(`input queue exceeds ${this.maxInputBytes} UTF-8 bytes`);
+      }
+      this.inputQueue.push(...bytes);
+      return bytes.length;
+    }
 
     stackSnapshot() { return this.stack.map(signed); }
     loopSnapshot() { return this.loopStack.map((frame, depth) => ({ loopId: frame.loopId, depth: depth + 1, iteration: frame.iteration, limit: signed(frame.limit), index: signed(frame.index) })); }
@@ -275,6 +290,7 @@
         nextWordId: this.nextWordId,
         nextInvocationId: this.nextInvocationId,
         callFrames: this.callFrames.map(frame => ({ ...frame })),
+        inputQueue: [...this.inputQueue],
       };
     }
 
@@ -290,6 +306,7 @@
       this.nextWordId = state.nextWordId;
       this.nextInvocationId = state.nextInvocationId;
       this.callFrames = state.callFrames.map(frame => ({ ...frame }));
+      this.inputQueue = [...state.inputQueue];
     }
 
     beginTrace(fields) {
@@ -463,6 +480,7 @@
         "J": () => { if (this.loopStack.length < 2) throw new StackUnderflow("J needs two loop frames"); this.push(this.loopStack[this.loopStack.length - 2].index); },
         "UNLOOP": () => { if (!this.loopStack.length) throw new StackUnderflow("UNLOOP needs a loop frame"); this.loopStack.pop(); },
         "WORDS": () => { this.output += [...WORD_METADATA.map(item => item.name), ...this.dictionary.keys()].sort().join(" "); },
+        "KEY?": () => { this.push(this.inputQueue.length ? TRUE : 0); },
       };
       return this._builtins;
     }
@@ -596,5 +614,5 @@
     }
   }
 
-  return { MobileForth, tokenize, tokenizeDetailed, parseNumber, compileBody, signed, cell, WORD_METADATA, MAX_SOURCE_BYTES, DEFAULT_MAX_TRACE_EVENTS, MAX_CALL_DEPTH, errors: { ForthError, UnknownWord, StackUnderflow, DivisionByZero, DivisionOverflow, CompileError, StepLimitExceeded, CallDepthExceeded } };
+  return { MobileForth, tokenize, tokenizeDetailed, parseNumber, compileBody, signed, cell, WORD_METADATA, MAX_SOURCE_BYTES, DEFAULT_MAX_TRACE_EVENTS, MAX_CALL_DEPTH, DEFAULT_MAX_INPUT_BYTES, errors: { ForthError, UnknownWord, StackUnderflow, DivisionByZero, DivisionOverflow, CompileError, StepLimitExceeded, CallDepthExceeded, InputQueueOverflow } };
 });

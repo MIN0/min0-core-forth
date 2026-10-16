@@ -51,6 +51,14 @@ stopped.advance();
 assert.equal(stopped.state, STATES.STOPPED);
 assert.deepEqual(stopped.vm.stackSnapshot(), [1, 2]);
 
+const inputReady = new MobileForthSession("KEY?");
+assert.equal(inputReady.enqueueInput("A"), 1);
+inputReady.runUntilBlocked();
+assert.equal(inputReady.state, STATES.COMPLETED);
+assert.deepEqual(inputReady.vm.stackSnapshot(), [-1]);
+assert.equal(inputReady.vm.inputQueue.length, 1, "KEY? does not consume queued input");
+assert.equal(inputReady.status().currentSnapshot.inputDepth, 1);
+
 const aborted = new MobileForthSession(": KEEP 99 ; 7 KEEP");
 aborted.advance();
 aborted.advance();

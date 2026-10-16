@@ -19,6 +19,20 @@ const metadataNames = WORD_METADATA.map(item => item.name);
 assert.equal(new Set(metadataNames).size, metadataNames.length, "word metadata names must be unique");
 Object.keys(new MobileForth().builtins()).forEach(name => assert.ok(metadataNames.includes(name), `metadata missing for ${name}`));
 
+const inputVm = new MobileForth();
+inputVm.executeWord("KEY?");
+assert.deepEqual(inputVm.stackSnapshot(), [0]);
+inputVm.stack.length = 0;
+assert.equal(inputVm.enqueueInput("Aあ"), 4, "input queue stores UTF-8 bytes");
+inputVm.executeWord("KEY?");
+assert.deepEqual(inputVm.stackSnapshot(), [-1]);
+assert.equal(inputVm.inputQueue.length, 4, "KEY? must not consume input");
+assert.throws(() => inputVm.enqueueInput("x".repeat(253)), /input queue exceeds 256 UTF-8 bytes/);
+const inputState = inputVm.captureTransactionalState();
+inputVm.inputQueue.length = 0;
+inputVm.restoreTransactionalState(inputState);
+assert.equal(inputVm.inputQueue.length, 4, "input queue participates in rollback state");
+
 ok("2 3 4 * + . CR", [], "14\n");
 ok("1 2 3 ROT", [2, 3, 1]);
 ok("7 8 2DUP", [7, 8, 7, 8]);

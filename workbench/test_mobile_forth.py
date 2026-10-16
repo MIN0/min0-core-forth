@@ -30,6 +30,8 @@ class MobileForthTests(unittest.TestCase):
             self.assertIn("class MobileForthScheduler", text)
             self.assertIn("class MobileForthWorkerEngine", text)
             self.assertIn("class MobileForthWorkerClient", text)
+            self.assertIn('const VERSION = "min0-mobile-monitor/0.2"', text)
+            self.assertIn('wordMeta("KEY?"', text)
             self.assertIn('id="pause"', text)
             self.assertIn('id="step"', text)
             self.assertIn('id="continue"', text)

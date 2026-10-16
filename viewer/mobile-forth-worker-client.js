@@ -120,6 +120,7 @@
     stop() { return this.send("stop"); }
     abort() { return this.send("abort"); }
     inspect() { return this.send("inspect"); }
+    input(text) { return this.send("input", { text }); }
 
     releaseWorker() {
       if (this.worker && typeof this.worker.terminate === "function") this.worker.terminate();

@@ -35,6 +35,9 @@ assert.equal(client.mode, "worker");
 assert.equal(FakeWorker.instance.sent[0].name, "run");
 client.pause();
 assert.equal(FakeWorker.instance.sent[1].sequence, 2);
+client.input("A");
+assert.equal(FakeWorker.instance.sent[2].name, "input");
+assert.deepEqual(FakeWorker.instance.sent[2].payload, { text: "A" });
 
 const update = protocol.createEvent("session-worker", 1, "update", { status: { state: "paused" } });
 FakeWorker.instance.emit(update);

@@ -14,6 +14,8 @@ assert.equal(run.payload.source, ": TWICE DUP + ; 5 TWICE", "message owns a copy
 for (const [index, name] of ["pause", "step", "continue", "stop", "abort", "inspect"].entries()) {
   assert.equal(protocol.createCommand("session-1", index + 2, name).name, name);
 }
+const input = protocol.createCommand("session-1", 8, "input", { text: "Aあ" });
+assert.equal(input.payload.text, "Aあ");
 
 const updatePayload = {
   requestSequence: 1,
@@ -29,6 +31,9 @@ assert.throws(() => protocol.createCommand("session-1", 1, "unknown", {}), proto
 assert.throws(() => protocol.createCommand("session-1", 1, "pause", { extra: true }), protocol.ProtocolError);
 assert.throws(() => protocol.createCommand("session-1", 1, "run", { source: "", chunkSize: 0 }), protocol.ProtocolError);
 assert.throws(() => protocol.createCommand("session-1", 1, "run", { source: "あ".repeat(1366) }), protocol.ProtocolError);
+assert.throws(() => protocol.createCommand("session-1", 1, "input", { text: "" }), protocol.ProtocolError);
+assert.throws(() => protocol.createCommand("session-1", 1, "input", { text: "x".repeat(257) }), protocol.ProtocolError);
+assert.throws(() => protocol.createCommand("session-1", 1, "input", { text: "A", extra: true }), protocol.ProtocolError);
 assert.throws(() => protocol.readCommand({ ...run, version: "future" }), protocol.ProtocolError);
 assert.throws(() => protocol.readEvent({ ...update, kind: "command" }), protocol.ProtocolError);
 const circular = {}; circular.self = circular;
