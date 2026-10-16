@@ -98,7 +98,8 @@
     <div class="buttons">
       <button id="save">端末に保存</button>
       <button id="copy">結果をコピー</button>
-      <button id="clear">消去</button>
+      <button id="clear-source">ソースを消去</button>
+      <button id="reset-view">画面を初期化</button>
     </div>
     <p id="save-status" class="hint" aria-live="polite">ソースは、このブラウザ内だけに保存できます。</p>
     <p id="execution-mode" class="hint" aria-live="polite">実行環境は最初のRunで判定します。</p>
@@ -184,6 +185,7 @@
   const $ = id => document.getElementById(id);
   const embeddedWorkerSource = __MIN0_EMBEDDED_WORKER_SOURCE__;
   const storageKey = "min0-core-forth-mobile-source-v1";
+  const initialSource = $("source").defaultValue;
   const examples = {
     square: ": SQUARE DUP * ;\n7 SQUARE . CR\n5 SQUARE .S",
     branch: ": ABS2 DUP 0 < IF NEGATE THEN ;\n-12 ABS2 .S",
@@ -301,7 +303,7 @@
   }
   function setControls(state) {
     const active = ["running", "pause-requested", "paused", "stepping", "waiting-input", "stop-requested", "abort-requested"].includes(state);
-    const acceptsInput = ["running", "pause-requested", "paused", "stepping", "waiting-input"].includes(state);
+    const acceptsInput = ["running", "paused", "stepping", "waiting-input"].includes(state);
     $("source").disabled = active;
     $("run").disabled = active;
     $("pause").disabled = !["running", "waiting-input"].includes(state);
@@ -339,6 +341,38 @@
     $("word-summary").textContent = "実行中です。確定した停止点で利用できます。";
     $("word-catalog").innerHTML = '<tr><td colspan="5">（実行中）</td></tr>';
     setText($("input-status"), "入力queue：0 / 256 UTF-8バイト");
+  }
+  function resetIdleDisplay() {
+    lastResult = null;
+    lastMonitorState = "idle";
+    $("error-panel").hidden = true;
+    $("stack-stopped-row").hidden = true;
+    setText($("terminal"), "（未実行）");
+    setText($("status"), "（未実行）");
+    $("status").className = "";
+    setText($("stack-before"), "<0>");
+    setText($("stack-final-label"), "実行後");
+    setText($("stack"), "<0>");
+    setText($("recovery-note"), "実行後の状態をここに表示します。");
+    setText($("current-location"), "（未実行）");
+    setText($("chunk-status"), "実行すると確定した命令境界を表示します。");
+    $("call-history").innerHTML = '<tr><td colspan="4">（未実行）</td></tr>';
+    $("trace-summary").textContent = "（未実行）";
+    $("trace").innerHTML = '<tr><td colspan="7">（未実行）</td></tr>';
+    $("trace-word").innerHTML = '<option value="all">すべて</option>';
+    $("trace-invocation").innerHTML = '<option value="all">すべて</option>';
+    $("trace-word").disabled = true;
+    $("trace-invocation").disabled = true;
+    $("trace-all-loops").checked = false;
+    $("trace-all-loops").disabled = true;
+    $("word-search").value = "";
+    $("word-search").disabled = true;
+    $("word-summary").textContent = "実行後に利用できます。";
+    $("word-catalog").innerHTML = '<tr><td colspan="5">（未実行）</td></tr>';
+    $("input-text").value = "";
+    setText($("input-status"), "Run後、実行中・一時停止中・入力待ち中に送信できます。");
+    setText($("execution-mode"), "実行環境は最初のRunで判定します。");
+    setControls("idle");
   }
   function renderMonitor(event) {
     const state = event.status.state;
@@ -401,12 +435,21 @@
     } catch (error) { showControlError(error); }
   }
   $("run").addEventListener("click", run);
-  $("pause").addEventListener("click", () => { try { workerClient.pause(); } catch (error) { showControlError(error); } });
+  $("pause").addEventListener("click", () => {
+    try {
+      workerClient.pause();
+      lastMonitorState = "pause-requested";
+      setText($("status"), "一時停止要求中");
+      setText($("input-status"), "一時停止の確定後に入力できます。");
+      setControls("pause-requested");
+    } catch (error) { showControlError(error); }
+  });
   $("step").addEventListener("click", () => { try { workerClient.step(); } catch (error) { showControlError(error); } });
   $("continue").addEventListener("click", () => { try { workerClient.continueExecution(); } catch (error) { showControlError(error); } });
   $("stop").addEventListener("click", () => { try { workerClient.stop(); } catch (error) { showControlError(error); } });
   $("abort").addEventListener("click", () => { try { workerClient.abort(); } catch (error) { showControlError(error); } });
   function sendInput() {
+    if (lastMonitorState === "pause-requested") { setText($("input-status"), "一時停止の確定後に入力してください。"); return; }
     const text = $("input-text").value;
     const length = new TextEncoder().encode(text).length;
     if (length < 1 || length > 256) { setText($("input-status"), "入力は1～256 UTF-8バイトにしてください。"); return; }
@@ -428,7 +471,15 @@
     try { await navigator.clipboard.writeText(report); setText($("save-status"), "ソース・出力・スタックをコピーしました。"); }
     catch (_) { setText($("save-status"), "自動コピーできません。各欄を長押ししてコピーしてください。"); }
   });
-  $("clear").addEventListener("click", () => { $("source").value = ""; $("source").focus(); });
+  $("clear-source").addEventListener("click", () => { $("examples").value = ""; $("source").value = ""; $("source").focus(); });
+  $("reset-view").addEventListener("click", () => {
+    if (workerClient) { workerClient.close(); workerClient = null; }
+    $("examples").value = "";
+    $("source").value = initialSource;
+    resetIdleDisplay();
+    setText($("save-status"), "画面を初期状態へ戻しました。端末に保存したソースは削除していません。");
+    $("source").focus();
+  });
   $("examples").addEventListener("change", event => { if (examples[event.target.value]) $("source").value = examples[event.target.value]; });
   $("trace-word").addEventListener("change", () => { updateInvocationChoices(); renderTrace(); });
   $("trace-invocation").addEventListener("change", renderTrace);
