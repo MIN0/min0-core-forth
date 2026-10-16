@@ -41,8 +41,11 @@ class IPhoneReadingPackTests(unittest.TestCase):
                 self.assertNotIn(personal_uri_marker, combined)
                 mobile = archive.read("MIN0_FORTH_MOBILE.html")
                 self.assertIn(b"class MobileForth", mobile)
+                self.assertIn(b"class MobileForthWorkerClient", mobile)
+                self.assertIn(b"min0WorkerEngine.receive", mobile)
                 self.assertIn(b"test-revision", mobile)
                 self.assertNotIn(b"fetch(", mobile)
+                self.assertNotIn(b"__MIN0_", mobile)
             self.assertEqual(result["file_count"], len(names))
 
     def test_reader_uses_escaped_text_without_network(self) -> None:

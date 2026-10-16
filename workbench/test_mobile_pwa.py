@@ -23,19 +23,26 @@ class MobilePwaTests(unittest.TestCase):
             with zipfile.ZipFile(output) as archive:
                 self.assertEqual(
                     set(archive.namelist()),
-                    {"index.html", "manifest.webmanifest", "sw.js", "README_JP.txt"},
+                    {"index.html", "manifest.webmanifest", "sw.js", "README_JP.txt", "EVALUATION_JP.txt"},
                 )
                 index = archive.read("index.html").decode("utf-8")
                 worker = archive.read("sw.js").decode("utf-8")
                 manifest = json.loads(archive.read("manifest.webmanifest"))
+                evaluation = archive.read("EVALUATION_JP.txt").decode("utf-8")
                 self.assertIn("class MobileForth", index)
+                self.assertIn("class MobileForthWorkerClient", index)
+                self.assertIn("min0WorkerEngine.receive", index)
                 self.assertIn("test-revision", index)
                 self.assertIn("serviceWorker.register", index)
                 self.assertNotIn("http://", index)
                 self.assertNotIn("https://", index)
+                self.assertNotIn("__MIN0_", index)
                 self.assertIn("cache.addAll(APP_FILES)", worker)
                 self.assertIn('start_url', manifest)
                 self.assertEqual(manifest["display"], "standalone")
+                self.assertIn("index.html?eval=test-revision", evaluation)
+                self.assertIn("Worker分離モード", evaluation)
+                self.assertIn(": SPIN BEGIN 1 DROP AGAIN ;", evaluation)
             self.assertTrue(output.with_suffix(".zip.sha256").is_file())
             self.assertEqual(result["revision"], "test-revision")
 

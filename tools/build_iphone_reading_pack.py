@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import html
+import importlib.util
 import json
 import subprocess
 import zipfile
@@ -95,15 +96,13 @@ a{{color:#ffd166}} code{{font-family:ui-monospace,monospace}}
 
 
 def _mobile_html(revision: str, root: Path = ROOT) -> bytes:
-    template = _read("viewer/mobile-forth-template.html", root)
-    core = _read("viewer/mobile-forth-core.js", root)
-    core_marker = "/*__MIN0_MOBILE_CORE__*/"
-    revision_marker = "__MIN0_REVISION__"
-    if template.count(core_marker) != 1 or template.count(revision_marker) != 1:
-        raise ValueError("mobile template markers are missing or duplicated")
-    return template.replace(core_marker, core).replace(
-        revision_marker, revision
-    ).encode("utf-8")
+    path = Path(__file__).with_name("build_mobile_forth.py")
+    spec = importlib.util.spec_from_file_location("min0_build_mobile_forth_for_reader", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("cannot load Mobile FORTH builder")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.render(root=root, revision=revision).encode("utf-8")
 
 
 def build_pack(output: Path, *, root: Path = ROOT, revision: str | None = None) -> dict:

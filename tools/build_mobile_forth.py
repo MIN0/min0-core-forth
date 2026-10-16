@@ -50,7 +50,7 @@ self.onmessage = message => min0WorkerEngine.receive(message.data);
     return "\n\n".join([*modules, boot]) + "\n"
 
 
-def build(output: Path, *, root: Path = ROOT, revision: str | None = None) -> Path:
+def render(*, root: Path = ROOT, revision: str | None = None) -> str:
     template = (root / "viewer" / "mobile-forth-template.html").read_text(encoding="utf-8")
     modules = {
         CORE_MARKER: root / "viewer" / "mobile-forth-core.js",
@@ -70,6 +70,11 @@ def build(output: Path, *, root: Path = ROOT, revision: str | None = None) -> Pa
         rendered = rendered.replace(marker, path.read_text(encoding="utf-8"))
     rendered = rendered.replace(WORKER_SOURCE_MARKER, json.dumps(worker_source(root), ensure_ascii=False))
     rendered = rendered.replace(REVISION_MARKER, revision or current_revision(root))
+    return rendered
+
+
+def build(output: Path, *, root: Path = ROOT, revision: str | None = None) -> Path:
+    rendered = render(root=root, revision=revision)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(rendered, encoding="utf-8", newline="\n")
     return output
