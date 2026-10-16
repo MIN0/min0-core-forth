@@ -32,6 +32,7 @@ inputVm.executeWord("KEY");
 assert.deepEqual(inputVm.stackSnapshot(), [65]);
 assert.equal(inputVm.inputQueue.length, 3, "KEY consumes exactly one UTF-8 byte");
 assert.throws(() => inputVm.enqueueInput("x".repeat(254)), /input queue exceeds 256 UTF-8 bytes/);
+assert.equal(inputVm.inputQueue.length, 3, "overflow must leave the existing input queue unchanged");
 const inputState = inputVm.captureTransactionalState();
 inputVm.inputQueue.length = 0;
 inputVm.restoreTransactionalState(inputState);

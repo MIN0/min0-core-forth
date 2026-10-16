@@ -99,4 +99,34 @@ keyQueue.flushOne();
 assert.equal(keyEngine.session.state, "completed");
 assert.deepEqual(keyEngine.session.vm.stackSnapshot(), [66]);
 
+const controlEvents = [];
+const controlQueue = fakeQueue();
+const controlEngine = new MobileForthWorkerEngine(event => controlEvents.push(event), { schedule: callback => controlQueue.schedule(callback) });
+const controlCommand = (sequence, name, payload = {}) => protocol.createCommand("control-session", sequence, name, payload);
+controlEngine.receive(controlCommand(1, "run", { source: "KEY EMIT KEY EMIT", chunkSize: 4 }));
+controlQueue.flushOne();
+assert.equal(controlEngine.session.state, "waiting-input");
+controlEngine.receive(controlCommand(2, "pause"));
+assert.equal(controlEngine.session.state, "paused");
+controlEngine.receive(controlCommand(3, "input", { text: "AB" }));
+assert.equal(controlEngine.session.state, "paused");
+assert.equal(controlEngine.session.vm.inputQueue.length, 2);
+controlEngine.receive(controlCommand(4, "continue"));
+while (controlQueue.length) controlQueue.flushOne();
+assert.equal(controlEngine.session.state, "completed");
+assert.equal(controlEngine.session.vm.output, "AB");
+
+const overflowEvents = [];
+const overflowQueue = fakeQueue();
+const overflowEngine = new MobileForthWorkerEngine(event => overflowEvents.push(event), { schedule: callback => overflowQueue.schedule(callback) });
+const overflowCommand = (sequence, name, payload = {}) => protocol.createCommand("overflow-session", sequence, name, payload);
+overflowEngine.receive(overflowCommand(1, "run", { source: "KEY", chunkSize: 2 }));
+overflowQueue.flushOne();
+overflowEngine.receive(overflowCommand(2, "input", { text: "x".repeat(256) }));
+assert.equal(overflowEngine.session.vm.inputQueue.length, 256);
+overflowEngine.receive(overflowCommand(3, "input", { text: "y" }));
+assert.equal(overflowEvents.at(-1).name, "rejected");
+assert.match(overflowEvents.at(-1).payload.reason, /input queue exceeds 256 UTF-8 bytes/);
+assert.equal(overflowEngine.session.vm.inputQueue.length, 256, "rejected input must not change the queue");
+
 console.log("mobile forth worker engine tests: PASS");

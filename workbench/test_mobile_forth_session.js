@@ -85,6 +85,38 @@ steppedKey.advance();
 assert.equal(steppedKey.state, STATES.PAUSED);
 assert.deepEqual(steppedKey.vm.stackSnapshot(), [65]);
 
+const pausedInput = new MobileForthSession("KEY EMIT KEY EMIT");
+pausedInput.runUntilBlocked();
+assert.equal(pausedInput.state, STATES.WAITING_INPUT);
+pausedInput.requestPause();
+assert.equal(pausedInput.state, STATES.PAUSED);
+assert.equal(pausedInput.enqueueInput("AB"), 2);
+assert.equal(pausedInput.state, STATES.PAUSED, "input sent while paused must not resume execution");
+assert.equal(pausedInput.status().currentSnapshot.inputDepth, 2);
+pausedInput.continueExecution();
+pausedInput.runUntilBlocked();
+assert.equal(pausedInput.state, STATES.COMPLETED);
+assert.equal(pausedInput.vm.output, "AB");
+assert.equal(pausedInput.vm.inputQueue.length, 0);
+
+const stoppedKey = new MobileForthSession("KEY 1+");
+stoppedKey.runUntilBlocked();
+stoppedKey.requestStop();
+assert.equal(stoppedKey.state, STATES.STOPPED);
+assert.deepEqual(stoppedKey.vm.stackSnapshot(), []);
+
+const abortedKey = new MobileForthSession("9 KEY 1+");
+abortedKey.runUntilBlocked();
+assert.equal(abortedKey.state, STATES.WAITING_INPUT);
+assert.deepEqual(abortedKey.vm.stackSnapshot(), [9]);
+abortedKey.enqueueInput("A");
+abortedKey.requestAbort();
+assert.equal(abortedKey.state, STATES.ABORT_REQUESTED);
+abortedKey.advance();
+assert.equal(abortedKey.state, STATES.ABORTED);
+assert.deepEqual(abortedKey.vm.stackSnapshot(), []);
+assert.equal(abortedKey.vm.inputQueue.length, 0, "Abort restores the initial empty input queue");
+
 const aborted = new MobileForthSession(": KEEP 99 ; 7 KEEP");
 aborted.advance();
 aborted.advance();

@@ -60,7 +60,7 @@
 <main>
   <noscript><div class="notice">この表示方法ではJavaScriptが停止しているため、実行ボタンは動作しません。Safariで開けるWebアプリ版を使用してください。</div></noscript>
   <h1>MIN0 CORE FORTH<br>Mobile Learning</h1>
-  <p class="meta">個人学習用・オフライン試作版 / source build <span id="revision">919ba0c</span></p>
+  <p class="meta">個人学習用・オフライン試作版 / source build <span id="revision">7d4ac76</span></p>
   <div class="notice">これは正式COREの代替ではなく、スマホ学習用の小さな互換サブセットです。各「実行」は新しいVMから始まります。</div>
 
   <section class="panel">
@@ -74,6 +74,7 @@
       <option value="output">文字と数値を表示</option>
       <option value="recursiveHex">再帰で16進表示（RECURSE）</option>
       <option value="keyInput">実行中の入力（KEY）</option>
+      <option value="twoKeyInput">2文字入力（Pause確認）</option>
     </select>
     <label for="source" style="margin-top:10px">FORTHソース（最大4096 UTF-8バイト）</label>
     <textarea id="source" spellcheck="false" autocapitalize="none" autocomplete="off" autocorrect="off">: SQUARE DUP * ;
@@ -1899,7 +1900,8 @@
     begin: ": DOWN BEGIN 1- DUP . CR DUP 0= UNTIL ;\n5 DOWN DROP",
     output: '." HELLO FROM iPHONE" CR\n65 EMIT 66 EMIT 67 EMIT CR\n-7 3 /MOD .S',
     recursiveHex: ': HEX-DIGIT ( n -- )\n  DUP 10 < IF 48 + ELSE 10 - 65 + THEN EMIT\n;\n\n: HEX-PRT ( u -- )\n  DUP 16 < IF\n    HEX-DIGIT\n  ELSE\n    16 /MOD RECURSE HEX-DIGIT\n  THEN\n;\n\n255 HEX-PRT CR',
-    keyInput: 'KEY DUP . CR EMIT CR'
+    keyInput: 'KEY DUP . CR EMIT CR',
+    twoKeyInput: 'KEY EMIT KEY EMIT CR'
   };
   const formatStack = stack => `<${stack.length}>${stack.length ? " " + stack.join(" ") : ""}`;
   let lastResult = null;

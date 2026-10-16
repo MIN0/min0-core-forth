@@ -44,6 +44,7 @@ class MobileForthTests(unittest.TestCase):
             self.assertIn('id="input-text"', text)
             self.assertIn('id="send-input"', text)
             self.assertIn('id="input-status"', text)
+            self.assertIn('twoKeyInput: \'KEY EMIT KEY EMIT CR\'', text)
             self.assertIn('"waiting-input": "入力待ち"', text)
             self.assertIn("function sendInput()", text)
             self.assertIn('id="trace-word"', text)

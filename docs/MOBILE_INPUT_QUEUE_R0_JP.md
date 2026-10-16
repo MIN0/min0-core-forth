@@ -61,3 +61,8 @@ UTF-8の複数byteとして順番に返す。
 次は複数回の`KEY`、Pause中入力、容量超過、Stop／AbortをPC画面で目視確認する。その後、安全な
 `VARIABLE`、`@`、`!`へ進む。
 
+これらの自動回帰試験は先に追加した。Pause中に`AB`をqueueへ入れても実行は再開せず、Continue後に
+2個の`KEY`が順番に消費する。256 byteが入ったqueueへ追加した入力は拒否し、既存queueは変更しない。
+入力待ち中のStopは現在stackを保持し、Abortは実行前のstackとqueueへ復旧する。Viewerには短時間確認用の
+例題`2文字入力（Pause確認）`を追加した。
+
