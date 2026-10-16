@@ -243,7 +243,11 @@ main-thread互換モードへ移る。埋込みsourceはNode.jsの実Worker thre
 
 続いて`KEY ( -- byte )`、`waiting-input`停止点、入力後のRun／Step復帰、待機中のPause／Stop／Abort、
 Viewer入力欄、送信button、queue byte数表示を追加した。空queueでは命令位置とstep数を進めず、次chunkも
-予約しない。内部自動試験後、次はPC画面で目視確認する。
+予約しない。
+
+同日、PC Viewerで例題`実行中の入力（KEY）`を目視確認した。`A`送信後に数値`65`と文字`A`を表示し、
+6 stepsで正常終了、実行前後のstackはともに`<0>`、入力queueは0へ戻った。基本的な`KEY`待機・消費・
+終了処理を合格とする。次はPause中入力、複数回入力、容量超過、Stop／Abortを確認する。
 
 ## Release方針
 
@@ -254,5 +258,6 @@ Viewer入力欄、送信button、queue byte数表示を追加した。空queue�
 
 ## 次回の最初の作業
 
-Phase C入力欄をPC画面で目視確認する。例題`実行中の入力（KEY）`をRunし、`waiting-input`、`A`送信後の
-数値`65`と文字`A`、Pause中入力、Stop／Abortを確認する。公開済みreleaseはPhase Cの評価合格まで変更しない。
+Phase Cの残るPC画面確認として、Pause中入力、複数回入力、容量超過、Stop／Abortを確認する。合格後に
+iPhone評価版を準備し、同じ入力待ちと復旧をSafariで確認する。公開済みreleaseはPhase Cの評価合格まで
+変更しない。
