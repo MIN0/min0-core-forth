@@ -41,6 +41,28 @@ MIN0 CORE FORTHはMSX0-FORTHから独立しています。このリリース作�
 - API、保存形式、ワード集合は将来の実験版で変わる可能性があります。
 - Viewerはオフラインで動き、ネットワークやAIへトレースを送りません。
 
+## どの機器で使えるか
+
+「誰でも使える」と「その機器で実機確認済み」は別です。Mobile Learningは公開Webページであり、
+GitHubアカウントや専用アプリを必要としませんが、ブラウザを持たないPico 2 Wでは直接実行できません。
+
+| 機器 | 利用可否 | 現在の確認状況 | 利用方法と注意点 |
+| --- | --- | --- | --- |
+| Windows PC | 利用可能 | 実機確認済み | Chrome／Edgeなどで公開URLを開く |
+| Mac／Linux PC | 原則利用可能 | 未評価 | 新しいSafari／Chrome／Firefoxなどを使う |
+| Raspberry Pi 5 | ブラウザ版として原則利用可能 | 未評価 | Raspberry Pi OSのChromiumなどで開く。GPIOを直接操作する版ではない |
+| Raspberry Pi Pico 2 W | 直接利用不可 | 対象外 | ブラウザと画面を持たない。将来は専用FORTH firmwareとMonitor接続の対象になる |
+| iPhone | 利用可能 | Safari実機確認済み | HTTPSの公開URLをSafariで開く。「ファイル」アプリのHTML previewでは実行しない |
+| Androidスマートフォン | 原則利用可能 | 未評価 | 新しいChromeなどで開く。すべての機種を保証するものではない |
+| iPad／Android tablet | 原則利用可能 | 未評価 | Safari／Chromeなどで開く |
+
+**[MIN0 CORE FORTH Mobile Learningを開く](https://min0.github.io/min0-core-forth/viewer/mobile-forth.html)**
+
+各端末のFORTH sourceと下書きは、その端末のブラウザ保存領域に置かれます。FORTH sourceを外部serverや
+AIへ送信しません。初回読込みにはnetworkが必要ですが、Webアプリを保存した端末ではoffline起動も
+利用できます。Mobile Learningは学習用JavaScript subsetであり、正式なPython／Ruby reference実装の
+全機能を備えたものではありません。
+
 ## ライセンスと安全性
 
 本プロジェクトはMIT Licenseです。利用、変更、Fork、再配布を広く認めますが、安全性の認証や、
@@ -63,14 +85,42 @@ Forkや改造版を歓迎します。変更した配布物には固有のbuild�
 最初の版は`v0.1.0`、現在おすすめする
 保守版は`v0.1.2`です。タグ、ZIP、SHA-256一覧、release notes、既知の制限、監査記録を公開しています。
 
-公開済み評価用pre-release `v0.1.3-rc.1`と`v0.1.4-rc.1`には、互換性改善、ブラウザ学習環境、
-仮想アセンブラbackendが含まれます。repositoryには未公開のMobile Monitor・入力制御候補
-`0.1.4-rc.2`が含まれる場合があります。正式版かつ安全レビュー済みの推奨基準が必要な場合は
-`v0.1.2`を利用してください。
+公開済み評価用pre-release `v0.1.3-rc.1`、`v0.1.4-rc.1`、`v0.1.4-rc.2`には、互換性改善、
+ブラウザ学習環境、仮想アセンブラbackend、Mobile Monitorと入力制御が段階的に含まれます。
+次回候補`v0.1.4-rc.3`はSafe `VARIABLE`、検査付き`@`／`!`、Pause中の変数編集、`BREAK`を追加した
+公開前候補です。正式版かつ安全レビュー済みの推奨基準が必要な場合は`v0.1.2`を利用してください。
+
+## 次回リリース候補を確認する場所
+
+目的ごとに次の場所を確認します。
+
+1. **実際に触る**：上記の[Mobile Learning](https://min0.github.io/min0-core-forth/viewer/mobile-forth.html)
+   を開き、画面上部の`source build`を確認する。
+2. **公開前の合否を見る**：**[0.1.4-rc.3候補監査](docs/RELEASE_AUDIT_0.1.4_RC3_JP.md)**で
+   Gate A、Gate B、Gate Cのcheck欄を確認する。
+3. **変更内容を読む**：**[0.1.4-rc.3 release notes](docs/RELEASE_NOTES_0.1.4_RC3_JP.md)**を読む。
+4. **公開後の配布物を取得する**：GitHubの
+   **[Releases](https://github.com/MIN0/min0-core-forth/releases)**で`v0.1.4-rc.3`を選び、
+   ZIPと`SHA256SUMS.txt`を確認する。公開前は一覧に表示されない。
+5. **開発中の最新内容を見る**：公式repositoryの`main`を見る。ただし、`main`は公開releaseより先の
+   実験を含む場合があり、固定版が必要な場合は必ずtagとrelease assetを使う。
+
+## 次の最優先作業：MIN0 Capability Tour
+
+次の開発では、立ち上げたViewerの一か所から次の三つを体験できる**MIN0 Capability Tour**を作る。
+
+1. Safe `VARIABLE`、`@`、`!`、Pause中編集を実際に操作する。
+2. `CREATE DOES>`がwordを作る過程、成功、失敗、rollbackを検証済みtraceで理解する。
+3. 仮想assemblerのreference実行、生成code、disassembly、現在の実機未対応範囲を確認する。
+
+各項目は「試す内容」「最小source」「期待結果」「内部で起きること」「現在の制限と次段階」を同じ順番で
+示す。PC、browser、Python／Ruby、Mobile、Picoのどこまで確認済みかも明記する。
 
 ## おすすめの順番
 
-1. [日本語版Guided Viewer](https://min0.github.io/min0-core-forth/viewer/value-trace.html)を開く。
-2. [日本語版Quick Start](docs/QUICKSTART_JP.md)を試す。
-3. [日本語文書索引](docs/README_JP.md)を読む。
-4. 安全関連実験は、明記された限界が自分の実験に適している場合だけ試す。
+1. 上の機器別一覧で、自分の端末が実機確認済みか未評価かを確認する。
+2. [Mobile Learning](https://min0.github.io/min0-core-forth/viewer/mobile-forth.html)を開く。
+3. [日本語版Guided Viewer](https://min0.github.io/min0-core-forth/viewer/value-trace.html)を開く。
+4. [日本語版Quick Start](docs/QUICKSTART_JP.md)を試す。
+5. [日本語文書索引](docs/README_JP.md)を読む。
+6. 安全関連実験は、明記された限界が自分の実験に適している場合だけ試す。
