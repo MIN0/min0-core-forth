@@ -4,7 +4,7 @@
 
 候補版：`0.1.4-rc.4`
 
-状態：Gate A合格。Ruby 3.4.11、JSON 2.9.1、OpenSSL 3.6.4で一括試験に成功した。
+状態：Gate A、B、C合格。公開済みpre-releaseを新規取得し、独立確認まで完了した。
 
 ## 候補差分
 
@@ -34,7 +34,7 @@
 
 ## Gate C―公開後
 
-- [ ] 公開assetを新しいdirectoryへ再取得
-- [ ] ZIP byte数、SHA-256、manifest全項目を候補と照合
-- [ ] 展開treeのallowlist監査とMobile集中試験を実行
-- [ ] Mobile LearningとVirtual AssemblerのPages配信を確認
+- [x] 公開assetを新しいdirectoryへ再取得
+- [x] ZIP byte数（986153 bytes）、SHA-256（`91E577A3C5F79DC2186FD7C88A5F562892D075391956CC120FF5DD4537D9733D`）、manifest 500項目を候補と照合
+- [x] 展開treeでallowlist監査（500ファイル、問題0件）とMobile集中試験（10/10成功）を実行
+- [x] [Mobile Learning](https://min0.github.io/min0-core-forth/viewer/mobile-forth.html)と[Virtual Assembler](https://min0.github.io/min0-core-forth/viewer/virtual-assembler.html)のPages配信を確認

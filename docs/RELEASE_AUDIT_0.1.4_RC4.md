@@ -4,7 +4,7 @@
 
 Candidate: `0.1.4-rc.4`
 
-Status: Gate A passed. The full run succeeded with Ruby 3.4.11, JSON 2.9.1, and OpenSSL 3.6.4.
+Status: Gates A, B, and C passed. The published pre-release was independently downloaded and verified.
 
 ## Candidate delta
 
@@ -34,7 +34,7 @@ Published at <https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.4-rc.4>.
 
 ## Gate C - after publication
 
-- [ ] Fetch the published assets into a fresh directory.
-- [ ] Match ZIP size, SHA-256, and every manifest entry to the candidate.
-- [ ] Run the allowlist audit and focused Mobile tests from the extracted tree.
-- [ ] Verify the Mobile Learning and Virtual Assembler Pages deployments.
+- [x] Fetch the published assets into a fresh directory.
+- [x] Match ZIP size (986153 bytes), SHA-256 (`91E577A3C5F79DC2186FD7C88A5F562892D075391956CC120FF5DD4537D9733D`), and all 500 manifest entries to the candidate.
+- [x] Run the allowlist audit (500 files, zero issues) and focused Mobile tests (10/10 passed) from the extracted tree.
+- [x] Verify the [Mobile Learning](https://min0.github.io/min0-core-forth/viewer/mobile-forth.html) and [Virtual Assembler](https://min0.github.io/min0-core-forth/viewer/virtual-assembler.html) Pages deployments.
