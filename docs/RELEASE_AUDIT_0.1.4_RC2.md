@@ -4,7 +4,7 @@
 
 Candidate: `0.1.4-rc.2`
 
-Status: preparation in progress. No tag or release has been published.
+Status: Gate A passed. No tag or release has been published.
 
 ## Completed pre-Gate evidence
 
@@ -15,17 +15,27 @@ Status: preparation in progress. No tag or release has been published.
 - Generated Mobile HTML build identity refreshed after iPhone verification.
 - `git diff --check`: PASS for the preparation changes.
 
-## Gate A -- pending
+## Gate A -- passed
 
-- Run `python tools/run_all_checks.py` in the user's normal Windows PowerShell environment.
-- Require all Python suites, Ruby files, and cross-language checks to pass.
-- Run the release allowlist audit and require zero issues.
-- Build the candidate twice and require byte-identical ZIP files.
-- Record the final commit, file count, byte size, and SHA-256 without placeholders.
+- Date: 2026-10-17 (Asia/Tokyo).
+- User's normal Windows PowerShell: `python tools\run_all_checks.py`.
+- Python suite: passed.
+- Ruby: all 50 test files passed.
+- Python/Ruby cross-language checks: all 51 check files passed.
+- Final result: `ALL CHECKS PASSED`.
+- Release allowlist audit: 492 files, zero issues.
+- Documentation/release-tool focused tests: 14/14 passed.
+- Build the candidate into two independent directories and require byte-identical ZIP files.
+- Store the final ZIP byte size and SHA-256 beside the artifact in `SHA256SUMS.txt` and in the
+  publication record, avoiding a self-referential digest inside the ZIP.
+
+The restricted Codex sandbox denies the `ruby.exe` child process with exit code `3221225506`. The
+five Python-suite failures seen there are all Ruby-launcher comparison tests. The user's normal
+PowerShell environment does not reproduce that restriction and passed the complete test run.
 
 ## Gate B -- not authorized yet
 
-Do not create `v0.1.4-rc.2` or publish assets until Gate A is complete and the user explicitly confirms
+Do not create `v0.1.4-rc.2` or publish assets until the user explicitly confirms
 publication. Existing tags and assets remain immutable.
 
 ## Gate C -- pending
