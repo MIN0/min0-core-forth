@@ -28,6 +28,7 @@
     abort: new Set(["running", "pause-requested", "stepping", "waiting-input", "paused", "stopped", "failed", "completed"]),
     inspect: new Set(["running", "pause-requested", "paused", "stepping", "waiting-input", "stop-requested", "stopped", "abort-requested", "aborted", "completed", "failed"]),
     input: new Set(["running", "pause-requested", "paused", "stepping", "waiting-input"]),
+    "write-variable": new Set(["paused"]),
   });
 
   class MobileForthWorkerEngine {
@@ -112,6 +113,10 @@
         inspect: () => this.scheduler.update("inspect"),
         input: () => {
           return this.scheduler.enqueueInput(command.payload.text);
+        },
+        "write-variable": () => {
+          this.session.writeVariable(command.payload.name, command.payload.value);
+          return this.scheduler.update("variable-written");
         },
       };
       actions[command.name]();

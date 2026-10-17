@@ -53,6 +53,22 @@ assert.equal(abortedVariable.vm.variables.size, 0);
 assert.equal(abortedVariable.vm.variableMemory.size, 0);
 assert.equal(abortedVariable.vm.nextVariableAddress, 0x10000000);
 
+const pausedVariable = new MobileForthSession("VARIABLE SCORE 10 SCORE ! : SPIN BEGIN 1 DROP AGAIN ; SPIN");
+pausedVariable.advance();
+pausedVariable.requestPause();
+pausedVariable.advance();
+assert.equal(pausedVariable.state, STATES.PAUSED);
+const variableEdit = pausedVariable.writeVariable("SCORE", -7);
+assert.deepEqual(variableEdit, { sequence: 1, name: "SCORE", address: 0x10000000, before: 0, after: -7, steps: 1 });
+assert.equal(pausedVariable.status().currentSnapshot.variables[0].value, -7);
+assert.throws(() => pausedVariable.writeVariable("MISSING", 1), /unknown variable MISSING/);
+pausedVariable.continueExecution();
+assert.throws(() => pausedVariable.writeVariable("SCORE", 2), /not allowed while running/);
+pausedVariable.requestAbort();
+pausedVariable.advance();
+assert.equal(pausedVariable.state, STATES.ABORTED);
+assert.equal(pausedVariable.vm.variables.size, 0);
+
 const controlled = new MobileForthSession(": TWICE 1+ 1+ ; 10 TWICE 3 +");
 controlled.advance(); // definition
 controlled.advance(); // literal 10

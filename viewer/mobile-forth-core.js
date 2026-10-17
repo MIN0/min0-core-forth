@@ -290,6 +290,13 @@
 
     stackSnapshot() { return this.stack.map(signed); }
     loopSnapshot() { return this.loopStack.map((frame, depth) => ({ loopId: frame.loopId, depth: depth + 1, iteration: frame.iteration, limit: signed(frame.limit), index: signed(frame.index) })); }
+    variableSnapshot() {
+      return [...this.variables.entries()].map(([name, address]) => ({
+        name,
+        address,
+        value: signed(this.variableMemory.get(address)),
+      }));
+    }
 
     captureTransactionalState() {
       return {

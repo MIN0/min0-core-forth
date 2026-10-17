@@ -279,6 +279,12 @@ PC Viewerの目視試験では、正常な`VARIABLE SCORE`／`42 SCORE !`／`SCO
 stack `<0>`へ戻ることを確認した。これによりSafe VARIABLE第1小単位のPC実装・自動試験・画面確認を
 完了した。次はPause確定中の変数一覧・参照・変更を、Abortで戻せるMonitor操作として追加する。
 
+Pause確定中の変数操作を第2小単位として実装した。確定snapshotへ変数名、論理address、現在値を含め、
+Viewerの「安全な変数」表へ表示する。変更buttonはpaused状態だけ有効で、`write-variable` protocol 0.3
+commandを通して1 cell値を変更する。Workerとsessionの双方で状態、登録名、32ビット範囲を検査し、画面から
+addressや辞書構造を直接変更させない。変更前後はMonitor履歴へ記録し、Continue後はFORTHから新値を読め、
+Abortでは変数定義・値・割当位置を実行前へ戻す。自動試験合格後、PC Viewerの目視確認を行う。
+
 ## Release方針
 
 - Phase Aを次の評価候補として先に完成させる。

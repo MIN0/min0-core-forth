@@ -25,6 +25,7 @@
     .monitor-buttons { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:10px; }
     .input-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; margin-top:12px; }
     .input-row input { min-width:0; min-height:44px; color:var(--text); background:#0d1c22; border:1px solid #4b6e79; border-radius:9px; padding:8px; font-size:16px; }
+    .variable-value { width:10em; min-height:40px; color:var(--text); background:#0d1c22; border:1px solid #4b6e79; border-radius:7px; padding:6px; font-size:16px; }
     button { border:1px solid #526d76; background:#203842; color:var(--text); padding:9px 12px; font-weight:700; }
     button.primary { background:var(--accent); border-color:var(--accent); color:#1d1b12; }
     button:disabled { opacity:.42; transform:none; }
@@ -118,6 +119,12 @@
       <p class="hint">いずれも左がstack底、右がTOS（トップ）です。</p>
     </section>
   </div>
+
+  <section class="panel">
+    <h2>安全な変数</h2>
+    <p id="variable-status" class="hint" aria-live="polite">Pause確定後に、登録済みVARIABLEの値を変更できます。</p>
+    <div class="table-wrap"><table><thead><tr><th>名前</th><th>論理address</th><th>現在値</th><th>Pause中の変更</th></tr></thead><tbody id="variable-list"><tr><td colspan="4">（未実行）</td></tr></tbody></table></div>
+  </section>
 
   <section class="panel" id="error-panel" hidden><h2>エラー</h2><pre id="error" class="bad"></pre></section>
   <section class="panel">
@@ -315,6 +322,41 @@
     $("abort").disabled = !["running", "pause-requested", "paused", "stepping", "waiting-input", "stopped", "completed", "failed"].includes(state);
     $("input-text").disabled = !acceptsInput;
     $("send-input").disabled = !acceptsInput;
+    document.querySelectorAll("[data-variable-write]").forEach(button => { button.disabled = state !== "paused"; });
+  }
+  function parseCellValue(text) {
+    const valueText = text.trim();
+    if (!/^[+-]?(?:0x[0-9a-f]+|[0-9]+)$/i.test(valueText)) throw new Error("10進数または0x形式で入力してください。");
+    const sign = valueText.startsWith("-") ? -1 : 1;
+    const unsignedText = /^[+-]/.test(valueText) ? valueText.slice(1) : valueText;
+    const value = sign * (unsignedText.toLowerCase().startsWith("0x") ? parseInt(unsignedText.slice(2), 16) : parseInt(unsignedText, 10));
+    if (!Number.isSafeInteger(value) || value < -2147483648 || value > 0xFFFFFFFF) throw new Error("32ビットcellの範囲で入力してください。");
+    return value;
+  }
+  function renderVariables(snapshot, state) {
+    const body = $("variable-list"); body.textContent = "";
+    const variables = snapshot.variables || [];
+    if (!variables.length) {
+      const row = body.insertRow(); row.insertCell().colSpan = 4; row.cells[0].textContent = "（登録済みVARIABLEなし）";
+      return;
+    }
+    variables.forEach(item => {
+      const row = body.insertRow();
+      row.insertCell().textContent = item.name;
+      row.insertCell().textContent = `0x${Number(item.address).toString(16).padStart(8, "0")}`;
+      row.insertCell().textContent = String(item.value);
+      const control = row.insertCell();
+      const input = document.createElement("input"); input.className = "variable-value"; input.value = String(item.value); input.inputMode = "numeric"; input.setAttribute("aria-label", `${item.name}の新しい値`);
+      const button = document.createElement("button"); button.textContent = "変更"; button.dataset.variableWrite = item.name; button.disabled = state !== "paused";
+      button.addEventListener("click", () => {
+        try {
+          const value = parseCellValue(input.value);
+          workerClient.writeVariable(item.name, value);
+          setText($("variable-status"), `${item.name}を${value}へ変更しました。Abortで実行前へ戻せます。`);
+        } catch (error) { setText($("variable-status"), `変更できません：${error.message}`); }
+      });
+      control.append(input, " ", button);
+    });
   }
   function renderCallHistory(snapshot) {
     const body = $("call-history"); body.textContent = "";
@@ -342,6 +384,8 @@
     $("word-search").disabled = true;
     $("word-summary").textContent = "実行中です。確定した停止点で利用できます。";
     $("word-catalog").innerHTML = '<tr><td colspan="5">（実行中）</td></tr>';
+    $("variable-list").innerHTML = '<tr><td colspan="4">（実行中）</td></tr>';
+    setText($("variable-status"), "Pause確定後に、登録済みVARIABLEの値を変更できます。");
     setText($("input-status"), "入力queue：0 / 256 UTF-8バイト");
   }
   function resetIdleDisplay() {
@@ -371,6 +415,8 @@
     $("word-search").disabled = true;
     $("word-summary").textContent = "実行後に利用できます。";
     $("word-catalog").innerHTML = '<tr><td colspan="5">（未実行）</td></tr>';
+    $("variable-list").innerHTML = '<tr><td colspan="4">（未実行）</td></tr>';
+    setText($("variable-status"), "Pause確定後に、登録済みVARIABLEの値を変更できます。");
     $("input-text").value = "";
     setText($("input-status"), "Run後、実行中・一時停止中・入力待ち中に送信できます。");
     setText($("execution-mode"), "実行環境は最初のRunで判定します。");
@@ -398,6 +444,9 @@
     setText($("current-location"), `${location.word || "#0 MAIN"}${location.wordId === null || location.wordId === undefined ? "" : ` (#${location.wordId})`}／命令 ${location.instructionIndex || "終了"}／${location.sourceLine ? `${location.sourceLine}行${location.sourceColumn}列` : "source位置なし"}／次: ${location.token || "end"}`);
     setText($("chunk-status"), `chunk #${event.chunkSequence}：${event.executed}命令境界／累計${event.totalBoundaries}境界${event.scheduled ? "／次chunk予約済み" : ""}`);
     setText($("input-status"), `入力queue：${snapshot.inputDepth || 0} / 256 UTF-8バイト${state === "waiting-input" ? "（入力待ち）" : ""}`);
+    renderVariables(snapshot, state);
+    if (state === "paused") setText($("variable-status"), "Pause確定中です。値を変更すると履歴へ記録され、Abortで実行前へ戻ります。");
+    else if ((snapshot.variables || []).length) setText($("variable-status"), "値の変更はPause確定中だけ許可されます。");
     renderCallHistory(snapshot);
     const error = diagnostics && diagnostics.error;
     $("error-panel").hidden = !error;

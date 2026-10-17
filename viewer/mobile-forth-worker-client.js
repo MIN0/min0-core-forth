@@ -121,6 +121,7 @@
     abort() { return this.send("abort"); }
     inspect() { return this.send("inspect"); }
     input(text) { return this.send("input", { text }); }
+    writeVariable(name, value) { return this.send("write-variable", { name, value }); }
 
     releaseWorker() {
       if (this.worker && typeof this.worker.terminate === "function") this.worker.terminate();

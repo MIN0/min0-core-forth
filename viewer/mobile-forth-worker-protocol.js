@@ -5,11 +5,11 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  const VERSION = "min0-mobile-monitor/0.2";
+  const VERSION = "min0-mobile-monitor/0.3";
   const MAX_SOURCE_BYTES = 4096;
   const MAX_CHUNK_SIZE = 10000;
   const MAX_INPUT_BYTES = 256;
-  const COMMANDS = Object.freeze(["run", "pause", "step", "continue", "stop", "abort", "inspect", "input"]);
+  const COMMANDS = Object.freeze(["run", "pause", "step", "continue", "stop", "abort", "inspect", "input", "write-variable"]);
   const EVENTS = Object.freeze(["ready", "accepted", "update", "rejected", "fatal"]);
   const commandNames = new Set(COMMANDS);
   const eventNames = new Set(EVENTS);
@@ -75,6 +75,17 @@
       if (length < 1 || length > MAX_INPUT_BYTES) throw new ProtocolError(`input payload.text must use 1-${MAX_INPUT_BYTES} UTF-8 bytes`);
       for (const key of Object.keys(payload)) {
         if (key !== "text") throw new ProtocolError(`input payload.${key} is not allowed`);
+      }
+    }
+    else if (name === "write-variable") {
+      if (typeof payload.name !== "string" || payload.name.length < 1 || payload.name.length > 64) {
+        throw new ProtocolError("write-variable payload.name must use 1-64 characters");
+      }
+      if (!Number.isSafeInteger(payload.value) || payload.value < -2147483648 || payload.value > 0xFFFFFFFF) {
+        throw new ProtocolError("write-variable payload.value must fit one 32-bit cell");
+      }
+      for (const key of Object.keys(payload)) {
+        if (!new Set(["name", "value"]).has(key)) throw new ProtocolError(`write-variable payload.${key} is not allowed`);
       }
     }
     else if (Object.keys(payload).length) throw new ProtocolError(`${name} payload must be empty`);

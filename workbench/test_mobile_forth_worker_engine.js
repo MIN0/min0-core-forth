@@ -129,4 +129,26 @@ assert.equal(overflowEvents.at(-1).name, "rejected");
 assert.match(overflowEvents.at(-1).payload.reason, /input queue exceeds 256 UTF-8 bytes/);
 assert.equal(overflowEngine.session.vm.inputQueue.length, 256, "rejected input must not change the queue");
 
+const variableEvents = [];
+const variableQueue = fakeQueue();
+const variableEngine = new MobileForthWorkerEngine(event => variableEvents.push(event), { schedule: callback => variableQueue.schedule(callback) });
+const variableCommand = (sequence, name, payload = {}) => protocol.createCommand("variable-session", sequence, name, payload);
+variableEngine.receive(variableCommand(1, "run", { source: "VARIABLE SCORE : SPIN BEGIN 1 DROP AGAIN ; SPIN", chunkSize: 4 }));
+variableEngine.receive(variableCommand(2, "pause"));
+variableQueue.flushOne();
+assert.equal(variableEngine.session.state, "paused");
+assert.deepEqual(variableEngine.session.status().currentSnapshot.variables.map(item => [item.name, item.value]), [["SCORE", 0]]);
+variableEngine.receive(variableCommand(3, "write-variable", { name: "SCORE", value: 77 }));
+assert.equal(variableEngine.session.vm.variableMemory.get(variableEngine.session.vm.variables.get("SCORE")), 77);
+assert.equal(variableEvents.at(-1).payload.scheduler.kind, "variable-written");
+assert.equal(variableEvents.at(-1).payload.status.currentSnapshot.variables[0].value, 77);
+variableEngine.receive(variableCommand(4, "continue"));
+variableEngine.receive(variableCommand(5, "write-variable", { name: "SCORE", value: 88 }));
+assert.equal(variableEvents.at(-1).name, "rejected");
+assert.match(variableEvents.at(-1).payload.reason, /not allowed while running/);
+variableEngine.receive(variableCommand(6, "abort"));
+variableQueue.flushOne();
+assert.equal(variableEngine.session.state, "aborted");
+assert.equal(variableEngine.session.vm.variables.size, 0);
+
 console.log("mobile forth worker engine tests: PASS");

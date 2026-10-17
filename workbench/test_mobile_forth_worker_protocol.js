@@ -16,6 +16,8 @@ for (const [index, name] of ["pause", "step", "continue", "stop", "abort", "insp
 }
 const input = protocol.createCommand("session-1", 8, "input", { text: "Aあ" });
 assert.equal(input.payload.text, "Aあ");
+const variableWrite = protocol.createCommand("session-1", 9, "write-variable", { name: "SCORE", value: -7 });
+assert.deepEqual(variableWrite.payload, { name: "SCORE", value: -7 });
 
 const updatePayload = {
   requestSequence: 1,
@@ -34,6 +36,9 @@ assert.throws(() => protocol.createCommand("session-1", 1, "run", { source: "あ
 assert.throws(() => protocol.createCommand("session-1", 1, "input", { text: "" }), protocol.ProtocolError);
 assert.throws(() => protocol.createCommand("session-1", 1, "input", { text: "x".repeat(257) }), protocol.ProtocolError);
 assert.throws(() => protocol.createCommand("session-1", 1, "input", { text: "A", extra: true }), protocol.ProtocolError);
+assert.throws(() => protocol.createCommand("session-1", 1, "write-variable", { name: "", value: 1 }), protocol.ProtocolError);
+assert.throws(() => protocol.createCommand("session-1", 1, "write-variable", { name: "SCORE", value: 0x100000000 }), protocol.ProtocolError);
+assert.throws(() => protocol.createCommand("session-1", 1, "write-variable", { name: "SCORE", value: 1, extra: true }), protocol.ProtocolError);
 assert.throws(() => protocol.readCommand({ ...run, version: "future" }), protocol.ProtocolError);
 assert.throws(() => protocol.readEvent({ ...update, kind: "command" }), protocol.ProtocolError);
 const circular = {}; circular.self = circular;

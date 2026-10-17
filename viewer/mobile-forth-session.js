@@ -25,6 +25,7 @@
       this.error = null;
       this.failureSnapshot = null;
       this.preRollbackDiagnostics = null;
+      this.variableEdits = [];
       this.lastBoundary = null;
       this.control = new MonitorExecutionControl();
       if (new TextEncoder().encode(source).length > MAX_SOURCE_BYTES) throw new CompileError(`source exceeds ${MAX_SOURCE_BYTES} UTF-8 bytes`);
@@ -82,6 +83,7 @@
           nextInstruction: frame.ip + 1,
         })),
         inputDepth: this.vm.inputQueue.length,
+        variables: this.vm.variableSnapshot(),
       };
     }
 
@@ -106,6 +108,7 @@
     rollback() {
       if (!this.preRollbackDiagnostics) this.preRollbackDiagnostics = this.buildDiagnostics();
       this.vm.restoreTransactionalState(this.initialState);
+      this.variableEdits = [];
       this.frames = [];
       this.mainIndex = 0;
       this.lastBoundary = this.snapshot("abort-rollback");
@@ -122,10 +125,27 @@
         wordCatalog: clone(this.vm.wordCatalog()),
         error: clone(this.error),
         failureSnapshot: clone(this.failureSnapshot),
+        variableEdits: clone(this.variableEdits),
       };
     }
 
     diagnostics() { return this.preRollbackDiagnostics || this.buildDiagnostics(); }
+
+    writeVariable(name, value) {
+      if (this.state !== STATES.PAUSED) throw new MonitorTransitionError(`variable write is not allowed while ${this.state}`);
+      const address = this.vm.variables.get(name);
+      if (address === undefined || !this.vm.variableMemory.has(address)) throw new UnknownWord(`unknown variable ${name}`);
+      if (!Number.isSafeInteger(value) || value < -2147483648 || value > 0xFFFFFFFF) {
+        throw new RangeError("variable value must fit one 32-bit cell");
+      }
+      const before = signed(this.vm.variableMemory.get(address));
+      this.vm.variableMemory.set(address, core.cell(value));
+      const edit = { sequence: this.variableEdits.length + 1, name, address, before, after: signed(core.cell(value)), steps: this.vm.steps };
+      this.variableEdits.push(edit);
+      this.lastBoundary = this.snapshot("monitor-variable-write");
+      this.control.observe(this.lastBoundary, "variable-write");
+      return edit;
+    }
 
     enterDefinition(name, code, pendingEvent) {
       if (this.vm.returnStack.length >= MAX_CALL_DEPTH) throw new CallDepthExceeded(`call depth ${MAX_CALL_DEPTH} exceeded`);

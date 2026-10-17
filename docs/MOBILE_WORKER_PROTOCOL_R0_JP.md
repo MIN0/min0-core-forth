@@ -12,7 +12,7 @@ snapshotだけを受け取る。すべてのmessageにprotocol版、session ID�
 
 ```text
 {
-  version:   "min0-mobile-monitor/0.1",
+  version:   "min0-mobile-monitor/0.3",
   kind:      "command" | "event",
   sessionId: 1～64文字の安全なASCII識別子,
   sequence:  1から増加する整数,
@@ -35,6 +35,8 @@ UTF-8で4096バイトまで、chunk sizeは1～10000命令境界とする。
 | `stop` | `{}` | 次の命令境界で現在状態を保持して終了する |
 | `abort` | `{}` | 次の命令境界で開始前状態へ復旧する |
 | `inspect` | `{}` | 実行を進めず最新の確定snapshotを要求する |
+| `input` | `{ text }` | 検査済みUTF-8 byte列を入力queueへ追加する |
+| `write-variable` | `{ name, value }` | paused中だけ登録済み1 cell変数を変更する |
 
 Workerはcommandの受信順を検査する。同じsessionで連番が重複・逆行したcommand、session IDが異なるcommand、
 現在状態で許可されない操作は実行せず`rejected`を返す。
@@ -105,3 +107,8 @@ Phase Cではprotocolを`min0-mobile-monitor/0.2`へ更新し、上限付き`inp
 `KEY`が空queueへ到達すると、sessionは命令位置とstep数を保持して`waiting-input`へ移る。schedulerは
 chunkを予約せず停止する。`input`到着時は、Run由来ならRunへ、Step由来ならStepへ復帰する。待機中の
 Pause／Stop／Abortも有効であり、入力待ちを理由にMonitor操作を失わない。
+
+Phase C後続ではprotocolを`min0-mobile-monitor/0.3`へ更新し、`write-variable { name, value }`を追加した。
+Workerはpaused状態だけでcommandを受理し、sessionは名前が登録済みVARIABLEであることと、値が32ビットcellへ
+収まる整数であることを再検査する。画面は論理addressや辞書構造を直接書き換えられない。変更前後の値は
+sessionのMonitor履歴へ残し、Abortでは実行前snapshotへ戻す。
