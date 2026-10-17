@@ -61,7 +61,7 @@
 <main>
   <noscript><div class="notice">この表示方法ではJavaScriptが停止しているため、実行ボタンは動作しません。Safariで開けるWebアプリ版を使用してください。</div></noscript>
   <h1>MIN0 CORE FORTH<br>Mobile Learning</h1>
-  <p class="meta">個人学習用・オフライン試作版 / source build <span id="revision">f69e4af</span></p>
+  <p class="meta">個人学習用・オフライン試作版 / source build <span id="revision">ef1f9af</span></p>
   <div class="notice">これは正式COREの代替ではなく、スマホ学習用の小さな互換サブセットです。各「実行」は新しいVMから始まります。</div>
 
   <section class="panel">
@@ -2310,6 +2310,10 @@
     if (diagnostics) {
       lastResult = monitorResult(diagnostics);
       configureTraceChoices(lastResult); renderTrace(); $("word-search").disabled = false; renderWordCatalog();
+      if (state === "aborted") {
+        setText($("trace-summary"), `${$("trace-summary").textContent}／実行前へ復旧済み。以下は復旧前の観察記録です。`);
+        setText($("word-summary"), `${$("word-summary").textContent}／利用者定義を含む復旧前の観察記録です。現在のVM辞書は実行前へ戻っています。`);
+      }
     }
     setControls(state);
   }

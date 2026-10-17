@@ -454,6 +454,10 @@
     if (diagnostics) {
       lastResult = monitorResult(diagnostics);
       configureTraceChoices(lastResult); renderTrace(); $("word-search").disabled = false; renderWordCatalog();
+      if (state === "aborted") {
+        setText($("trace-summary"), `${$("trace-summary").textContent}／実行前へ復旧済み。以下は復旧前の観察記録です。`);
+        setText($("word-summary"), `${$("word-summary").textContent}／利用者定義を含む復旧前の観察記録です。現在のVM辞書は実行前へ戻っています。`);
+      }
     }
     setControls(state);
   }

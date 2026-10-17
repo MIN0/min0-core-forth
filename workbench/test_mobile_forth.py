@@ -57,6 +57,7 @@ class MobileForthTests(unittest.TestCase):
             self.assertIn("function sendInput()", text)
             self.assertIn("function resetIdleDisplay()", text)
             self.assertIn("function renderVariables(snapshot, state)", text)
+            self.assertIn("以下は復旧前の観察記録です。", text)
             self.assertIn('setControls("pause-requested")', text)
             self.assertIn('const acceptsInput = ["running", "paused", "stepping", "waiting-input"].includes(state);', text)
             self.assertIn('id="trace-word"', text)
