@@ -261,6 +261,14 @@ PC画面では容量超過の拒否と入力待ち維持、入力待ち中の安
 確認した。これによりPhase C入力制御のPC実装・自動試験・画面確認は完了した。次はiPhone評価版へ反映し、
 Safariで同じ操作と画面初期化を確認する。
 
+2026-10-17、GitHub Pages上のiPhone Safari実機試験で、単一`KEY`入力、Pause中の2文字`AB`入力と
+Continue、256 UTF-8 byte容量超過の拒否、入力待ち中の安全停止、実行前への復旧、画面初期化を確認した。
+単一入力は`65`と`A`を出力して6 steps、2文字入力は`AB`を出力して5 stepsで正常終了し、いずれも
+実行前後stack `<0>`、queue 0となった。容量超過時は入力待ち0 stepsと`KEY`位置を保持した。安全停止は
+現在stackを保持し、復旧は実行前stackへ戻した。画面初期化後は出力、実行状態、stack、現在位置、trace、
+word辞典が未実行状態へ戻り、端末に保存したsourceを削除しない案内を表示した。これによりPhase C入力制御の
+PC／iPhone実画面評価を合格とする。
+
 ## Release方針
 
 - Phase Aを次の評価候補として先に完成させる。
@@ -270,5 +278,5 @@ Safariで同じ操作と画面初期化を確認する。
 
 ## 次回の最初の作業
 
-Phase CのPC確認は完了した。iPhone評価版を準備し、Safariで単一`KEY`、Pause中2文字入力、容量超過、
-Stop／Abort、画面初期化を確認する。公開済みreleaseはiPhone評価合格まで変更しない。
+Phase C入力制御のPC／iPhone評価は完了した。次は評価結果をrelease候補へどう収録するかを確認し、
+公開案内とrelease noteを更新する。公開済みrelease／tagは明示的な確定判断まで変更しない。
