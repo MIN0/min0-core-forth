@@ -4,7 +4,7 @@
 
 候補版：`0.1.4-rc.2`
 
-状態：Gate A合格。tagとReleaseはまだ公開していません。
+状態：評価用pre-release `v0.1.4-rc.2`についてGate A、B、C合格。
 
 ## Gate前に完了した証拠
 
@@ -25,18 +25,32 @@
 - 最終表示：`ALL CHECKS PASSED`
 - release allowlist監査：492ファイル、問題0件
 - 文書／release tool集中試験：14/14成功
-- 候補packageを独立した2 directoryへ作成し、ZIPのbyte一致を確認する。
+- 候補packageを独立した2 directoryへ作成し、ZIPのbyte一致を確認した。
 - 最終ZIPのbyte数とSHA-256は自己参照を避け、配布物の隣の`SHA256SUMS.txt`と公開記録へ保存する。
 
 制限付きCodex sandboxでは子processの`ruby.exe`が終了コード`3221225506`で拒否される。Python suite内の
 5失敗もすべてRuby launcher比較試験であり、利用者の通常PowerShellでは再現せず、全試験が成功した。
 
-## Gate B―まだ許可しない
+## Gate B―評価用pre-release公開
 
-利用者の明示的な公開確認まで、`v0.1.4-rc.2` tagとassetを公開しない。既存tagとassetは
-変更しない。
+- 公開日時：2026-10-17 13:10 JST
+- annotated tag：`v0.1.4-rc.2`、commit `60b6baa0067eed3211f03b4a2b1727656fced2e3`
+- Release：<https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.4-rc.2>
+- 状態：公開評価用pre-release。正式版ではなく、`Latest`ではない。
+- ZIP：`min0-core-forth-0.1.4-rc.2.zip`、960281 byte
+- ZIP SHA-256：`2f74f1d019876bb07aafc4a9950051748e5904c018474ed746baf3d08da7b161`
+- `SHA256SUMS.txt`を別assetとして公開
+- 既存tagとassetは変更していない
 
-## Gate C―未実施
+## Gate C―公開後の独立確認
 
-公開後、新しいdirectoryへ公開ZIPとchecksumを取得し、hashとmanifestを検証する。展開artifact上の試験と
-公開Pages buildも確認する。
+- 公開ZIPとchecksumを新しいdirectoryへ再取得した。
+- 再取得ZIPのbyte数とSHA-256はGate A候補および公開checksum fileと一致した。
+- manifest全492項目の存在とSHA-256一致を確認し、欠落・不一致0件。
+- 展開treeのrelease allowlist監査は492ファイル、問題0件。
+- 展開artifact上でMobile Python試験と7群のMobile JavaScript試験が成功した。
+- Mobile LearningとVirtual AssemblerのPages URLはHTTP 200。Mobile画面には評価済みbuild識別と
+  「画面を初期化」が反映され、Virtual Assembler画面も正常に配信されている。
+
+release asset内には公開前時点の本監査が収録される。この公開後追記はimmutableなtagged artifactを
+検証した後の`main`へ記録し、artifact、tag、checksumを変更しない。
