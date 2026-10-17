@@ -17,7 +17,7 @@ Ruby基準を訂正します。さらに、機器別利用案内と次のCapabil
 ## Windows Ruby基準
 
 - release基準はRuby 3.4系とOpenSSL 3.xです。
-- Windows Gate AではRuby 3.4.11 x64-mingw-ucrtを使用します。
+- Windows Gate AではRuby 3.4.11 x64-mingw-ucrt、JSON 2.9.1、OpenSSL 3.6.4を使用しました。
 - Ruby 4.0とJSON 3.0の組合せにはpersistent metadata parserの`JSON.parse` option互換対応が残るため、
   今回のrelease基準とは主張しません。
 - 本候補のRuby launcherに`bundle install`や追加Gemは不要です。

@@ -4,7 +4,7 @@
 
 候補版：`0.1.4-rc.4`
 
-状態：Ruby 3.4.11での一括試験は合格。JSON／OpenSSLの実version記録後にGate Aを確定する。
+状態：Gate A合格。Ruby 3.4.11、JSON 2.9.1、OpenSSL 3.6.4で一括試験に成功した。
 
 ## 候補差分
 
@@ -17,7 +17,7 @@
 ## Gate A―公開前
 
 - [x] 利用者の通常PowerShellでRuby 3.4.11 x64-mingw-ucrtを確認
-- [ ] 利用者の通常PowerShellでJSON／OpenSSL versionを記録
+- [x] 利用者の通常PowerShellでJSON 2.9.1／OpenSSL 3.6.4を確認
 - [x] Ruby 3.4.11環境で`python tools\run_all_checks.py`を実行し`ALL CHECKS PASSED`（Python 1、Ruby 50、言語間51）
 - [x] release allowlist監査が500ファイル、問題0件
 - [x] 文書／release tool集中試験が14/14成功

@@ -9,11 +9,12 @@
 - Windows 11
 - Python 3.14系
 - Ruby 3.4.11 x64-mingw-ucrt
-- Ruby同梱JSON 2.9系
+- Ruby同梱JSON 2.9.1
+- OpenSSL 3.6.4
 
 Ruby 4.0とJSON 3.0の組合せでは、現在の`JSON.parse`呼出しにある`create_additions:`が受理されない。
 将来はMIN0側をJSON 2.x／3.xの両方へ対応させる。それまではRuby 3.4系を開発試験の基準とし、
-`0.1.4-rc.4`のWindows release gateではRuby 3.4.11を使用する。
+`0.1.4-rc.4`のWindows release gateではRuby 3.4.11、JSON 2.9.1、OpenSSL 3.6.4を使用する。
 
 ## 1. 通常PowerShellを開く
 

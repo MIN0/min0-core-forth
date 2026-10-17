@@ -18,7 +18,7 @@ availability guide and the next Capability Tour direction.
 ## Windows Ruby baseline
 
 - The release baseline is Ruby 3.4.x with OpenSSL 3.x.
-- The Windows Gate A environment uses Ruby 3.4.11 x64-mingw-ucrt.
+- The Windows Gate A environment used Ruby 3.4.11 x64-mingw-ucrt, JSON 2.9.1, and OpenSSL 3.6.4.
 - Ruby 4.0 with JSON 3.0 is not claimed as the release baseline because the persistent-metadata parser
   still needs a compatibility update for one `JSON.parse` option.
 - The Ruby launcher requires no `bundle install` or additional Gem installation for this candidate.

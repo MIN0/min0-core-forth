@@ -4,7 +4,7 @@
 
 Candidate: `0.1.4-rc.4`
 
-Status: The Ruby 3.4.11 full run passed. Gate A awaits recording the installed JSON and OpenSSL versions.
+Status: Gate A passed. The full run succeeded with Ruby 3.4.11, JSON 2.9.1, and OpenSSL 3.6.4.
 
 ## Candidate delta
 
@@ -17,7 +17,7 @@ Status: The Ruby 3.4.11 full run passed. Gate A awaits recording the installed J
 ## Gate A - before publication
 
 - [x] Confirm Ruby 3.4.11 x64-mingw-ucrt in the user's normal PowerShell.
-- [ ] Record JSON and OpenSSL versions from the user's normal PowerShell.
+- [x] Confirm JSON 2.9.1 and OpenSSL 3.6.4 in the user's normal PowerShell.
 - [x] Run `python tools\run_all_checks.py` with Ruby 3.4.11: `ALL CHECKS PASSED` (1 Python suite, 50 Ruby files, 51 cross-language checks).
 - [x] Complete the release allowlist audit: 500 selected files, zero issues.
 - [x] Pass focused documentation and release-tool tests: 14/14.
