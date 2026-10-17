@@ -27,7 +27,7 @@ Candidate verification: **[0.1.4 release audit](docs/RELEASE_AUDIT_0.1.4.md)**
 Earlier evaluation candidate: [`0.1.3-rc.1`](https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.3-rc.1) —
 **[notes](docs/RELEASE_NOTES_0.1.3.md)** and **[audit](docs/RELEASE_AUDIT_0.1.3.md)**.
 
-Next local candidate: `0.1.4-rc.2` — **[Mobile Monitor and input-control notes](docs/RELEASE_NOTES_0.1.4_RC2.md)**.
+Next local candidate: `0.1.4-rc.3` — **[safe variables and explicit BREAK notes](docs/RELEASE_NOTES_0.1.4_RC3.md)**.
 It has not been published. Full Gate A, reproducible packaging, publication, and independent Gate C
 verification remain pending.
 

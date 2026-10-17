@@ -23,6 +23,8 @@
 - [Known limitations](KNOWN_LIMITATIONS_0.1.md)
 - [0.1.4-rc.2 Mobile Monitor candidate notes](RELEASE_NOTES_0.1.4_RC2.md)
 - [0.1.4-rc.2 candidate audit](RELEASE_AUDIT_0.1.4_RC2.md)
+- [0.1.4-rc.3 safe variables and BREAK candidate notes](RELEASE_NOTES_0.1.4_RC3.md)
+- [0.1.4-rc.3 candidate audit](RELEASE_AUDIT_0.1.4_RC3.md)
 - [0.1.4 local-candidate notes](RELEASE_NOTES_0.1.4.md)
 - [0.1.4 local-candidate audit](RELEASE_AUDIT_0.1.4.md)
 - [0.1.3 compatibility release notes](RELEASE_NOTES_0.1.3.md)
