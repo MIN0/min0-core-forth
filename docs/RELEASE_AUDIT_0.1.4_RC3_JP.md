@@ -4,7 +4,7 @@
 
 候補版：`0.1.4-rc.3`
 
-状態：準備中。公開前Gateを順番に記録し、合格するまでtagとreleaseを作成しない。
+状態：Gate A合格。評価用pre-releaseのtagとreleaseを作成できる。
 
 ## 実装済み証拠
 
@@ -16,11 +16,17 @@
 
 ## Gate A―公開前
 
-- [ ] iPhone SafariでSafe VARIABLE、Pause中編集、`BREAK`を確認
-- [ ] 利用者の通常Windows PowerShellで`python tools\run_all_checks.py`が`ALL CHECKS PASSED`
-- [ ] release allowlist監査が問題0件
-- [ ] 文書／release tool集中試験が成功
-- [ ] 独立した2 directoryで作ったZIPがbyte一致
+- [x] iPhone SafariでSafe VARIABLE、Pause中編集、`BREAK`を確認
+- [x] 利用者の通常Windows PowerShellで`python tools\run_all_checks.py`が`ALL CHECKS PASSED`
+- [x] release allowlist監査が問題0件
+- [x] 文書／release tool集中試験が成功
+- [x] 独立した2 directoryで作ったZIPがbyte一致
+
+実施日：2026-10-17（Asia/Tokyo）。iPhone Safariではsource build `5772353`を使用し、Safe VARIABLEの
+正常終了、Pause中の変数表示・編集、`BREAK`の8 steps一時停止と継続後13 steps正常終了を確認した。
+通常PowerShellの全体試験はPython suite 1、Ruby 50 files、言語間51 checksがすべて成功し、
+`ALL CHECKS PASSED`となった。集中試験18/18、Mobile JavaScript 7/7、allowlist監査496ファイル・問題0件。
+独立した2 directoryで生成した候補ZIPはbyte数とSHA-256が一致した。
 
 Codex sandboxでは子processの`ruby.exe`が終了コード`3221225506`で拒否されるため、Rubyを含む最終Gate Aは
 利用者の通常PowerShellで行う。この制約は製品codeの失敗と区別する。
@@ -39,4 +45,4 @@ Codex sandboxでは子processの`ruby.exe`が終了コード`3221225506`で拒�
 - [ ] 展開treeのallowlist監査とMobile集中試験を実行
 - [ ] Mobile LearningとVirtual AssemblerのPages配信を確認
 
-各Gateの確定値は完了時に本書へ追記する。
+Gate BとGate Cの確定値は完了時に本書へ追記する。

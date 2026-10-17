@@ -31,7 +31,9 @@
 ## 評価範囲
 
 - Safe VARIABLE、Pause中編集、`BREAK`はPC Viewerで自動試験と実画面確認に合格しています。
-- iPhone Safari実画面確認、全体Gate A、再現可能package、公開後Gate Cは公開前に完了させます。
+- iPhone SafariでSafe VARIABLE、Pause中編集、`BREAK`の実画面確認に合格しました。
+- 利用者の通常Windows PowerShellでPython、Ruby、言語間の全体試験に合格しました。
+- 再現可能packageと公開後Gate Cはrelease工程で確認します。
 
 ## 明確に含めない範囲
 

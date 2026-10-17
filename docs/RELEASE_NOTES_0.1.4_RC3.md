@@ -31,8 +31,9 @@ published in `v0.1.4-rc.2`, then adds safe one-cell variables and an explicit Mo
 ## Evaluation scope
 
 - Safe variables, paused editing, and `BREAK` passed focused automation and PC visual evaluation.
-- iPhone Safari visual evaluation, full Gate A, reproducible packaging, and post-publication Gate C remain required
-  before publication.
+- Safe variables, paused editing, and `BREAK` passed iPhone Safari visual evaluation.
+- The full Python, Ruby, and cross-language suite passed in the user's normal Windows PowerShell.
+- Reproducible packaging and post-publication Gate C remain release-process checks.
 
 ## Explicit exclusions
 

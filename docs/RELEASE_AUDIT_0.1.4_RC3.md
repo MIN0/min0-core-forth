@@ -4,7 +4,7 @@
 
 Candidate: `0.1.4-rc.3`
 
-Status: in preparation. No tag or release is created until the pre-publication gates pass.
+Status: Gate A passed. The evaluation pre-release tag and release may now be created.
 
 ## Implemented evidence
 
@@ -16,12 +16,19 @@ Status: in preparation. No tag or release is created until the pre-publication g
 
 ## Gate A - before publication
 
-- [ ] Verify safe variables, paused editing, and `BREAK` in iPhone Safari.
-- [ ] Run `python tools\run_all_checks.py` in the user's normal Windows PowerShell and obtain
+- [x] Verify safe variables, paused editing, and `BREAK` in iPhone Safari.
+- [x] Run `python tools\run_all_checks.py` in the user's normal Windows PowerShell and obtain
   `ALL CHECKS PASSED`.
-- [ ] Complete the release allowlist audit with zero issues.
-- [ ] Pass focused documentation and release-tool tests.
-- [ ] Produce byte-identical ZIP files in two independent directories.
+- [x] Complete the release allowlist audit with zero issues.
+- [x] Pass focused documentation and release-tool tests.
+- [x] Produce byte-identical ZIP files in two independent directories.
+
+Gate A ran on 2026-10-17 (Asia/Tokyo). iPhone Safari used source build `5772353` and confirmed normal safe-variable
+execution, paused variable display/editing, an 8-step `BREAK` pause, and normal completion at 13 steps after Continue.
+The normal-PowerShell suite passed 1 Python suite, 50 Ruby files, and 51 cross-language checks with
+`ALL CHECKS PASSED`. Focused tests passed 18/18, Mobile JavaScript passed 7/7, and the allowlist audit selected
+496 files with zero issues. Candidate ZIP files generated in two independent directories had identical byte counts
+and SHA-256 values.
 
 The Codex sandbox rejects child `ruby.exe` processes with exit code `3221225506`. Final Ruby-inclusive Gate A
 therefore runs in the user's normal PowerShell and is recorded separately from product-code failures.
@@ -40,4 +47,4 @@ therefore runs in the user's normal PowerShell and is recorded separately from p
 - [ ] Run the allowlist audit and focused Mobile tests from the extracted tree.
 - [ ] Verify the Mobile Learning and Virtual Assembler Pages deployments.
 
-Record final values in this document as each gate completes.
+Record final Gate B and Gate C values in this document as each gate completes.
