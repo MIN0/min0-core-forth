@@ -25,10 +25,12 @@ Status: Gate A passed. The full run succeeded with Ruby 3.4.11, JSON 2.9.1, and 
 
 ## Gate B - evaluation pre-release publication
 
-- [ ] Create annotated tag `v0.1.4-rc.4`.
-- [ ] Publish as a pre-release, not as `Latest`.
-- [ ] Attach the ZIP and `SHA256SUMS.txt` assets.
-- [ ] Do not modify existing tags or assets.
+- [x] Create annotated tag `v0.1.4-rc.4`.
+- [x] Publish as a pre-release, not as `Latest`.
+- [x] Attach the ZIP and `SHA256SUMS.txt` assets.
+- [x] Do not modify existing tags or assets.
+
+Published at <https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.4-rc.4>.
 
 ## Gate C - after publication
 

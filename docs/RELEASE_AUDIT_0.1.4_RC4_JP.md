@@ -25,10 +25,12 @@
 
 ## Gate B―評価用pre-release公開
 
-- [ ] annotated tag `v0.1.4-rc.4`を作成
-- [ ] pre-releaseとして公開し、`Latest`にしない
-- [ ] ZIPと`SHA256SUMS.txt`をassetとして添付
-- [ ] 既存tagとassetを変更しない
+- [x] annotated tag `v0.1.4-rc.4`を作成
+- [x] pre-releaseとして公開し、`Latest`にしない
+- [x] ZIPと`SHA256SUMS.txt`をassetとして添付
+- [x] 既存tagとassetを変更しない
+
+公開先：<https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.4-rc.4>
 
 ## Gate C―公開後
 
