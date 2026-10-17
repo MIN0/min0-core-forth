@@ -20,15 +20,19 @@
 リリースタグ：`v0.1.2`<br>
 リリースノート：**[0.1.2文書整備版](docs/RELEASE_NOTES_0.1.2_JP.md)**
 
-現在の開発候補：[`0.1.4-rc.1`](https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.4-rc.1)（公開済み評価用pre-release）<br>
-候補版の変更内容：**[0.1.4ブラウザ学習・仮想アセンブラ版ノート](docs/RELEASE_NOTES_0.1.4_JP.md)**<br>
-候補版の検証状況：**[0.1.4リリース監査](docs/RELEASE_AUDIT_0.1.4_JP.md)**
+現在の公開済み開発候補：[`0.1.4-rc.2`](https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.4-rc.2)<br>
+候補版の変更内容：**[0.1.4-rc.2 Mobile Monitor・入力制御版ノート](docs/RELEASE_NOTES_0.1.4_RC2_JP.md)**<br>
+候補版の検証状況：**[0.1.4-rc.2候補監査](docs/RELEASE_AUDIT_0.1.4_RC2_JP.md)**
 
 以前の評価候補：[`0.1.3-rc.1`](https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.3-rc.1) —
 **[ノート](docs/RELEASE_NOTES_0.1.3_JP.md)**と**[監査](docs/RELEASE_AUDIT_0.1.3_JP.md)**。
 
-次期ローカル候補：`0.1.4-rc.2` — **[Mobile Monitor・入力制御版ノート](docs/RELEASE_NOTES_0.1.4_RC2_JP.md)**。
-まだ公開していません。全体Gate A、再現可能package、公開、独立Gate C確認が残っています。
+次期ローカル候補：`0.1.4-rc.4` — **[Safe VARIABLE・BREAK・Ruby基準版ノート](docs/RELEASE_NOTES_0.1.4_RC4_JP.md)**。
+Windows試験基準はRuby 3.4.11です。まだ公開しておらず、再Gate A、再現可能package、公開、独立Gate C確認が
+残っています。
+
+0.1.4全体の背景：**[ローカル候補ノート](docs/RELEASE_NOTES_0.1.4_JP.md)**と
+**[リリース監査](docs/RELEASE_AUDIT_0.1.4_JP.md)**。
 
 ## 開発候補0.1.3の主な変更
 

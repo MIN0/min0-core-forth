@@ -20,16 +20,19 @@ Official repository: <https://github.com/MIN0/min0-core-forth><br>
 Release tag: `v0.1.2`<br>
 Release notes: **[0.1.2 documentation maintenance release](docs/RELEASE_NOTES_0.1.2.md)**
 
-Current development candidate: [`0.1.4-rc.1`](https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.4-rc.1) (published evaluation pre-release)<br>
-Candidate changes: **[0.1.4 browser learning and virtual-assembler notes](docs/RELEASE_NOTES_0.1.4.md)**<br>
-Candidate verification: **[0.1.4 release audit](docs/RELEASE_AUDIT_0.1.4.md)**
+Current published development candidate: [`0.1.4-rc.2`](https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.4-rc.2)<br>
+Candidate changes: **[0.1.4-rc.2 Mobile Monitor notes](docs/RELEASE_NOTES_0.1.4_RC2.md)**<br>
+Candidate verification: **[0.1.4-rc.2 release audit](docs/RELEASE_AUDIT_0.1.4_RC2.md)**
 
 Earlier evaluation candidate: [`0.1.3-rc.1`](https://github.com/MIN0/min0-core-forth/releases/tag/v0.1.3-rc.1) —
 **[notes](docs/RELEASE_NOTES_0.1.3.md)** and **[audit](docs/RELEASE_AUDIT_0.1.3.md)**.
 
-Next local candidate: `0.1.4-rc.3` — **[safe variables and explicit BREAK notes](docs/RELEASE_NOTES_0.1.4_RC3.md)**.
-It has not been published. Full Gate A, reproducible packaging, publication, and independent Gate C
-verification remain pending.
+Next local candidate: `0.1.4-rc.4` — **[safe variables, explicit BREAK, and Ruby baseline notes](docs/RELEASE_NOTES_0.1.4_RC4.md)**.
+It has not been published. Its Windows release baseline is Ruby 3.4.11; fresh Gate A, reproducible packaging,
+publication, and independent Gate C verification remain pending.
+
+Broader 0.1.4 background: **[local-candidate notes](docs/RELEASE_NOTES_0.1.4.md)** and
+**[release audit](docs/RELEASE_AUDIT_0.1.4.md)**.
 
 ## Main changes in development candidate 0.1.3
 

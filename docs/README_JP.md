@@ -30,6 +30,8 @@
 - [0.1.4-rc.2候補監査](RELEASE_AUDIT_0.1.4_RC2_JP.md)
 - [0.1.4-rc.3 Safe VARIABLE・BREAK版ノート](RELEASE_NOTES_0.1.4_RC3_JP.md)
 - [0.1.4-rc.3候補監査](RELEASE_AUDIT_0.1.4_RC3_JP.md)
+- [0.1.4-rc.4 Ruby基準明確化版ノート](RELEASE_NOTES_0.1.4_RC4_JP.md)
+- [0.1.4-rc.4候補監査](RELEASE_AUDIT_0.1.4_RC4_JP.md)
 - [0.1.4ローカル候補ノート](RELEASE_NOTES_0.1.4_JP.md)
 - [0.1.4ローカル候補監査](RELEASE_AUDIT_0.1.4_JP.md)
 - [0.1.3互換性改善版リリースノート](RELEASE_NOTES_0.1.3_JP.md)

@@ -42,7 +42,7 @@ Test-Path .\requirements.txt
 ## 必要な環境
 
 - Python 3.12と`cryptography` 50.0.0、または
-- Ruby 4.0とOpenSSL 3.x
+- Ruby 3.4系とOpenSSL 3.x。現在のWindows release gateはRuby 3.4.11を使用
 
 Pythonを確認して、固定した依存関係を自分の仮想環境へ導入します。
 
@@ -58,7 +58,9 @@ ruby --version
 ruby -ropenssl -e 'puts OpenSSL::OPENSSL_VERSION'
 ```
 
-Ruby版はRubyに付属するライブラリを使うため、このリリースでは追加のGemや`bundle install`は不要です。
+release基準はRuby 3.4系とOpenSSL 3.xで、候補`0.1.4-rc.4`はRuby 3.4.11 x64-mingw-ucrtで確認します。
+Ruby 4.0とJSON 3.0の組合せにはpersistent metadata解析optionの互換対応が残るため、今回の基準には
+しません。Ruby版はRubyに付属するライブラリを使うため、追加のGemや`bundle install`は不要です。
 
 ## 5分間で試す
 

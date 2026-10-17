@@ -8,11 +8,12 @@
 
 - Windows 11
 - Python 3.14系
-- Ruby 3.4系 x64-mingw-ucrt
+- Ruby 3.4.11 x64-mingw-ucrt
 - Ruby同梱JSON 2.9系
 
 Ruby 4.0とJSON 3.0の組合せでは、現在の`JSON.parse`呼出しにある`create_additions:`が受理されない。
-将来はMIN0側をJSON 2.x／3.xの両方へ対応させる。それまでは上記のRuby 3.4環境を開発試験の基準にする。
+将来はMIN0側をJSON 2.x／3.xの両方へ対応させる。それまではRuby 3.4系を開発試験の基準とし、
+`0.1.4-rc.4`のWindows release gateではRuby 3.4.11を使用する。
 
 ## 1. 通常PowerShellを開く
 

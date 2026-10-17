@@ -43,7 +43,7 @@ Test-Path .\requirements.txt
 ## Requirements
 
 - Python 3.12 and `cryptography` 50.0.0, or
-- Ruby 4.0 with OpenSSL 3.x.
+- Ruby 3.4.x with OpenSSL 3.x. The current Windows release gate uses Ruby 3.4.11.
 
 For Python, confirm the interpreter and install the pinned dependency into your own virtual environment:
 
@@ -59,7 +59,9 @@ ruby --version
 ruby -ropenssl -e 'puts OpenSSL::OPENSSL_VERSION'
 ```
 
-The expected major versions are Ruby 4.0 and OpenSSL 3.x. The Ruby implementation uses libraries
+The supported release baseline is Ruby 3.4.x and OpenSSL 3.x; candidate `0.1.4-rc.4` is tested with
+Ruby 3.4.11 x64-mingw-ucrt. Ruby 4.0 with JSON 3.0 is not the release baseline because one persistent-
+metadata parsing option still requires a compatibility update. The Ruby implementation uses libraries
 included with the Ruby installation and does not require a separate `bundle install` or additional Gem
 installation for this release.
 

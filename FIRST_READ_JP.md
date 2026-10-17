@@ -87,8 +87,9 @@ Forkや改造版を歓迎します。変更した配布物には固有のbuild�
 
 公開済み評価用pre-release `v0.1.3-rc.1`、`v0.1.4-rc.1`、`v0.1.4-rc.2`には、互換性改善、
 ブラウザ学習環境、仮想アセンブラbackend、Mobile Monitorと入力制御が段階的に含まれます。
-次回候補`v0.1.4-rc.3`はSafe `VARIABLE`、検査付き`@`／`!`、Pause中の変数編集、`BREAK`を追加した
-公開前候補です。正式版かつ安全レビュー済みの推奨基準が必要な場合は`v0.1.2`を利用してください。
+次回候補`v0.1.4-rc.4`はSafe `VARIABLE`、検査付き`@`／`!`、Pause中の変数編集、`BREAK`に加え、
+Ruby 3.4.11をWindows試験基準として明記した公開前候補です。正式版かつ安全レビュー済みの推奨基準が
+必要な場合は`v0.1.2`を利用してください。
 
 ## 次回リリース候補を確認する場所
 
@@ -96,11 +97,11 @@ Forkや改造版を歓迎します。変更した配布物には固有のbuild�
 
 1. **実際に触る**：上記の[Mobile Learning](https://min0.github.io/min0-core-forth/viewer/mobile-forth.html)
    を開き、画面上部の`source build`を確認する。
-2. **公開前の合否を見る**：**[0.1.4-rc.3候補監査](docs/RELEASE_AUDIT_0.1.4_RC3_JP.md)**で
+2. **公開前の合否を見る**：**[0.1.4-rc.4候補監査](docs/RELEASE_AUDIT_0.1.4_RC4_JP.md)**で
    Gate A、Gate B、Gate Cのcheck欄を確認する。
-3. **変更内容を読む**：**[0.1.4-rc.3 release notes](docs/RELEASE_NOTES_0.1.4_RC3_JP.md)**を読む。
+3. **変更内容を読む**：**[0.1.4-rc.4 release notes](docs/RELEASE_NOTES_0.1.4_RC4_JP.md)**を読む。
 4. **公開後の配布物を取得する**：GitHubの
-   **[Releases](https://github.com/MIN0/min0-core-forth/releases)**で`v0.1.4-rc.3`を選び、
+   **[Releases](https://github.com/MIN0/min0-core-forth/releases)**で`v0.1.4-rc.4`を選び、
    ZIPと`SHA256SUMS.txt`を確認する。公開前は一覧に表示されない。
 5. **開発中の最新内容を見る**：公式repositoryの`main`を見る。ただし、`main`は公開releaseより先の
    実験を含む場合があり、固定版が必要な場合は必ずtagとrelease assetを使う。
