@@ -296,6 +296,12 @@ Abort後も命令履歴が残る理由が分かりにくかったため、命令
 `BREAK`を無視せず`BreakUnavailable`とし、停止要求の消失を防ぐ。Viewerへ例題「BREAKで明示停止」を
 追加し、自動試験後にPC目視確認を行う。
 
+PC目視確認では、例題`BREAKで明示停止`をRunし、端末へ`1`を表示した時点で`WATCH`内のtoken
+`BREAK`に一時停止することを確認した。Continue後は端末へ`2`を追加表示し、13 stepsで正常終了した。
+別のRunではBREAK停止後に「実行前へ復旧」を行い、実行前後stackがともに`<0>`へ戻ること、診断用の
+観察記録と既表示出力は意図どおり保持されることを確認した。これにより`BREAK`のPC実装・自動試験・
+PC画面確認を完了した。次はSafe VARIABLE、Pause中編集、`BREAK`をiPhone Safari評価版で確認する。
+
 ## Release方針
 
 - Phase Aを次の評価候補として先に完成させる。
@@ -305,5 +311,6 @@ Abort後も命令履歴が残る理由が分かりにくかったため、命令
 
 ## 次回の最初の作業
 
-Phase C入力制御のPC／iPhone評価は完了した。次は評価結果をrelease候補へどう収録するかを確認し、
-公開案内とrelease noteを更新する。公開済みrelease／tagは明示的な確定判断まで変更しない。
+Phase C入力制御のPC／iPhone評価は完了した。Safe VARIABLE、Pause中編集、`BREAK`はPC評価まで完了した。
+次はこれら3機能をiPhone Safari評価版へ反映して実画面確認する。公開案内とrelease noteへの収録は、
+iPhone確認後に判断する。公開済みrelease／tagは明示的な確定判断まで変更しない。
