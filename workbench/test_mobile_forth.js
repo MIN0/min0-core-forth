@@ -19,6 +19,37 @@ const metadataNames = WORD_METADATA.map(item => item.name);
 assert.equal(new Set(metadataNames).size, metadataNames.length, "word metadata names must be unique");
 Object.keys(new MobileForth().builtins()).forEach(name => assert.ok(metadataNames.includes(name), `metadata missing for ${name}`));
 
+const variableRead = run("VARIABLE SCORE SCORE @");
+assert.equal(variableRead.ok, true);
+assert.deepEqual(variableRead.finalDataStack, [0]);
+assert.ok(variableRead.wordCatalog.some(item => item.name === "SCORE" && item.type === "variable"));
+
+const variableWrite = run("VARIABLE SCORE 42 SCORE ! SCORE @");
+assert.equal(variableWrite.ok, true);
+assert.deepEqual(variableWrite.finalDataStack, [42]);
+
+const variableColon = run("VARIABLE SCORE : SET-SCORE 99 SCORE ! ; SET-SCORE SCORE @");
+assert.equal(variableColon.ok, true);
+assert.deepEqual(variableColon.finalDataStack, [99]);
+
+const invalidFetch = run("123 @");
+assert.equal(invalidFetch.ok, false);
+assert.equal(invalidFetch.error.name, "InvalidAddress");
+assert.deepEqual(invalidFetch.stoppedDataStack, [123], "@ must validate before consuming the address");
+assert.deepEqual(invalidFetch.recoveredDataStack, []);
+
+const invalidStore = run("7 123 !");
+assert.equal(invalidStore.ok, false);
+assert.equal(invalidStore.error.name, "InvalidAddress");
+assert.deepEqual(invalidStore.stoppedDataStack, [7, 123], "! must validate before consuming value and address");
+assert.deepEqual(invalidStore.recoveredDataStack, []);
+
+for (const source of ["VARIABLE @", "VARIABLE 123"]) {
+  const invalidVariableName = run(source);
+  assert.equal(invalidVariableName.ok, false, source);
+  assert.equal(invalidVariableName.error.name, "CompileError", source);
+}
+
 const inputVm = new MobileForth();
 inputVm.executeWord("KEY?");
 assert.deepEqual(inputVm.stackSnapshot(), [0]);

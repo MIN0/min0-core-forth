@@ -172,6 +172,9 @@
       let index = this.mainIndex + 2;
       while (index < this.tokens.length && this.tokens[index].value !== ";") { body.push(this.tokens[index]); index += 1; }
       if (index >= this.tokens.length) throw new CompileError(`definition ${name} is missing ;`);
+      const previousAddress = this.vm.variables.get(name);
+      if (previousAddress !== undefined) this.vm.variableMemory.delete(previousAddress);
+      this.vm.variables.delete(name);
       this.vm.dictionary.set(name, compileBody(body));
       this.vm.wordIds.set(name, this.vm.nextWordId);
       event.wordId = this.vm.nextWordId;
@@ -195,6 +198,20 @@
       this.mainIndex = index + 1;
     }
 
+    defineVariableAtMain(event) {
+      const sourceToken = this.tokens[this.mainIndex];
+      const nameToken = this.tokens[this.mainIndex + 1];
+      const name = nameToken && nameToken.value;
+      const address = this.vm.defineVariable(name, nameToken ? this.source.slice(sourceToken.start, nameToken.end) : "VARIABLE");
+      event.wordId = this.vm.wordIds.get(name);
+      event.token = `VARIABLE ${name}`;
+      event.word = name;
+      event.scope = "definition";
+      event.op = "DEFINE_VARIABLE";
+      event.address = address;
+      this.mainIndex += 2;
+    }
+
     dispatchWord(name, pendingEvent, recurseCode = null) {
       if (recurseCode) {
         const currentName = this.vm.returnStack[this.vm.returnStack.length - 1];
@@ -205,6 +222,7 @@
       this.vm.step();
       const builtin = this.vm.builtins()[name];
       if (builtin) { builtin(); return "completed"; }
+      if (this.vm.variables.has(name)) { this.vm.push(this.vm.variables.get(name)); return "completed"; }
       const code = this.vm.dictionary.get(name);
       if (!code) throw new UnknownWord(`unknown word ${name}`);
       this.enterDefinition(name, code, pendingEvent);
@@ -229,6 +247,7 @@
       let pending = false;
       try {
         if (token === ":") this.defineAtMain(event);
+        else if (token === "VARIABLE") this.defineVariableAtMain(event);
         else {
           this.mainIndex += 1;
           if (typeof token === "object" && token.kind === "PRINT") { this.vm.step(); this.vm.output += token.text; }

@@ -18,6 +18,7 @@ for (const source of [
   ": MAG DUP 0 < IF NEGATE ELSE 1+ THEN ; -5 MAG 4 MAG",
   ": SUM 0 SWAP 0 DO I + LOOP ; 5 SUM",
   ': HEX-DIGIT DUP 10 < IF 48 + ELSE 10 - 65 + THEN EMIT ; : HEX-PRT DUP 16 < IF HEX-DIGIT ELSE 16 /MOD RECURSE HEX-DIGIT THEN ; 255 HEX-PRT CR',
+  "VARIABLE SCORE : ADD-SCORE SCORE @ + SCORE ! ; 10 SCORE ! 5 ADD-SCORE SCORE @",
 ]) {
   const synchronous = new MobileForth().interpret(source);
   const session = finish(source);
@@ -25,6 +26,32 @@ for (const source of [
   assert.equal(session.vm.output, synchronous.terminal, source);
   assert.equal(session.vm.steps, synchronous.steps, source);
 }
+
+const safeVariable = finish("VARIABLE SCORE 42 SCORE ! SCORE @");
+assert.deepEqual(safeVariable.vm.stackSnapshot(), [42]);
+assert.equal(safeVariable.vm.variableMemory.get(safeVariable.vm.variables.get("SCORE")), 42);
+
+const invalidVariableAddress = new MobileForthSession("7 123 !");
+invalidVariableAddress.runUntilBlocked();
+assert.equal(invalidVariableAddress.state, STATES.FAILED);
+assert.equal(invalidVariableAddress.error.name, "InvalidAddress");
+assert.deepEqual(invalidVariableAddress.vm.stackSnapshot(), [7, 123]);
+invalidVariableAddress.requestAbort();
+assert.equal(invalidVariableAddress.state, STATES.ABORTED);
+assert.deepEqual(invalidVariableAddress.vm.stackSnapshot(), []);
+
+const abortedVariable = new MobileForthSession("VARIABLE SCORE 42 SCORE ! SCORE @");
+abortedVariable.advance();
+abortedVariable.advance();
+abortedVariable.advance();
+abortedVariable.advance();
+assert.equal(abortedVariable.vm.variableMemory.get(abortedVariable.vm.variables.get("SCORE")), 42);
+abortedVariable.requestAbort();
+abortedVariable.advance();
+assert.equal(abortedVariable.state, STATES.ABORTED);
+assert.equal(abortedVariable.vm.variables.size, 0);
+assert.equal(abortedVariable.vm.variableMemory.size, 0);
+assert.equal(abortedVariable.vm.nextVariableAddress, 0x10000000);
 
 const controlled = new MobileForthSession(": TWICE 1+ 1+ ; 10 TWICE 3 +");
 controlled.advance(); // definition

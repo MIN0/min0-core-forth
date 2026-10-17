@@ -11,6 +11,8 @@
   const DEFAULT_MAX_TRACE_EVENTS = 2000;
   const MAX_CALL_DEPTH = 64;
   const DEFAULT_MAX_INPUT_BYTES = 256;
+  const VARIABLE_ADDRESS_BASE = 0x10000000;
+  const MAX_VARIABLE_CELLS = 256;
 
   const cell = value => Number(value) >>> 0;
   const signed = value => Number(value) | 0;
@@ -47,6 +49,9 @@
     wordMeta("CR", "( -- )", "出力", "改行を出力します。"),
     wordMeta('."', "( -- )", "出力", "終端quoteまでの文字列を出力します。", "解釈・compile"),
     wordMeta("WORDS", "( -- )", "辞書", "利用可能なword名を表示します。"),
+    wordMeta("VARIABLE", "( \"name\" -- )", "安全な変数", "0で初期化した1 cell変数を登録します。名前は直後に記述します。", "解釈時"),
+    wordMeta("@", "( a -- x )", "安全な変数", "VARIABLEが発行した有効なアドレスから1 cellを読みます。"),
+    wordMeta("!", "( x a -- )", "安全な変数", "VARIABLEが発行した有効なアドレスへ1 cellを書きます。"),
     wordMeta("KEY?", "( -- flag )", "入力", "入力queueに1バイト以上あればtrueを返します。入力は消費しません。"),
     wordMeta("KEY", "( -- byte )", "入力", "入力queueの先頭UTF-8 byteを取り出します。空ならsession版は安全な入力待ちへ入ります。"),
     wordMeta("I", "( -- n )", "LOOP", "現在のLOOP indexを積みます。", "定義内"),
@@ -80,6 +85,8 @@
   class CallDepthExceeded extends ForthError {}
   class InputQueueOverflow extends ForthError {}
   class InputUnavailable extends ForthError {}
+  class InvalidAddress extends ForthError {}
+  class VariableSpaceExhausted extends ForthError {}
 
   function sourcePosition(source, target) {
     let line = 1;
@@ -218,6 +225,8 @@
         for (const leave of mark.leaves) code[leave].target = code.length;
       } else if (token === "RECURSE") {
         emit({ op: "RECURSE" });
+      } else if (token === "VARIABLE") {
+        throw new CompileError("VARIABLE is interpretation-only");
       } else if (["IF", "ELSE", "THEN", "BEGIN", "UNTIL", "AGAIN", "WHILE", "REPEAT", "DO", "?DO", "LOOP", "+LOOP", "LEAVE"].includes(token)) {
         throw new CompileError(`unsupported structure ${token}`);
       } else {
@@ -244,6 +253,9 @@
       this.output = "";
       this.steps = 0;
       this.dictionary = new Map();
+      this.variables = new Map();
+      this.variableMemory = new Map();
+      this.nextVariableAddress = VARIABLE_ADDRESS_BASE;
       this.wordIds = new Map();
       this.wordDefinitions = new Map();
       this.wordRuntime = new Map();
@@ -285,6 +297,9 @@
         returnStack: [...this.returnStack],
         loopStack: this.loopStack.map(frame => ({ ...frame })),
         dictionary: new Map(this.dictionary),
+        variables: new Map(this.variables),
+        variableMemory: new Map(this.variableMemory),
+        nextVariableAddress: this.nextVariableAddress,
         wordIds: new Map(this.wordIds),
         wordDefinitions: new Map([...this.wordDefinitions].map(([id, item]) => [id, { ...item }])),
         wordRuntime: new Map([...this.wordRuntime].map(([id, item]) => [id, { ...item, lastDataBefore: [...item.lastDataBefore], lastDataAfter: [...item.lastDataAfter] }])),
@@ -301,6 +316,9 @@
       this.returnStack = [...state.returnStack];
       this.loopStack = state.loopStack.map(frame => ({ ...frame }));
       this.dictionary = new Map(state.dictionary);
+      this.variables = new Map(state.variables);
+      this.variableMemory = new Map(state.variableMemory);
+      this.nextVariableAddress = state.nextVariableAddress;
       this.wordIds = new Map(state.wordIds);
       this.wordDefinitions = new Map([...state.wordDefinitions].map(([id, item]) => [id, { ...item }]));
       this.wordRuntime = new Map([...state.wordRuntime].map(([id, item]) => [id, { ...item, lastDataBefore: [...item.lastDataBefore], lastDataAfter: [...item.lastDataAfter] }]));
@@ -378,6 +396,7 @@
       this.step();
       const builtin = this.builtins()[name];
       if (builtin) { builtin(); return; }
+      if (this.variables.has(name)) { this.push(this.variables.get(name)); return; }
       const code = this.dictionary.get(name);
       if (!code) throw new UnknownWord(`unknown word ${name}`);
       this.executeDefinition(name, code);
@@ -394,6 +413,45 @@
       this.returnStack.push(name);
       this.callFrames.push(frame);
       try { this.runCode(code, frame); } finally { runtime.lastDataAfter = this.stackSnapshot(); this.callFrames.pop(); this.returnStack.pop(); }
+    }
+
+    defineVariable(name, source = `VARIABLE ${name}`) {
+      if (typeof name !== "string" || !name || [":", ";", "VARIABLE"].includes(name)) {
+        throw new CompileError("VARIABLE requires a word name");
+      }
+      if (parseNumber(name) !== null || WORD_METADATA.some(item => item.name === name)) {
+        throw new CompileError(`VARIABLE name ${name} is reserved or numeric`);
+      }
+      if ((this.nextVariableAddress - VARIABLE_ADDRESS_BASE) / 4 >= MAX_VARIABLE_CELLS) {
+        throw new VariableSpaceExhausted(`VARIABLE space is limited to ${MAX_VARIABLE_CELLS} cells`);
+      }
+      const previousAddress = this.variables.get(name);
+      if (previousAddress !== undefined) this.variableMemory.delete(previousAddress);
+      this.dictionary.delete(name);
+      const address = this.nextVariableAddress;
+      this.nextVariableAddress += 4;
+      this.variables.set(name, address);
+      this.variableMemory.set(address, 0);
+      this.wordIds.set(name, this.nextWordId);
+      this.wordDefinitions.set(this.nextWordId, {
+        id: this.nextWordId,
+        name,
+        type: "variable",
+        category: "安全な変数",
+        stackEffect: "( -- a )",
+        description: "安全な1 cell変数のアドレスを積みます。",
+        availability: "実行・定義内",
+        source,
+      });
+      this.nextWordId += 1;
+      return address;
+    }
+
+    requireVariableAddress(address, word) {
+      if (!this.variableMemory.has(address)) {
+        throw new InvalidAddress(`${word} rejected unregistered address 0x${cell(address).toString(16).padStart(8, "0")}`);
+      }
+      return address;
     }
 
     runCode(code, frame) {
@@ -481,7 +539,19 @@
         "I": () => { if (!this.loopStack.length) throw new StackUnderflow("I needs a loop frame"); this.push(this.loopStack[this.loopStack.length - 1].index); },
         "J": () => { if (this.loopStack.length < 2) throw new StackUnderflow("J needs two loop frames"); this.push(this.loopStack[this.loopStack.length - 2].index); },
         "UNLOOP": () => { if (!this.loopStack.length) throw new StackUnderflow("UNLOOP needs a loop frame"); this.loopStack.pop(); },
-        "WORDS": () => { this.output += [...WORD_METADATA.map(item => item.name), ...this.dictionary.keys()].sort().join(" "); },
+        "WORDS": () => { this.output += [...new Set([...WORD_METADATA.map(item => item.name), ...this.dictionary.keys(), ...this.variables.keys()])].sort().join(" "); },
+        "@": () => {
+          this.need(1, "@");
+          const address = this.requireVariableAddress(this.stack[this.stack.length - 1], "@");
+          this.stack[this.stack.length - 1] = this.variableMemory.get(address);
+        },
+        "!": () => {
+          this.need(2, "!");
+          const address = this.requireVariableAddress(this.stack[this.stack.length - 1], "!");
+          const value = this.stack[this.stack.length - 2];
+          this.variableMemory.set(address, value);
+          this.stack.splice(-2, 2);
+        },
         "KEY?": () => { this.push(this.inputQueue.length ? TRUE : 0); },
         "KEY": () => {
           if (!this.inputQueue.length) throw new InputUnavailable("KEY needs one queued input byte");
@@ -515,6 +585,9 @@
               index += 2;
               while (index < tokens.length && tokens[index].value !== ";") { body.push(tokens[index]); index += 1; }
               if (index >= tokens.length) throw new CompileError(`definition ${name} is missing ;`);
+              const previousAddress = this.variables.get(name);
+              if (previousAddress !== undefined) this.variableMemory.delete(previousAddress);
+              this.variables.delete(name);
               this.dictionary.set(name, compileBody(body));
               this.wordIds.set(name, this.nextWordId);
               event.wordId = this.nextWordId;
@@ -536,6 +609,17 @@
               event.token = `: ${name} ... ;`;
               event.word = name;
               event.scope = "definition";
+            } else if (token === "VARIABLE") {
+              const nameToken = tokens[index + 1];
+              const name = nameToken && nameToken.value;
+              const address = this.defineVariable(name, nameToken ? source.slice(sourceToken.start, nameToken.end) : "VARIABLE");
+              event.wordId = this.wordIds.get(name);
+              event.token = `VARIABLE ${name}`;
+              event.word = name;
+              event.scope = "definition";
+              event.op = "DEFINE_VARIABLE";
+              event.address = address;
+              index += 1;
             } else if (typeof token === "object" && token.kind === "PRINT") {
               this.step(); this.output += token.text;
             } else {
@@ -620,5 +704,5 @@
     }
   }
 
-  return { MobileForth, tokenize, tokenizeDetailed, parseNumber, compileBody, signed, cell, WORD_METADATA, MAX_SOURCE_BYTES, DEFAULT_MAX_TRACE_EVENTS, MAX_CALL_DEPTH, DEFAULT_MAX_INPUT_BYTES, errors: { ForthError, UnknownWord, StackUnderflow, DivisionByZero, DivisionOverflow, CompileError, StepLimitExceeded, CallDepthExceeded, InputQueueOverflow, InputUnavailable } };
+  return { MobileForth, tokenize, tokenizeDetailed, parseNumber, compileBody, signed, cell, WORD_METADATA, MAX_SOURCE_BYTES, DEFAULT_MAX_TRACE_EVENTS, MAX_CALL_DEPTH, DEFAULT_MAX_INPUT_BYTES, VARIABLE_ADDRESS_BASE, MAX_VARIABLE_CELLS, errors: { ForthError, UnknownWord, StackUnderflow, DivisionByZero, DivisionOverflow, CompileError, StepLimitExceeded, CallDepthExceeded, InputQueueOverflow, InputUnavailable, InvalidAddress, VariableSpaceExhausted } };
 });

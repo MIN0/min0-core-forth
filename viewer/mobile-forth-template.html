@@ -75,6 +75,7 @@
       <option value="recursiveHex">再帰で16進表示（RECURSE）</option>
       <option value="keyInput">実行中の入力（KEY）</option>
       <option value="twoKeyInput">2文字入力（Pause確認）</option>
+      <option value="safeVariable">安全な変数（VARIABLE @ !）</option>
     </select>
     <label for="source" style="margin-top:10px">FORTHソース（最大4096 UTF-8バイト）</label>
     <textarea id="source" spellcheck="false" autocapitalize="none" autocomplete="off" autocorrect="off">: SQUARE DUP * ;
@@ -151,10 +152,10 @@
     <p><code>DROP DUP SWAP OVER ROT 2DUP 2DROP DEPTH</code></p>
     <p><code>+ - * / MOD /MOD 1+ 1- NEGATE ABS</code></p>
     <p><code>= &lt; 0= AND OR XOR</code></p>
-    <p><code>. .S EMIT CR ." ..." WORDS KEY? KEY</code></p>
+    <p><code>. .S EMIT CR ." ..." WORDS VARIABLE @ ! KEY? KEY</code></p>
     <p><code>: name ... ; RECURSE IF ELSE THEN BEGIN UNTIL AGAIN WHILE REPEAT DO ?DO LOOP +LOOP LEAVE I J UNLOOP</code></p>
     <p><code>( stack effectや説明 )</code>をコメントとして使用できます。</p>
-    <p class="hint">32ビットcell、10進数と0x形式に対応します。メモリ語、CREATE/DOES&gt;、DEFER/IS、ファイル、通信は未対応です。無限ループは実行ステップ上限で停止します。</p>
+    <p class="hint">32ビットcell、10進数と0x形式に対応します。VARIABLE以外の汎用メモリ語、CREATE/DOES&gt;、DEFER/IS、ファイル、通信は未対応です。無限ループは実行ステップ上限で停止します。</p>
   </details>
 </main>
 
@@ -194,7 +195,8 @@
     output: '." HELLO FROM iPHONE" CR\n65 EMIT 66 EMIT 67 EMIT CR\n-7 3 /MOD .S',
     recursiveHex: ': HEX-DIGIT ( n -- )\n  DUP 10 < IF 48 + ELSE 10 - 65 + THEN EMIT\n;\n\n: HEX-PRT ( u -- )\n  DUP 16 < IF\n    HEX-DIGIT\n  ELSE\n    16 /MOD RECURSE HEX-DIGIT\n  THEN\n;\n\n255 HEX-PRT CR',
     keyInput: 'KEY DUP . CR EMIT CR',
-    twoKeyInput: 'KEY EMIT KEY EMIT CR'
+    twoKeyInput: 'KEY EMIT KEY EMIT CR',
+    safeVariable: 'VARIABLE SCORE\n42 SCORE !\nSCORE @ .S'
   };
   const formatStack = stack => `<${stack.length}>${stack.length ? " " + stack.join(" ") : ""}`;
   let lastResult = null;
