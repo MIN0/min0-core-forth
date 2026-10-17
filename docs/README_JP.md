@@ -26,6 +26,8 @@
 - [プロジェクトの由来](PROJECT_ORIGIN_JP.md)
 - [ライセンスと安全性](LICENSE_AND_SECURITY_JP.md)
 - [既知の制限](KNOWN_LIMITATIONS_0.1_JP.md)
+- [0.1.4-rc.2 Mobile Monitor・入力制御版ノート](RELEASE_NOTES_0.1.4_RC2_JP.md)
+- [0.1.4-rc.2候補監査](RELEASE_AUDIT_0.1.4_RC2_JP.md)
 - [0.1.4ローカル候補ノート](RELEASE_NOTES_0.1.4_JP.md)
 - [0.1.4ローカル候補監査](RELEASE_AUDIT_0.1.4_JP.md)
 - [0.1.3互換性改善版リリースノート](RELEASE_NOTES_0.1.3_JP.md)

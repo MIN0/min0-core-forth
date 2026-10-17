@@ -79,3 +79,8 @@ stack `<0>`へ安全復旧した。これら3項目を合格とする。Pause中
 改善後、PC画面で手順を再実行し、Pause確定後の`AB`送信、Pause維持、Continue、`AB`出力、5 steps正常終了、
 実行前後stack `<0>`、queue 0を確認した。容量超過、Stop、Abortを含むPhase C入力制御のPC画面確認を合格とする。
 
+同日、GitHub PagesをiPhone Safariで開き、単一`KEY`の`65`／`A`出力、Pause中の`AB`送信とContinue、
+容量超過の拒否と入力待ち維持、安全停止、実行前復旧、画面初期化を確認した。これにより入力queue R0の
+PC／iPhone実画面評価を合格とする。次段階は安全な`VARIABLE`、`@`、`!`であり、0.1.4-rc.2候補には
+含めない。
+

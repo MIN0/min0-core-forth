@@ -21,6 +21,8 @@
 - [Project origin](PROJECT_ORIGIN.md)
 - [License and security](LICENSE_AND_SECURITY.md)
 - [Known limitations](KNOWN_LIMITATIONS_0.1.md)
+- [0.1.4-rc.2 Mobile Monitor candidate notes](RELEASE_NOTES_0.1.4_RC2.md)
+- [0.1.4-rc.2 candidate audit](RELEASE_AUDIT_0.1.4_RC2.md)
 - [0.1.4 local-candidate notes](RELEASE_NOTES_0.1.4.md)
 - [0.1.4 local-candidate audit](RELEASE_AUDIT_0.1.4.md)
 - [0.1.3 compatibility release notes](RELEASE_NOTES_0.1.3.md)

@@ -50,7 +50,7 @@ Status: applies to releases `0.1.0` through `0.1.3` and the local `0.1.4` candid
 - The official repository is <https://github.com/MIN0/min0-core-forth>. Release tag `v0.1.0` identifies
   the first release; `v0.1.1` improves navigation and packaging; `v0.1.2` formally packages the
   bilingual entry paths, pocket word reference, and learning references; evaluation pre-release
-  `v0.1.3-rc.1` adds compatibility improvements; the unpublished `0.1.4-rc.1` candidate adds browser
-  learning environments and the virtual assembler/RP2350 audit pipeline.
+  `v0.1.3-rc.1` adds compatibility improvements; published `v0.1.4-rc.1` adds browser learning and
+  the virtual assembler/RP2350 audit pipeline; local `0.1.4-rc.2` adds Mobile Monitor and bounded input.
 - Forks and modified builds are welcome but should use a distinct build name or version suffix so users
   can distinguish them from the official release.

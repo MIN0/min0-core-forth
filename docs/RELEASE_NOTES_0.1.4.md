@@ -2,7 +2,7 @@
 
 [Read this page in Japanese](RELEASE_NOTES_0.1.4_JP.md)
 
-Candidate: `0.1.4-rc.1` (local and unpublished)
+Candidate: `0.1.4-rc.1` (published evaluation pre-release)
 
 This candidate integrates the published 0.1.3 compatibility work with browser learning, a portable
 virtual assembler, and the RP2350 code-generation and audit experiments.
