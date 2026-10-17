@@ -290,6 +290,12 @@ Abort後も命令履歴が残る理由が分かりにくかったため、命令
 ことを明示する。VM状態の復旧と診断記録の保持を画面上でも区別し、記録まで消す操作は「画面を初期化」
 へ限定する。
 
+次の小単位として`BREAK ( -- )`を実装した。制御可能なsessionでは`BREAK`自身の確定命令境界でpausedへ
+入り、停止snapshotは呼出しword、命令番号、source位置、token `BREAK`を保持する。Continueは直後から
+再開し、Step、Stop、Abortも通常のpaused状態と同じ規則を使う。Monitorを持たない同期reference実行では
+`BREAK`を無視せず`BreakUnavailable`とし、停止要求の消失を防ぐ。Viewerへ例題「BREAKで明示停止」を
+追加し、自動試験後にPC目視確認を行う。
+
 ## Release方針
 
 - Phase Aを次の評価候補として先に完成させる。

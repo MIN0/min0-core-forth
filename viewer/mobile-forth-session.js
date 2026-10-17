@@ -26,6 +26,7 @@
       this.failureSnapshot = null;
       this.preRollbackDiagnostics = null;
       this.variableEdits = [];
+      this.breakLocation = null;
       this.lastBoundary = null;
       this.control = new MonitorExecutionControl();
       if (new TextEncoder().encode(source).length > MAX_SOURCE_BYTES) throw new CompileError(`source exceeds ${MAX_SOURCE_BYTES} UTF-8 bytes`);
@@ -73,7 +74,7 @@
         returnStack: [...this.vm.returnStack],
         loopStack: this.vm.loopSnapshot(),
         output: this.vm.output,
-        location: this.location(),
+        location: this.breakLocation || this.location(),
         callFrames: this.frames.map(frame => ({
           type: "CALL_RETURN",
           word: frame.word,
@@ -95,8 +96,8 @@
     }
 
     requestPause() { return this.control.requestPause(); }
-    continueExecution() { return this.control.continueExecution(); }
-    step() { return this.control.step(); }
+    continueExecution() { this.breakLocation = null; return this.control.continueExecution(); }
+    step() { this.breakLocation = null; return this.control.step(); }
     requestStop() { return this.control.requestStop(); }
 
     requestAbort() {
@@ -109,6 +110,7 @@
       if (!this.preRollbackDiagnostics) this.preRollbackDiagnostics = this.buildDiagnostics();
       this.vm.restoreTransactionalState(this.initialState);
       this.variableEdits = [];
+      this.breakLocation = null;
       this.frames = [];
       this.mainIndex = 0;
       this.lastBoundary = this.snapshot("abort-rollback");
@@ -240,6 +242,20 @@
         return "entered";
       }
       this.vm.step();
+      if (name === "BREAK") {
+        this.breakLocation = {
+          word: pendingEvent.word,
+          wordId: pendingEvent.wordId,
+          invocationId: pendingEvent.invocationId,
+          callDepth: pendingEvent.callDepth,
+          instructionIndex: pendingEvent.instructionIndex,
+          sourceLine: pendingEvent.sourceLine,
+          sourceColumn: pendingEvent.sourceColumn,
+          token: "BREAK",
+        };
+        if (this.state === STATES.RUNNING) this.control.requestPause();
+        return "completed";
+      }
       const builtin = this.vm.builtins()[name];
       if (builtin) { builtin(); return "completed"; }
       if (this.vm.variables.has(name)) { this.vm.push(this.vm.variables.get(name)); return "completed"; }
@@ -360,7 +376,7 @@
         const outcome = frame ? this.executeColonInstruction(frame) : this.executeMainInstruction();
         if (outcome === "waiting-input") return this.control.status();
         this.settleCompletedFrames();
-        this.lastBoundary = this.snapshot("instruction-boundary");
+        this.lastBoundary = this.snapshot(this.breakLocation ? "break" : "instruction-boundary");
         const complete = this.isProgramComplete();
         if (complete && [STATES.RUNNING, STATES.STEPPING].includes(this.state)) this.control.complete(this.lastBoundary);
         else {

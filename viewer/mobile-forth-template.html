@@ -77,6 +77,7 @@
       <option value="keyInput">実行中の入力（KEY）</option>
       <option value="twoKeyInput">2文字入力（Pause確認）</option>
       <option value="safeVariable">安全な変数（VARIABLE @ !）</option>
+      <option value="monitorBreak">BREAKで明示停止</option>
     </select>
     <label for="source" style="margin-top:10px">FORTHソース（最大4096 UTF-8バイト）</label>
     <textarea id="source" spellcheck="false" autocapitalize="none" autocomplete="off" autocorrect="off">: SQUARE DUP * ;
@@ -159,7 +160,7 @@
     <p><code>DROP DUP SWAP OVER ROT 2DUP 2DROP DEPTH</code></p>
     <p><code>+ - * / MOD /MOD 1+ 1- NEGATE ABS</code></p>
     <p><code>= &lt; 0= AND OR XOR</code></p>
-    <p><code>. .S EMIT CR ." ..." WORDS VARIABLE @ ! KEY? KEY</code></p>
+    <p><code>. .S EMIT CR ." ..." WORDS VARIABLE @ ! KEY? KEY BREAK</code></p>
     <p><code>: name ... ; RECURSE IF ELSE THEN BEGIN UNTIL AGAIN WHILE REPEAT DO ?DO LOOP +LOOP LEAVE I J UNLOOP</code></p>
     <p><code>( stack effectや説明 )</code>をコメントとして使用できます。</p>
     <p class="hint">32ビットcell、10進数と0x形式に対応します。VARIABLE以外の汎用メモリ語、CREATE/DOES&gt;、DEFER/IS、ファイル、通信は未対応です。無限ループは実行ステップ上限で停止します。</p>
@@ -203,7 +204,8 @@
     recursiveHex: ': HEX-DIGIT ( n -- )\n  DUP 10 < IF 48 + ELSE 10 - 65 + THEN EMIT\n;\n\n: HEX-PRT ( u -- )\n  DUP 16 < IF\n    HEX-DIGIT\n  ELSE\n    16 /MOD RECURSE HEX-DIGIT\n  THEN\n;\n\n255 HEX-PRT CR',
     keyInput: 'KEY DUP . CR EMIT CR',
     twoKeyInput: 'KEY EMIT KEY EMIT CR',
-    safeVariable: 'VARIABLE SCORE\n42 SCORE !\nSCORE @ .S'
+    safeVariable: 'VARIABLE SCORE\n42 SCORE !\nSCORE @ .S',
+    monitorBreak: ': WATCH\n  1 . CR\n  BREAK\n  2 . CR\n;\nWATCH'
   };
   const formatStack = stack => `<${stack.length}>${stack.length ? " " + stack.join(" ") : ""}`;
   let lastResult = null;
@@ -437,7 +439,8 @@
     const finalLabels = { running: "直近の命令境界", "pause-requested": "直近の命令境界", paused: "一時停止時", stepping: "直近の命令境界", "waiting-input": "入力待ち時", "stop-requested": "直近の命令境界", stopped: "安全停止時", "abort-requested": "直近の命令境界", aborted: "安全復旧後", completed: "正常終了後", failed: "エラー停止時" };
     setText($("stack-final-label"), finalLabels[state] || "現在の確定状態");
     const notes = { paused: "確定した命令境界で一時停止しています。", "waiting-input": "KEYを進めず安全に待機しています。入力を送ると自動再開します。", stopped: "現在状態を保持して安全停止しました。", aborted: "stackと辞書を実行前へ復旧しました。表示済み出力は取り消しません。", failed: "失敗時snapshotを保持しています。確認後に実行前へ復旧できます。", completed: "正常終了しました。" };
-    setText($("recovery-note"), notes[state] || "実行中objectではなく、直近の確定snapshotを表示しています。");
+    const pauseNote = state === "paused" && snapshot.reason === "break" ? "BREAKの確定命令境界で一時停止しています。継続するとBREAK直後から再開します。" : notes[state];
+    setText($("recovery-note"), pauseNote || "実行中objectではなく、直近の確定snapshotを表示しています。");
     setText($("status"), `${stateLabels[state] || state} / ${snapshot.steps} steps`);
     $("status").className = state === "failed" ? "bad" : ["completed", "aborted", "stopped", "paused"].includes(state) ? "ok" : "";
     const location = snapshot.location || {};

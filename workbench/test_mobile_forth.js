@@ -50,6 +50,11 @@ for (const source of ["VARIABLE @", "VARIABLE 123"]) {
   assert.equal(invalidVariableName.error.name, "CompileError", source);
 }
 
+const synchronousBreak = run("1 BREAK 2");
+assert.equal(synchronousBreak.ok, false);
+assert.equal(synchronousBreak.error.name, "BreakUnavailable");
+assert.deepEqual(synchronousBreak.stoppedDataStack, [1]);
+
 const inputVm = new MobileForth();
 inputVm.executeWord("KEY?");
 assert.deepEqual(inputVm.stackSnapshot(), [0]);

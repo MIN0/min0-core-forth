@@ -69,6 +69,26 @@ pausedVariable.advance();
 assert.equal(pausedVariable.state, STATES.ABORTED);
 assert.equal(pausedVariable.vm.variables.size, 0);
 
+const explicitBreak = new MobileForthSession("VARIABLE SCORE : WATCH 1 SCORE ! BREAK 2 SCORE ! ; WATCH SCORE @");
+explicitBreak.runUntilBlocked();
+assert.equal(explicitBreak.state, STATES.PAUSED);
+assert.equal(explicitBreak.status().currentSnapshot.reason, "break");
+assert.equal(explicitBreak.status().currentSnapshot.location.word, "WATCH");
+assert.equal(explicitBreak.status().currentSnapshot.location.token, "BREAK");
+assert.equal(explicitBreak.vm.variableMemory.get(explicitBreak.vm.variables.get("SCORE")), 1);
+explicitBreak.continueExecution();
+explicitBreak.runUntilBlocked();
+assert.equal(explicitBreak.state, STATES.COMPLETED);
+assert.deepEqual(explicitBreak.vm.stackSnapshot(), [2]);
+
+const breakAbort = new MobileForthSession("VARIABLE SCORE : WATCH 7 SCORE ! BREAK ; WATCH");
+breakAbort.runUntilBlocked();
+assert.equal(breakAbort.state, STATES.PAUSED);
+breakAbort.requestAbort();
+assert.equal(breakAbort.state, STATES.ABORTED);
+assert.equal(breakAbort.vm.variables.size, 0);
+assert.equal(breakAbort.status().currentSnapshot.reason, "abort-rollback");
+
 const controlled = new MobileForthSession(": TWICE 1+ 1+ ; 10 TWICE 3 +");
 controlled.advance(); // definition
 controlled.advance(); // literal 10

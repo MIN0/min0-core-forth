@@ -52,6 +52,7 @@
     wordMeta("VARIABLE", "( \"name\" -- )", "安全な変数", "0で初期化した1 cell変数を登録します。名前は直後に記述します。", "解釈時"),
     wordMeta("@", "( a -- x )", "安全な変数", "VARIABLEが発行した有効なアドレスから1 cellを読みます。"),
     wordMeta("!", "( x a -- )", "安全な変数", "VARIABLEが発行した有効なアドレスへ1 cellを書きます。"),
+    wordMeta("BREAK", "( -- )", "Monitor", "制御可能なsessionを確定命令境界で一時停止します。", "実行・定義内（Monitor session）"),
     wordMeta("KEY?", "( -- flag )", "入力", "入力queueに1バイト以上あればtrueを返します。入力は消費しません。"),
     wordMeta("KEY", "( -- byte )", "入力", "入力queueの先頭UTF-8 byteを取り出します。空ならsession版は安全な入力待ちへ入ります。"),
     wordMeta("I", "( -- n )", "LOOP", "現在のLOOP indexを積みます。", "定義内"),
@@ -87,6 +88,7 @@
   class InputUnavailable extends ForthError {}
   class InvalidAddress extends ForthError {}
   class VariableSpaceExhausted extends ForthError {}
+  class BreakUnavailable extends ForthError {}
 
   function sourcePosition(source, target) {
     let line = 1;
@@ -559,6 +561,7 @@
           this.variableMemory.set(address, value);
           this.stack.splice(-2, 2);
         },
+        "BREAK": () => { throw new BreakUnavailable("BREAK requires a controllable Monitor session"); },
         "KEY?": () => { this.push(this.inputQueue.length ? TRUE : 0); },
         "KEY": () => {
           if (!this.inputQueue.length) throw new InputUnavailable("KEY needs one queued input byte");
@@ -711,5 +714,5 @@
     }
   }
 
-  return { MobileForth, tokenize, tokenizeDetailed, parseNumber, compileBody, signed, cell, WORD_METADATA, MAX_SOURCE_BYTES, DEFAULT_MAX_TRACE_EVENTS, MAX_CALL_DEPTH, DEFAULT_MAX_INPUT_BYTES, VARIABLE_ADDRESS_BASE, MAX_VARIABLE_CELLS, errors: { ForthError, UnknownWord, StackUnderflow, DivisionByZero, DivisionOverflow, CompileError, StepLimitExceeded, CallDepthExceeded, InputQueueOverflow, InputUnavailable, InvalidAddress, VariableSpaceExhausted } };
+  return { MobileForth, tokenize, tokenizeDetailed, parseNumber, compileBody, signed, cell, WORD_METADATA, MAX_SOURCE_BYTES, DEFAULT_MAX_TRACE_EVENTS, MAX_CALL_DEPTH, DEFAULT_MAX_INPUT_BYTES, VARIABLE_ADDRESS_BASE, MAX_VARIABLE_CELLS, errors: { ForthError, UnknownWord, StackUnderflow, DivisionByZero, DivisionOverflow, CompileError, StepLimitExceeded, CallDepthExceeded, InputQueueOverflow, InputUnavailable, InvalidAddress, VariableSpaceExhausted, BreakUnavailable } };
 });
