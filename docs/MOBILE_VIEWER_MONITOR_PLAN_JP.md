@@ -274,6 +274,11 @@ PC／iPhone実画面評価を合格とする。
 アドレスを検査し、任意の数値や失効したアドレスなら`InvalidAddress`で停止する。Abortは変数値だけでなく、
 変数辞書と次の割当位置も実行前snapshotへ戻す。停止中の変数編集UIは次の小単位として残す。
 
+PC Viewerの目視試験では、正常な`VARIABLE SCORE`／`42 SCORE !`／`SCORE @`を確認した。さらに
+`123 @`が`InvalidAddress`で停止し、停止時stack `<1> 123`を保持すること、「実行前へ復旧」後に
+stack `<0>`へ戻ることを確認した。これによりSafe VARIABLE第1小単位のPC実装・自動試験・画面確認を
+完了した。次はPause確定中の変数一覧・参照・変更を、Abortで戻せるMonitor操作として追加する。
+
 ## Release方針
 
 - Phase Aを次の評価候補として先に完成させる。
