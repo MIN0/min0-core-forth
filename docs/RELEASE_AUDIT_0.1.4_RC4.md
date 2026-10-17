@@ -4,7 +4,7 @@
 
 Candidate: `0.1.4-rc.4`
 
-Status: Gate A is in progress after correcting the Windows Ruby baseline. The Ruby-inclusive run in the user's normal PowerShell remains.
+Status: The Ruby 3.4.11 full run passed. Gate A awaits recording the installed JSON and OpenSSL versions.
 
 ## Candidate delta
 
@@ -16,8 +16,9 @@ Status: Gate A is in progress after correcting the Windows Ruby baseline. The Ru
 
 ## Gate A - before publication
 
-- [ ] Record Ruby, JSON, and OpenSSL versions from the user's normal PowerShell.
-- [ ] Run `python tools\run_all_checks.py` and obtain `ALL CHECKS PASSED` with Ruby 3.4.11.
+- [x] Confirm Ruby 3.4.11 x64-mingw-ucrt in the user's normal PowerShell.
+- [ ] Record JSON and OpenSSL versions from the user's normal PowerShell.
+- [x] Run `python tools\run_all_checks.py` with Ruby 3.4.11: `ALL CHECKS PASSED` (1 Python suite, 50 Ruby files, 51 cross-language checks).
 - [x] Complete the release allowlist audit: 500 selected files, zero issues.
 - [x] Pass focused documentation and release-tool tests: 14/14.
 - [x] Produce byte-identical ZIP files in two independent directories (record the final value in the external `SHA256SUMS.txt`).
